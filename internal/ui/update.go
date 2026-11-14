@@ -201,9 +201,9 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		m.panelScroll += page
 	case "pgdown":
 		m.panelScroll = max(0, m.panelScroll-page)
-	case "alt+up", "alt+down": // group to group
+	case "alt+up", "alt+down", "ctrl+up", "ctrl+down", "[", "]": // group to group (Tilix takes alt+↑/↓)
 		d := 1
-		if k.String() == "alt+up" {
+		if s := k.String(); s == "alt+up" || s == "ctrl+up" || s == "[" {
 			d = -1
 		}
 		for i := m.cursor + d; i >= 0 && i < len(m.rows); i += d {

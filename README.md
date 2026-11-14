@@ -108,7 +108,7 @@ so a second `enter` attaches to it.
 |---|---|
 | `enter` | attach to the session (`←` inside it comes back) |
 | `tab` | tree ⇄ inbox |
-| `alt+↑` / `alt+↓` | previous / next group (also while typing) |
+| `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's history back / forward |
 | `b` | jump to the next agent waiting for you |
 | `y` / `Y` | copy the suggested reply / the session id |

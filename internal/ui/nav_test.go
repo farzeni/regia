@@ -59,10 +59,19 @@ func TestGroupJumps(t *testing.T) {
 	if m.cursor != groups[0] {
 		t.Fatalf("alt+up: cursor %d, want %d", m.cursor, groups[0])
 	}
+	m.Update(tkey("]"))
+	m.Update(tkey("["))
+	if m.cursor != groups[0] {
+		t.Fatalf("] then [: cursor %d, want %d", m.cursor, groups[0])
+	}
 	m.Update(tkey("i")) // works while typing too
-	m.Update(tkey("alt+down"))
+	m.Update(tkey("ctrl+down"))
 	if m.cursor != groups[1] || !m.typing {
-		t.Fatalf("alt+down while typing: cursor %d typing %v", m.cursor, m.typing)
+		t.Fatalf("ctrl+down while typing: cursor %d typing %v", m.cursor, m.typing)
+	}
+	m.Update(tkey("ctrl+up"))
+	if m.cursor != groups[0] || m.draft() != "" {
+		t.Fatalf("ctrl+up while typing: cursor %d draft %q", m.cursor, m.draft())
 	}
 }
 

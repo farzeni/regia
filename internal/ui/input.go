@@ -218,7 +218,7 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 		if !multi { // one line: arrows move the list; several: move in the text
 			return m.updateNormal(k)
 		}
-	case "pgup", "pgdown", "tab", "shift+up", "shift+down", "alt+up", "alt+down":
+	case "pgup", "pgdown", "tab", "shift+up", "shift+down", "alt+up", "alt+down", "ctrl+up", "ctrl+down":
 		return m.updateNormal(k)
 	case "left", "right", "home", "end", "ctrl+d":
 		if empty { // nothing to edit: fold / top / bottom / half page

@@ -18,7 +18,7 @@ var helpSections = []helpSection{
 		{"type + enter", "start agent by the selection"},
 		{"alt+⏎  ctrl+j", "new line (or \\ then ⏎)"},
 		{"paste", "long: [Pasted text #n]"},
-		{"↑/↓  alt+↑/↓", "select (= where it goes)"},
+		{"↑/↓  ctrl+↑/↓", "select (= where it goes)"},
 		{"enter (empty)", "attach (← comes back)"},
 		{"esc", "clear · command keys · quit"},
 		{"alt+⌫ ctrl+w", "delete word (alt+d: next)"},
@@ -28,7 +28,7 @@ var helpSections = []helpSection{
 	}},
 	{"navigate", [][2]string{
 		{"j/k ↑/↓", "move"},
-		{"alt+↑ / alt+↓", "previous / next group"},
+		{"[ ]  ctrl+↑/↓", "previous / next group"},
 		{"g G  ctrl+d/u", "top, bottom / half page"},
 		{"pgup / pgdn", "scroll the panel's history"},
 		{"b", "next agent waiting for you"},
