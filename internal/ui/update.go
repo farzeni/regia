@@ -282,10 +282,10 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		m.filterBefore = m.opts.Filter
 		m.prompt("/", m.opts.Filter, func(m *model, s string) tea.Cmd { m.opts.Filter = s; m.rebuild(); return nil })
 	case "esc": // clear what's active (filter, a move); with nothing to clear, quit
-		if m.opts.Filter == "" && m.cut == "" {
+		if m.opts.Filter == "" && m.cut == nil {
 			return tea.Quit
 		}
-		m.opts.Filter, m.cut = "", ""
+		m.opts.Filter, m.cut = "", nil
 		m.rebuild()
 	case "R":
 		m.fetching = true
@@ -402,23 +402,11 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		}
 	case "m":
 		if r != nil && m.view == viewTree {
-			m.cut = r.ID
-			m.flash("moving %q — p: put below cursor, P: put inside cursor, esc: cancel", r.Title)
+			m.pickUp([]string{r.ID}, fmt.Sprintf("%q", r.Title))
 		}
 	case "p", "P":
-		if r != nil && m.cut != "" && m.view == viewTree {
-			var err error
-			if k.String() == "P" {
-				err = m.layout.Reparent(m.cut, r.ID, "", m.agents)
-			} else {
-				err = m.layout.Reparent(m.cut, m.layout.Parent[r.ID], r.ID, m.agents)
-			}
-			if err != nil {
-				m.flash("%v", err)
-			} else {
-				m.cursorID, m.cut = m.cut, ""
-				m.saveLayout()
-			}
+		if r != nil && m.cut != nil && m.view == viewTree {
+			m.putDown(r, k.String() == "P")
 		}
 	case "n":
 		near := ""

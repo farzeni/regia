@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -276,7 +277,7 @@ func (m *model) renderRow(r layout.Row, w int) string {
 		g, c := m.agentGlyph(a)
 		age := ago(waitedSince(a))
 		cutMark := ""
-		if r.ID == m.cut {
+		if slices.Contains(m.cut, r.ID) {
 			cutMark = "✂ "
 		}
 		extra := ""

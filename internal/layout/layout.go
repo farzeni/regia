@@ -409,6 +409,88 @@ func (l *Layout) Reparent(id, newParent, after string, agents map[string]*claude
 	return nil
 }
 
+// EffParent is id's parent as shown (the nearest ancestor still listed).
+func (l *Layout) EffParent(id string, agents map[string]*claude.Agent) string {
+	return l.effParent(id, agents)
+}
+
+// Put moves ids, in this order, under parent right after `after` ("": at the
+// top), and pins them there. Nodes under a moved node go with it.
+func (l *Layout) Put(ids []string, parent, after string, agents map[string]*claude.Agent) error {
+	moving := map[string]bool{}
+	for _, id := range ids {
+		if id == parent || (parent != "" && l.IsDescendant(parent, id)) {
+			return fmt.Errorf("can't move a node inside itself")
+		}
+		if id == after {
+			return fmt.Errorf("can't put a node next to itself")
+		}
+		moving[id] = true
+	}
+	for _, id := range ids {
+		old := l.Parent[id]
+		if old != parent {
+			l.materialize(old, agents)
+			l.Order[old] = remove(l.Order[old], id)
+		}
+	}
+	var sib []string
+	for _, id := range l.materialize(parent, agents) {
+		if !moving[id] {
+			sib = append(sib, id)
+		}
+	}
+	i := 0
+	if after != "" {
+		i = indexOf(sib, after) + 1 // not there: at the top
+	}
+	out := append(append(append([]string{}, sib[:i]...), ids...), sib[i:]...)
+	l.Order[parent] = out
+	for _, id := range ids {
+		l.Parent[id] = parent
+		l.Pinned[id] = true
+	}
+	delete(l.Collapsed, parent)
+	return nil
+}
+
+// Topmost drops the ids that sit under another id of the list: they move
+// with it.
+func (l *Layout) Topmost(ids []string) []string {
+	in := map[string]bool{}
+	for _, id := range ids {
+		in[id] = true
+	}
+	var out []string
+	for _, id := range ids {
+		top := true
+		for p, n := l.Parent[id], 0; p != "" && n < 64; p, n = l.Parent[p], n+1 {
+			if in[p] {
+				top = false
+				break
+			}
+		}
+		if top {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// GroupOf makes a new group where the first of ids is and moves ids into it.
+func (l *Layout) GroupOf(title string, ids []string, agents map[string]*claude.Agent) (string, error) {
+	ids = l.Topmost(ids)
+	if len(ids) == 0 {
+		return "", fmt.Errorf("nothing to group")
+	}
+	gid := l.NewGroup(title, ids[0], agents)
+	if err := l.Put(ids, gid, "", agents); err != nil {
+		l.DeleteGroup(gid, agents)
+		return "", err
+	}
+	return gid, nil
+}
+
 // Indent makes id a child of its previous visible sibling (coordinator).
 func (l *Layout) Indent(id string, agents map[string]*claude.Agent, visible map[string]bool) error {
 	sib := l.materialize(l.Parent[id], agents)
@@ -433,7 +515,7 @@ func (l *Layout) NewGroup(title, near string, agents map[string]*claude.Agent) s
 	l.Groups[gid] = title
 	parent := ""
 	if near != "" {
-		parent = l.Parent[near]
+		parent = l.effParent(near, agents)
 	}
 	l.materialize(parent, agents)
 	l.Parent[gid] = parent

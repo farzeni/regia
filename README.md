@@ -136,7 +136,7 @@ so a second `enter` attaches to it.
 | `x` | remove from the list (`claude rm`: worktree deleted if safe, conversation kept; refuses over unpushed commits) |
 | `J` / `K` | move down / up among siblings |
 | `>` / `<` | nest under the agent above (it becomes the coordinator) / un-nest |
-| `m`, then `p` / `P` | move: put below / inside the target |
+| `m`, then `p` / `P` | move: `p` puts it into the group under the cursor (at the top), or right after the agent; `P` puts it after the group, or under the agent (as its coordinator) |
 | `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up) |
 | `←` `→` `space` | fold / unfold |
 | `z` | fold everything / unfold everything |
@@ -145,7 +145,7 @@ so a second `enter` attaches to it.
 | `a` | show finished sessions |
 | `e` | archive the agent, or everything in a group except busy agents (asks first); on an archived agent, bring it back |
 | `A` | show / hide archived agents (dim) |
-| `v` | select mode: `space` marks a row (a group: all of it), `*` marks everything, then `e` archives or `x` removes them all; `esc` leaves |
+| `v` | select mode: `space` marks a row (a group: all of it), `*` marks everything, then `e` archives or `x` removes them all, `m` picks them all up to move (`p` puts them down), `n` makes a new group of them; `esc` leaves |
 | `?` | help |
 
 The mouse works too: the wheel scrolls the list or the panel (whichever is

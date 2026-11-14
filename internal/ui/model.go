@@ -54,7 +54,7 @@ type model struct {
 	confirmDo    func(m *model) tea.Cmd
 	filterBefore string
 
-	cut string
+	cut []string // nodes picked up with m, put with p / P
 
 	selectID string // just started: select it as soon as it's listed
 

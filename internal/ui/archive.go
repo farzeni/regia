@@ -137,6 +137,12 @@ func (m *model) updateSelect(k tea.KeyMsg) (tea.Cmd, bool) {
 		return nil, true
 	case "e":
 		return m.archiveMarked(), true
+	case "m":
+		m.moveMarked()
+		return nil, true
+	case "n":
+		m.groupMarked()
+		return nil, true
 	case "x":
 		return m.removeMarked(), true
 	}
