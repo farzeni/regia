@@ -143,7 +143,7 @@ func (m *model) View() string {
 
 	var right []string
 	if dw > 20 {
-		right = m.detailLines(dw)
+		right = m.placePanel(m.detailLines(dw), bh)
 	}
 	margin := strings.Repeat(" ", padX)
 	sep := strings.Repeat(" ", gap/2) + stDim.Render("│") + strings.Repeat(" ", gap-gap/2-1)
@@ -278,10 +278,56 @@ func wrap(s string, w int) []string {
 	return strings.Split(lipgloss.NewStyle().Width(w).Render(s), "\n")
 }
 
-func (m *model) detailLines(w int) []string {
+// panel is what the right side shows: for an agent, a history that scrolls
+// above a card pinned at the bottom (bottomUp); for a group, plain lines.
+type panel struct {
+	hist, card []string
+	bottomUp   bool
+}
+
+func (p panel) lines() []string { return append(append([]string{}, p.hist...), p.card...) }
+
+// placePanel fits the panel into h rows. Bottom-up panels stick to the
+// bottom; the history scrolls by panelScroll lines (pgup/pgdn), which goes
+// back to 0 when another row is selected.
+func (m *model) placePanel(p panel, h int) []string {
+	if !p.bottomUp {
+		return p.card[:min(h, len(p.card))]
+	}
+	if m.panelFor != m.cursorID {
+		m.panelFor, m.panelScroll = m.cursorID, 0
+	}
+	card := p.card
+	if len(p.hist) > 0 {
+		card = append([]string{""}, card...)
+	}
+	if len(card) > h { // keep the state line, the bottom one
+		card = card[len(card)-h:]
+	}
+	room := h - len(card)
+	m.panelScroll = max(0, min(m.panelScroll, len(p.hist)-room))
+	end := len(p.hist) - m.panelScroll
+	start := max(0, end-room)
+	view := append([]string{}, p.hist[start:end]...)
+	if room > 2 {
+		if start > 0 {
+			view[0] = stDim.Render(fmt.Sprintf("↑ %d earlier · pgup", start))
+		}
+		if m.panelScroll > 0 {
+			view[len(view)-1] = stDim.Render(fmt.Sprintf("↓ %d newer · pgdn", m.panelScroll))
+		}
+	}
+	out := make([]string, 0, h)
+	for len(out)+len(view) < room {
+		out = append(out, "")
+	}
+	return append(append(out, view...), card...)
+}
+
+func (m *model) detailLines(w int) panel {
 	r := m.selected()
 	if r == nil {
-		return nil
+		return panel{}
 	}
 	var out []string
 	sec := func(t string) { out = append(out, "", stHead.Render(t)) }
@@ -298,7 +344,8 @@ func (m *model) detailLines(w int) []string {
 		if n == 0 {
 			out = append(out, stDim.Render("nothing"))
 		}
-		return out
+		return panel{card: out}
 	}
-	return m.agentDetail(r, w)
+	hist, card := m.agentDetail(r, w)
+	return panel{hist: hist, card: card, bottomUp: true}
 }

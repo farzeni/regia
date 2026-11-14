@@ -57,6 +57,9 @@ type model struct {
 
 	selectID string // just started: select it as soon as it's listed
 
+	panelScroll int    // lines the panel's history is scrolled back (pgup/pgdn)
+	panelFor    string // the row panelScroll belongs to
+
 	// the always-on input at the bottom: typing goes there, command keys
 	// (j/k, J/K, s, y…) work after esc
 	typing      bool
@@ -96,7 +99,7 @@ type stoppedMsg struct {
 }
 
 func newModel() *model {
-	m := &model{agents: map[string]*claude.Agent{}, layout: layout.Load(), typing: true, ta: newDraftInput()}
+	m := &model{agents: map[string]*claude.Agent{}, layout: layout.Load(), ta: newDraftInput()} // focus on the list; i types
 	if b := claude.CachedAgents(); b != nil {
 		m.setAgents(b)
 	}
@@ -224,6 +227,7 @@ func (m *model) moveCursor(d int) {
 	m.cursorID = m.rows[m.cursor].ID
 	m.draftInside = false
 	m.selectID = "" // you moved: don't jump to a just-started agent later
+	m.panelScroll = 0
 	if m.logsFor != m.cursorID {
 		m.logs, m.logsFor = "", ""
 	}
@@ -251,4 +255,35 @@ func (m *model) prompt(p, initial string, do func(m *model, s string) tea.Cmd) {
 
 func (m *model) confirm(msg string, do func(m *model) tea.Cmd) {
 	m.mode, m.confirmMsg, m.confirmDo = modeConfirm, msg, do
+}
+
+// foldAll folds every group and coordinator, keeping the selection on its
+// top-level ancestor; when everything on screen is already folded, it
+// unfolds them all instead.
+func (m *model) foldAll() {
+	open := false
+	for _, r := range m.rows {
+		if (r.HasKids || r.Group) && !r.Collapsed {
+			open = true
+			break
+		}
+	}
+	if !open {
+		m.layout.Collapsed = map[string]bool{}
+		m.flash("unfolded all")
+	} else {
+		for p, kids := range m.layout.Order {
+			if p != "" && len(kids) > 0 {
+				m.layout.Collapsed[p] = true
+			}
+		}
+		for id := range m.layout.Groups {
+			m.layout.Collapsed[id] = true
+		}
+		for m.layout.Parent[m.cursorID] != "" {
+			m.cursorID = m.layout.Parent[m.cursorID]
+		}
+		m.flash("folded all · z unfolds")
+	}
+	m.saveLayout()
 }

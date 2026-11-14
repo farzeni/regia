@@ -12,15 +12,16 @@ import (
 	"github.com/farzeni/regia/internal/layout"
 )
 
-// agentDetail renders the right panel for one agent: a status card that says
-// where it is, then the history grouped by your messages (newest first).
-func (m *model) agentDetail(r *layout.Row, w int) []string {
+// agentDetail renders the right panel for one agent, read bottom-up like a
+// chat: the history (oldest to newest, grouped by your messages) scrolls above
+// a card pinned at the bottom whose last line is the agent's state, right
+// above the input. Reading up from there: state, what it asks, context, past.
+func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string) {
 	a := r.Agent
 	var h claude.History
 	if m.histFor == r.ID {
 		h = m.hist
 	}
-	var out []string
 	g, c := glyph(a)
 	col := lipgloss.NewStyle().Foreground(c)
 
@@ -40,7 +41,7 @@ func (m *model) agentDetail(r *layout.Row, w int) []string {
 		since = h.Status.At // waiting since it last reported, not since the file changed
 	}
 	state := g + " " + label + " · " + ago(since)
-	out = append(out, col.Bold(true).Render(state)+"   "+stBold.Render(trunc(r.Title, w-lipgloss.Width(state)-3)))
+	head := col.Bold(true).Render(state) + "   " + stBold.Render(trunc(r.Title, w-lipgloss.Width(state)-3))
 	meta := tildify(a.Cwd)
 	if gi, ok := gitinfo.Cached(a.Cwd); a.Branch != "" && !(ok && gi.OK) {
 		meta += " ⎇ " + a.Branch
@@ -51,38 +52,10 @@ func (m *model) agentDetail(r *layout.Row, w int) []string {
 	if !a.Interactive {
 		meta += " · " + a.ID
 	}
-	out = append(out, stDim.Render(trunc(meta, w)))
-	out = append(out, "")
-
-	// ── the ask: what it needs from you (or what it's doing), in a barred block
-	bar := func(c lipgloss.TerminalColor, lines []string) {
-		b := lipgloss.NewStyle().Foreground(c).Render("┃ ")
-		for _, l := range lines {
-			out = append(out, b+l)
-		}
-	}
-	plain := lipgloss.NewStyle()
-	switch {
-	case a.State == "blocked" && a.Needs != "":
-		ls := needsLines(a.Needs, w-2)
-		if a.Suggested != "" {
-			ls = append(ls, "")
-			for i, l := range clip(wrap("› "+a.Suggested, max(10, w-2-12)), 2, w-2-12) {
-				l = lipgloss.NewStyle().Foreground(cAccent).Render(strings.TrimRight(l, " "))
-				if i == 0 {
-					l += stDim.Render("   y copies")
-				}
-				ls = append(ls, l)
-			}
-		}
-		bar(cBlocked, ls)
-		out = append(out, "")
-	case a.State == "busy" && a.Detail != "":
-		bar(cBusy, clip(wrap(a.Detail, max(10, w-2)), 3, w-2))
-		out = append(out, "")
-	}
+	meta = stDim.Render(trunc(meta, w))
 
 	// ── context: one compact line each, dim labels
+	var out []string
 	const lw = 8
 	field := func(name, text string, st lipgloss.Style, maxLines int) {
 		text = strings.TrimSpace(text)
@@ -97,6 +70,7 @@ func (m *model) agentDetail(r *layout.Row, w int) []string {
 			out = append(out, lab+st.Render(l))
 		}
 	}
+	plain := lipgloss.NewStyle()
 	field("task", taskTitle(h.Task), plain, 1)
 	if h.Status != nil {
 		label := "status"
@@ -122,20 +96,47 @@ func (m *model) agentDetail(r *layout.Row, w int) []string {
 		field("links", strings.Join(ids, "  ")+"   "+a.PRs[len(a.PRs)-1].Href, stDim, 1)
 	}
 
+	// ── the ask: what it needs from you (or what it's doing), in a barred block
+	bar := func(c lipgloss.TerminalColor, lines []string) {
+		b := lipgloss.NewStyle().Foreground(c).Render("┃ ")
+		for _, l := range lines {
+			out = append(out, b+l)
+		}
+	}
+	switch {
+	case a.State == "blocked" && a.Needs != "":
+		ls := needsLines(a.Needs, w-2)
+		if a.Suggested != "" {
+			ls = append(ls, "")
+			for i, l := range clip(wrap("› "+a.Suggested, max(10, w-2-12)), 2, w-2-12) {
+				l = lipgloss.NewStyle().Foreground(cAccent).Render(strings.TrimRight(l, " "))
+				if i == 0 {
+					l += stDim.Render("   y copies")
+				}
+				ls = append(ls, l)
+			}
+		}
+		out = append(out, "")
+		bar(cBlocked, ls)
+	case a.State == "busy" && a.Detail != "":
+		out = append(out, "")
+		bar(cBusy, clip(wrap(a.Detail, max(10, w-2)), 3, w-2))
+	}
+	card = append(out, "", meta, head)
+
 	// ── terminal output (o) replaces the history
 	if m.logsFor == r.ID && m.logs != "" {
-		out = append(out, "", stHead.Render("terminal  (o)"))
-		ls := strings.Split(strings.TrimRight(m.logs, "\n"), "\n")
-		for _, l := range ls[max(0, len(ls)-25):] {
-			out = append(out, trunc(l, w))
+		hist = append(hist, stHead.Render("terminal  (o)"))
+		for _, l := range strings.Split(strings.TrimRight(m.logs, "\n"), "\n") {
+			hist = append(hist, trunc(l, w))
 		}
-		return out
+		return hist, card
 	}
 
-	// ── history: turns newest first, day separators
-	limit := m.bodyHeight()
+	// ── history: oldest to newest (the newest right above the card), day separators
+	out = nil
 	lastDay := ""
-	for i := len(h.Turns) - 1; i >= 0 && len(out) < limit; i-- {
+	for i := max(0, len(h.Turns)-maxTurns); i < len(h.Turns); i++ {
 		t := h.Turns[i]
 		start := t.LastAt
 		if t.User != nil {
@@ -145,7 +146,10 @@ func (m *model) agentDetail(r *layout.Row, w int) []string {
 		}
 		if d := dayLabel(start); d != lastDay {
 			lastDay = d
-			out = append(out, "", stDim.Render(trunc("── "+d+" "+strings.Repeat("─", w), w)))
+			if len(out) > 0 {
+				out = append(out, "")
+			}
+			out = append(out, stDim.Render(trunc("── "+d+" "+strings.Repeat("─", w), w)))
 		}
 		if t.User != nil {
 			pre := lipgloss.NewStyle().Foreground(cAccent).Bold(true).Render("▸ you ") + stDim.Render(clock(t.User.At)+"  ")
@@ -158,9 +162,6 @@ func (m *model) agentDetail(r *layout.Row, w int) []string {
 			out = append(out, stDim.Render("▸ earlier activity"))
 		}
 		for j, res := range t.Results {
-			if len(out) >= limit {
-				break
-			}
 			rg, rc := glyph(&claude.Agent{State: res.State})
 			tail := ""
 			if j == len(t.Results)-1 && t.Steps > 0 {
@@ -179,10 +180,13 @@ func (m *model) agentDetail(r *layout.Row, w int) []string {
 		}
 	}
 	if len(h.Turns) == 0 && !a.Interactive {
-		out = append(out, "", stDim.Render("no history yet"))
+		out = append(out, stDim.Render("no history yet"))
 	}
-	return out
+	return out, card
 }
+
+// maxTurns caps how far back the panel scrolls (the transcript has them all).
+const maxTurns = 300
 
 func clock(t time.Time) string { return t.Local().Format("15:04") }
 

@@ -55,12 +55,13 @@ The screen has two views, switched with `tab`:
 
 - **tree** — every agent, organized. Each row shows state (● waiting for you,
   ◆ busy, ✓ done, ✗ failed), name and age; folded groups show how many agents
-  are inside and how many need you. The right panel shows the selected agent:
-  what it is asking, what it is doing now, git status of its directory, and its
-  history grouped by your messages.
+  are inside and how many need you. The right panel shows the selected agent
+  and reads bottom-up, like a chat: its state and what it is asking sit at the
+  bottom, above them the task and git status, and above those its history
+  grouped by your messages, newest last (`pgup`/`pgdn` scroll back).
 - **inbox** — only the agents waiting for you, longest wait first.
 
-At the bottom is an always-on input: type a task and press `enter` to start a
+At the bottom is an always-on input (`i` focuses it): type a task and press `enter` to start a
 new background agent next to the selected one (inside it if it's a group, or
 with `C` to put it under a coordinator). `enter` on an empty input attaches to
 the selected session; inside it, `←` (or `ctrl+z`) brings you back to regia in
@@ -97,8 +98,8 @@ know regia exists.
 
 ## Keys
 
-Press `esc` on an empty input to switch from typing to command keys; `i`, `c`
-or `C` go back to typing. In command keys `esc` clears the filter or a pending
+regia opens on the list (command keys); `i`, `c` or `C` focus the input, and
+`esc` on an empty input goes back to the list. In command keys `esc` clears the filter or a pending
 move, and with nothing to clear it quits (`esc esc` from an empty input exits;
 `ctrl+c` too). A task you start is selected as soon as it shows up in the list,
 so a second `enter` attaches to it.
@@ -107,6 +108,8 @@ so a second `enter` attaches to it.
 |---|---|
 | `enter` | attach to the session (`←` inside it comes back) |
 | `tab` | tree ⇄ inbox |
+| `alt+↑` / `alt+↓` | previous / next group (also while typing) |
+| `pgup` / `pgdn` | scroll the panel's history back / forward |
 | `b` | jump to the next agent waiting for you |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `o` | show the session's terminal output |
@@ -118,6 +121,7 @@ so a second `enter` attaches to it.
 | `m`, then `p` / `P` | move: put below / inside the target |
 | `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up) |
 | `←` `→` `space` | fold / unfold |
+| `z` | fold everything / unfold everything |
 | `/`, `esc` | filter by name, question, path or branch / clear |
 | `a` | show finished sessions |
 | `?` | help |

@@ -14,27 +14,28 @@ type helpSection struct {
 }
 
 var helpSections = []helpSection{
-	{"input  (has focus at start)", [][2]string{
+	{"input  (i, c, C)", [][2]string{
 		{"type + enter", "start agent by the selection"},
 		{"alt+⏎  ctrl+j", "new line (or \\ then ⏎)"},
 		{"paste", "long: [Pasted text #n]"},
-		{"↑/↓ pgup/pgdn", "select (= where it goes)"},
+		{"↑/↓  alt+↑/↓", "select (= where it goes)"},
 		{"enter (empty)", "attach (← comes back)"},
 		{"esc", "clear · command keys · quit"},
 		{"alt+⌫ ctrl+w", "delete word (alt+d: next)"},
 		{"ctrl+a / ctrl+e", "line start / end"},
 		{"alt+← / alt+→", "move by word"},
 		{"ctrl+k / ctrl+u", "cut to end / start"},
-		{"i  c  C", "type again (C: inside)"},
 	}},
 	{"navigate", [][2]string{
 		{"j/k ↑/↓", "move"},
-		{"g / G", "top / bottom"},
-		{"ctrl+d/u", "half page"},
+		{"alt+↑ / alt+↓", "previous / next group"},
+		{"g G  ctrl+d/u", "top, bottom / half page"},
+		{"pgup / pgdn", "scroll the panel's history"},
 		{"b", "next agent waiting for you"},
 		{"tab", "tree ⇄ inbox"},
 		{"/ ctrl+f  esc", "filter / clear"},
 		{"←/→ h/l space", "fold / unfold"},
+		{"z", "fold all / unfold all"},
 	}},
 	{"sessions", [][2]string{
 		{"enter", "attach"},
@@ -74,7 +75,9 @@ func renderSections(ss []helpSection) []string {
 // the screen is wide enough, one otherwise (cut to the screen height).
 func helpModal(w, h int) string {
 	var body string
-	left, right := renderSections(helpSections[:2]), renderSections(helpSections[2:])
+	// input + sessions | navigate + organize: the two columns come out even
+	hs := helpSections
+	left, right := renderSections([]helpSection{hs[0], hs[2]}), renderSections([]helpSection{hs[1], hs[3]})
 	lw, rw := 0, 0
 	for _, l := range left {
 		lw = max(lw, lipgloss.Width(l))

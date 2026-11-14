@@ -193,10 +193,27 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		m.moveCursor(1)
 	case "k", "up":
 		m.moveCursor(-1)
-	case "ctrl+d", "pgdown":
+	case "ctrl+d":
 		m.moveCursor(page)
-	case "ctrl+u", "pgup":
+	case "ctrl+u":
 		m.moveCursor(-page)
+	case "pgup": // the panel's history: back in time
+		m.panelScroll += page
+	case "pgdown":
+		m.panelScroll = max(0, m.panelScroll-page)
+	case "alt+up", "alt+down": // group to group
+		d := 1
+		if k.String() == "alt+up" {
+			d = -1
+		}
+		for i := m.cursor + d; i >= 0 && i < len(m.rows); i += d {
+			if m.rows[i].Group {
+				m.moveCursor(i - m.cursor)
+				break
+			}
+		}
+	case "z":
+		m.foldAll()
 	case "g", "home":
 		m.moveCursor(-len(m.rows))
 	case "G", "end":

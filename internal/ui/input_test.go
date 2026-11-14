@@ -16,6 +16,16 @@ func tkey(s string) tea.KeyMsg {
 		return tea.KeyMsg{Type: tea.KeyEsc}
 	case "down":
 		return tea.KeyMsg{Type: tea.KeyDown}
+	case "up":
+		return tea.KeyMsg{Type: tea.KeyUp}
+	case "alt+up":
+		return tea.KeyMsg{Type: tea.KeyUp, Alt: true}
+	case "alt+down":
+		return tea.KeyMsg{Type: tea.KeyDown, Alt: true}
+	case "pgup":
+		return tea.KeyMsg{Type: tea.KeyPgUp}
+	case "pgdown":
+		return tea.KeyMsg{Type: tea.KeyPgDown}
 	case "backspace":
 		return tea.KeyMsg{Type: tea.KeyBackspace}
 	case "ctrl+w":
@@ -48,6 +58,10 @@ func testModel(t *testing.T) *model {
 	 {"id":"bbbb2222","cwd":"` + dir + `","kind":"background","name":"beta","status":"idle","state":"done","startedAt":1794645285577}]`))
 	m.opts.ShowDone = true
 	m.rebuild()
+	if m.typing {
+		t.Fatal("regia should open on the list, not the input")
+	}
+	m.Update(tkey("i")) // most tests start from the input
 	return m
 }
 
@@ -62,7 +76,7 @@ func TestInputTypingAndSpawn(t *testing.T) {
 	}
 
 	if !m.typing {
-		t.Fatal("input should have focus at start")
+		t.Fatal("i should focus the input")
 	}
 	sel := m.cursorID
 	typeText(m, "jj fix the kq bug")

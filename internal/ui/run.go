@@ -60,7 +60,7 @@ func DumpPanel(w io.Writer, id string) error {
 	if r := m.selected(); r == nil || r.ID != id {
 		return fmt.Errorf("not visible: %s", id)
 	}
-	for _, l := range m.detailLines(90) {
+	for _, l := range m.detailLines(90).lines() {
 		fmt.Fprintln(w, l)
 	}
 	return nil
