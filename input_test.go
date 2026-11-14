@@ -1,0 +1,151 @@
+package main
+
+import (
+	"strings"
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+func tkey(s string) tea.KeyMsg {
+	switch s {
+	case "enter":
+		return tea.KeyMsg{Type: tea.KeyEnter}
+	case "esc":
+		return tea.KeyMsg{Type: tea.KeyEsc}
+	case "down":
+		return tea.KeyMsg{Type: tea.KeyDown}
+	case "backspace":
+		return tea.KeyMsg{Type: tea.KeyBackspace}
+	case "ctrl+w":
+		return tea.KeyMsg{Type: tea.KeyCtrlW}
+	case " ":
+		return tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}}
+	}
+	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
+}
+
+func typeText(m *model, s string) {
+	for _, w := range strings.SplitAfter(s, " ") {
+		if t := strings.TrimSuffix(w, " "); t != "" {
+			m.Update(tkey(t)) // a word arrives as one coalesced message
+		}
+		if strings.HasSuffix(w, " ") {
+			m.Update(tkey(" "))
+		}
+	}
+}
+
+func testModel(t *testing.T) *model {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	dir := t.TempDir()
+	m := newModel()
+	m.w, m.h = 140, 30
+	m.setAgents([]byte(`[
+	 {"id":"aaaa1111","cwd":"` + dir + `","kind":"background","name":"alpha","status":"busy","state":"working","startedAt":1794645285576},
+	 {"id":"bbbb2222","cwd":"` + dir + `","kind":"background","name":"beta","status":"idle","state":"done","startedAt":1794645285577}]`))
+	m.opts.showDone = true
+	m.rebuild()
+	return m
+}
+
+func TestInputTypingAndSpawn(t *testing.T) {
+	m := testModel(t)
+	var gotDir, gotTask string
+	orig := spawnAgent
+	defer func() { spawnAgent = orig }()
+	spawnAgent = func(dir, task string) (string, error) {
+		gotDir, gotTask = dir, task
+		return "started cccc3333\n", nil
+	}
+
+	if !m.typing {
+		t.Fatal("input should have focus at start")
+	}
+	sel := m.cursorID
+	typeText(m, "jj fix the kq bug")
+	if m.draft != "jj fix the kq bug" {
+		t.Fatalf("draft %q", m.draft)
+	}
+	if m.cursorID != sel || m.mode != modeNormal {
+		t.Fatalf("letters acted as commands: cursor %s→%s mode %v", sel, m.cursorID, m.mode)
+	}
+	m.Update(tkey("ctrl+w"))
+	m.Update(tkey("backspace"))
+	typeText(m, "rs bug")
+	// ctrl+w drops "bug", backspace the space: "jj fix the kq" + "rs bug"
+	if m.draft != "jj fix the kqrs bug" {
+		t.Fatalf("editing: draft %q", m.draft)
+	}
+
+	m.Update(tkey("down")) // arrows still move the list while typing
+	if m.cursorID == sel {
+		t.Fatal("down did not move the selection")
+	}
+	target := m.cursorID
+	if l := m.inputLine(); !strings.Contains(l, "jj fix the kqrs bug") {
+		t.Fatalf("input line %q", l)
+	}
+
+	_, cmd := m.Update(tkey("enter"))
+	if cmd == nil || m.draft != "" {
+		t.Fatalf("enter did not start: cmd=%v draft=%q", cmd != nil, m.draft)
+	}
+	msg := runCmd(cmd)
+	if gotTask != "jj fix the kqrs bug" || gotDir == "" {
+		t.Fatalf("spawned %q in %q", gotTask, gotDir)
+	}
+	m.Update(msg)
+	if m.layout.Parent["cccc3333"] != m.layout.Parent[target] {
+		t.Fatalf("new agent not placed next to %s: parent %q", target, m.layout.Parent["cccc3333"])
+	}
+	if o := m.layout.Order[m.layout.Parent[target]]; indexOf(o, "cccc3333") != indexOf(o, target)+1 {
+		t.Fatalf("new agent not right after the selection: %v", o)
+	}
+}
+
+func TestInputEscGivesCommandKeys(t *testing.T) {
+	m := testModel(t)
+	typeText(m, "draft")
+	m.Update(tkey("esc"))
+	if m.draft != "" || !m.typing {
+		t.Fatalf("first esc should clear the draft only: %q typing=%v", m.draft, m.typing)
+	}
+	m.Update(tkey("esc"))
+	if m.typing {
+		t.Fatal("esc on an empty input should switch to command keys")
+	}
+	sel := m.cursorID
+	m.Update(tkey("j"))
+	if m.cursorID == sel {
+		t.Fatal("j does not move in command mode")
+	}
+	m.Update(tkey("C"))
+	if !m.typing || !m.draftInside {
+		t.Fatal("C should focus the input aimed inside the selection")
+	}
+	if l := m.inputLine(); !strings.Contains(l, "inside ") {
+		t.Fatalf("hint should say inside: %q", l)
+	}
+	m.Update(tkey("?"))
+	if !m.help || m.draft != "" {
+		t.Fatal("? on an empty input toggles help")
+	}
+}
+
+func runCmd(c tea.Cmd) tea.Msg {
+	msg := c()
+	if b, ok := msg.(tea.BatchMsg); ok {
+		for _, c := range b {
+			if c == nil {
+				continue
+			}
+			if m, ok := c().(spawnedMsg); ok {
+				return m
+			}
+		}
+	}
+	return msg
+}
+

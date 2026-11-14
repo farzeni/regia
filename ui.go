@@ -54,6 +54,12 @@ type model struct {
 
 	cut string
 
+	// the always-on input at the bottom: typing goes there, command keys
+	// (j/k, J/K, s, y…) work after esc
+	typing      bool
+	draft       string
+	draftInside bool
+
 	status   string
 	statusAt time.Time
 
@@ -85,7 +91,7 @@ type stoppedMsg struct {
 }
 
 func newModel() *model {
-	m := &model{agents: map[string]*Agent{}, layout: loadLayout()}
+	m := &model{agents: map[string]*Agent{}, layout: loadLayout(), typing: true}
 	if b := cachedAgents(); b != nil {
 		m.setAgents(b)
 	}
@@ -207,6 +213,7 @@ func (m *model) moveCursor(d int) {
 	}
 	m.cursor = max(0, min(len(m.rows)-1, m.cursor+d))
 	m.cursorID = m.rows[m.cursor].ID
+	m.draftInside = false
 	if m.logsFor != m.cursorID {
 		m.logs, m.logsFor = "", ""
 	}
@@ -330,6 +337,10 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.flash("cancelled (y confirms)")
 			return m, nil
+		}
+		if m.typing {
+			m.syncLayout()
+			return m, m.updateTyping(msg)
 		}
 		// Runes that arrive together (fast typing, key repeat) come as one
 		// message: feed them one at a time through Update, so a key that opens
@@ -588,35 +599,10 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 				return nil
 			})
 		}
+	case "i":
+		m.typing = true
 	case "c", "C":
-		if r == nil && k.String() == "C" {
-			return nil
-		}
-		parent, after, cwd := "", "", home()
-		if r != nil {
-			if k.String() == "C" || r.Group {
-				parent = r.ID
-			} else {
-				parent, after = m.layout.Parent[r.ID], r.ID
-			}
-			cwd = m.cwdFor(r.ID)
-		}
-		where := "top level"
-		if parent != "" {
-			where = "under " + m.titleOf(parent)
-		}
-		m.prompt(fmt.Sprintf("new agent %s in %s: ", where, tildify(cwd)), "", func(m *model, s string) tea.Cmd {
-			if s = strings.TrimSpace(s); s == "" {
-				return nil
-			}
-			m.flash("starting…")
-			return func() tea.Msg {
-				cmd := exec.Command("claude", "--bg", s)
-				cmd.Dir = cwd
-				out, err := cmd.CombinedOutput()
-				return spawnedMsg{string(out), err, parent, after}
-			}
-		})
+		m.typing, m.draftInside = true, k.String() == "C" && r != nil
 	}
 	return nil
 }
@@ -721,7 +707,7 @@ func pad(s string, w int) string {
 	return s
 }
 
-func (m *model) bodyHeight() int { return max(1, m.h-3) }
+func (m *model) bodyHeight() int { return max(1, m.h-4) }
 
 func (m *model) View() string {
 	if m.w == 0 {
@@ -839,8 +825,14 @@ func (m *model) footer() string {
 			line1 = m.status
 		}
 	}
-	keys := "enter attach  ←/→ fold  J/K reorder  >/< nest  m·p move  n group  r rename  c new agent  y copy reply  tab inbox  b next blocked  / filter  ? help"
-	return pad(trunc(line1, m.w), m.w) + "\n" + stDim.Render(trunc(keys, m.w))
+	keys := "i type  enter attach  ←/→ fold  J/K reorder  >/< nest  m·p move  n group  r rename  c/C new agent  y copy reply  s stop  tab inbox  b next blocked  / filter  ? help"
+	if m.typing {
+		keys = "enter start it  ↑/↓ select  enter on empty attaches  esc command keys  tab inbox  ctrl+f filter  ? help"
+		if m.draft != "" {
+			keys = "enter start it  esc clear  ctrl+w delete word  ↑/↓ change where it goes"
+		}
+	}
+	return pad(trunc(line1, m.w), m.w) + "\n" + m.inputLine() + "\n" + stDim.Render(trunc(keys, m.w))
 }
 
 func (m *model) renderRow(r Row, w int, sel bool) string {
@@ -930,7 +922,14 @@ func (m *model) detailLines(w int) []string {
 }
 
 func helpLines() []string {
-	return strings.Split(`navigate
+	return strings.Split(`input  (bottom line, has focus at start)
+  type + enter  start a new agent next to the selection (inside, if a group)
+  enter (empty) attach        ↑/↓ pgup/pgdn  move     tab  tree ⇄ inbox
+  esc           clear the text; on an empty input: command keys below
+  ctrl+w / ctrl+u  delete word / line     ctrl+f  filter     ctrl+c  quit
+  i / c / C     back to typing (C: new agent goes inside the selection)
+
+navigate  (command keys)
   j/k ↑/↓       move            g/G        top / bottom
   ctrl+d/u      half page       b          next agent waiting for you
   tab           tree ⇄ inbox    / filter   esc clear

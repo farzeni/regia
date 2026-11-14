@@ -39,6 +39,7 @@ func TestDeleteGroupRealLayout(t *testing.T) {
 	if r := m.selected(); r == nil || r.ID != gid {
 		t.Fatalf("cursor not on group; rows=%d selected=%+v", len(m.rows), r)
 	}
+	m.Update(tea.KeyMsg{Type: tea.KeyEsc}) // leave the input: command keys
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
 	if m.mode != modeConfirm {
 		t.Fatalf("d did not ask for confirmation (mode %v, status %q)", m.mode, m.status)

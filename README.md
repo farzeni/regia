@@ -26,6 +26,12 @@ fold into their repo). After that the place is yours to change.
 
 ## Keys
 
+The bottom line is an always-on input, focused at start (like `claude agents`):
+type a task and press `enter` to start it next to the selected agent (inside
+it if it's a group). `↑/↓` move the selection while you type, `enter` on an
+empty input attaches, `esc` clears the text and, on an empty input, switches
+to the command keys below; `i`, `c` or `C` (aim inside) go back to typing.
+
 | | |
 |---|---|
 | `enter` | attach (`←` in the session comes back) |
@@ -33,7 +39,7 @@ fold into their repo). After that the place is yours to change.
 | `b` | jump to the next agent waiting for you |
 | `y` / `Y` | copy suggested reply / session id |
 | `o` | show the session's terminal output |
-| `c` / `C` | new agent next to / inside the selection (inside = under a coordinator) |
+| `i` / `c` / `C` | back to the input; `C` aims the new agent inside the selection (under a coordinator) |
 | `s` | stop (conversation kept) |
 | `J` / `K` | move down / up among siblings |
 | `>` / `<` | nest under the agent above (make it the coordinator) / un-nest |
