@@ -1,4 +1,4 @@
-module regia
+module github.com/farzeni/regia
 
 go 1.26.0
 
