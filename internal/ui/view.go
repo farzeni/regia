@@ -273,7 +273,7 @@ func (m *model) renderRow(r layout.Row, w int) string {
 		line = pad(line, w-lipgloss.Width(meta)-1) + meta
 	} else {
 		a := r.Agent
-		g, c := glyph(a)
+		g, c := m.agentGlyph(a)
 		age := ago(waitedSince(a))
 		cutMark := ""
 		if r.ID == m.cut {

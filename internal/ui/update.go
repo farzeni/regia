@@ -41,7 +41,10 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			m.setAgents(msg.b)
 		}
-		return m, nil
+		return m, m.startPulse()
+
+	case pulseMsg:
+		return m, m.onPulse()
 
 	case tickMsg:
 		m.ticks++

@@ -22,7 +22,7 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string) {
 	if m.histFor == r.ID {
 		h = m.hist
 	}
-	g, c := glyph(a)
+	g, c := m.agentGlyph(a)
 	col := lipgloss.NewStyle().Foreground(c)
 
 	// ── header: big state + how long, name

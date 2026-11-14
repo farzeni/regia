@@ -92,6 +92,8 @@ type model struct {
 	fetching bool
 	fetchErr error
 	ticks    int
+	pulsing  bool // the working-icon animation is ticking
+	pulseN   int  // its frame
 }
 
 type agentsMsg struct {
@@ -130,7 +132,7 @@ func tick() tea.Cmd {
 
 func (m *model) Init() tea.Cmd {
 	m.fetching = true
-	return tea.Batch(fetchCmd, tick(), autoUpdateCmd)
+	return tea.Batch(fetchCmd, tick(), autoUpdateCmd, m.startPulse())
 }
 
 func (m *model) setAgents(b []byte) {
