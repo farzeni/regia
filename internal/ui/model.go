@@ -1,0 +1,248 @@
+// Package ui is regia's terminal interface (bubbletea): the tree and inbox
+// views, the detail panel, the always-on input and the key handling.
+package ui
+
+import (
+	"fmt"
+	"sort"
+	"time"
+
+	"github.com/charmbracelet/bubbles/textarea"
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/farzeni/regia/internal/claude"
+	"github.com/farzeni/regia/internal/layout"
+	"github.com/farzeni/regia/internal/spawns"
+)
+
+type viewKind int
+
+const (
+	viewTree viewKind = iota
+	viewInbox
+)
+
+type mode int
+
+const (
+	modeNormal mode = iota
+	modeInput
+	modeConfirm
+)
+
+type model struct {
+	agents map[string]*claude.Agent
+	layout *layout.Layout
+	rows   []layout.Row
+	visRow map[string]bool
+
+	cursorID string
+	cursor   int
+	offset   int
+	w, h     int
+
+	view viewKind
+	opts layout.ViewOpts
+	help bool
+
+	mode         mode
+	input        string
+	inputPrompt  string
+	inputAction  func(m *model, s string) tea.Cmd
+	confirmMsg   string
+	confirmDo    func(m *model) tea.Cmd
+	filterBefore string
+
+	cut string
+
+	// the always-on input at the bottom: typing goes there, command keys
+	// (j/k, J/K, s, y…) work after esc
+	typing      bool
+	ta          textarea.Model    // the draft: readline keys, multi-line
+	pastes      map[string]string // long pastes folded into tokens
+	pasteN      int
+	draftInside bool
+
+	status   string
+	statusAt time.Time
+
+	hist    claude.History
+	histFor string
+	logs    string
+	logsFor string
+
+	fetching bool
+	fetchErr error
+	ticks    int
+}
+
+type agentsMsg struct {
+	b   []byte
+	err error
+}
+type tickMsg time.Time
+type attachDoneMsg struct{ err error }
+type logsMsg struct{ id, out string }
+type spawnedMsg struct {
+	out           string
+	err           error
+	parent, after string
+}
+type stoppedMsg struct {
+	id  string
+	err error
+}
+
+func newModel() *model {
+	m := &model{agents: map[string]*claude.Agent{}, layout: layout.Load(), typing: true, ta: newDraftInput()}
+	if b := claude.CachedAgents(); b != nil {
+		m.setAgents(b)
+	}
+	return m
+}
+
+func fetchCmd() tea.Msg {
+	b, err := claude.FetchAgents()
+	return agentsMsg{b, err}
+}
+
+func tick() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg { return tickMsg(t) })
+}
+
+func (m *model) Init() tea.Cmd {
+	m.fetching = true
+	return tea.Batch(fetchCmd, tick())
+}
+
+func (m *model) setAgents(b []byte) {
+	list := claude.ParseAgents(b)
+	if list == nil {
+		return
+	}
+	next := make(map[string]*claude.Agent, len(list))
+	for _, a := range list {
+		next[a.ID] = a
+	}
+	m.agents = next
+	m.refresh()
+}
+
+// refresh re-reads job state files and rebuilds rows, keeping the cursor on
+// the same node.
+func (m *model) refresh() {
+	m.syncLayout()
+	for _, a := range m.agents {
+		claude.Enrich(a)
+	}
+	m.layout.Spawns = spawns.Cached()
+	if m.layout.Place(m.agents) {
+		_ = m.layout.Save()
+	}
+	m.rebuild()
+}
+
+func (m *model) rebuild() {
+	if m.view == viewInbox {
+		var bl []*claude.Agent
+		for _, a := range m.agents {
+			if a.State == "blocked" && m.opts.Visible(a, m.layout.Alias[a.ID]) {
+				bl = append(bl, a)
+			}
+		}
+		sort.SliceStable(bl, func(i, j int) bool { return waitedSince(bl[i]).Before(waitedSince(bl[j])) })
+		m.rows = m.rows[:0]
+		for _, a := range bl {
+			t := a.Name
+			if al := m.layout.Alias[a.ID]; al != "" {
+				t = al
+			}
+			m.rows = append(m.rows, layout.Row{ID: a.ID, Agent: a, Title: t})
+		}
+	} else {
+		m.rows = m.layout.Flatten(m.agents, m.opts)
+	}
+	m.visRow = make(map[string]bool, len(m.rows))
+	for _, r := range m.rows {
+		m.visRow[r.ID] = true
+	}
+	m.cursor = 0
+	for i, r := range m.rows {
+		if r.ID == m.cursorID {
+			m.cursor = i
+			break
+		}
+	}
+	if len(m.rows) > 0 {
+		if m.cursor >= len(m.rows) {
+			m.cursor = len(m.rows) - 1
+		}
+		m.cursorID = m.rows[m.cursor].ID
+	}
+	m.loadDetail()
+}
+
+func waitedSince(a *claude.Agent) time.Time {
+	if !a.UpdatedAt.IsZero() {
+		return a.UpdatedAt
+	}
+	return a.StartedAt
+}
+
+func (m *model) selected() *layout.Row {
+	if m.cursor < 0 || m.cursor >= len(m.rows) {
+		return nil
+	}
+	return &m.rows[m.cursor]
+}
+
+func (m *model) loadDetail() {
+	r := m.selected()
+	if r == nil || r.Agent == nil || r.Agent.Interactive {
+		m.hist, m.histFor = claude.History{}, ""
+		return
+	}
+	m.hist = claude.ReadHistory(r.Agent)
+	m.histFor = r.ID
+}
+
+func (m *model) flash(f string, a ...any) {
+	m.status = fmt.Sprintf(f, a...)
+	m.statusAt = time.Now()
+}
+
+func (m *model) moveCursor(d int) {
+	if len(m.rows) == 0 {
+		return
+	}
+	m.cursor = max(0, min(len(m.rows)-1, m.cursor+d))
+	m.cursorID = m.rows[m.cursor].ID
+	m.draftInside = false
+	if m.logsFor != m.cursorID {
+		m.logs, m.logsFor = "", ""
+	}
+	m.loadDetail()
+}
+
+// syncLayout reloads the layout when another process (a second regia) saved
+// it, so this instance never writes back a stale copy.
+func (m *model) syncLayout() {
+	if m.layout.ChangedOnDisk() {
+		m.layout = layout.Load()
+	}
+}
+
+func (m *model) saveLayout() {
+	if err := m.layout.Save(); err != nil {
+		m.flash("save failed: %v", err)
+	}
+	m.rebuild()
+}
+
+func (m *model) prompt(p, initial string, do func(m *model, s string) tea.Cmd) {
+	m.mode, m.inputPrompt, m.input, m.inputAction = modeInput, p, initial, do
+}
+
+func (m *model) confirm(msg string, do func(m *model) tea.Cmd) {
+	m.mode, m.confirmMsg, m.confirmDo = modeConfirm, msg, do
+}

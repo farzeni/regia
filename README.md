@@ -10,8 +10,8 @@ in a keystroke.
 You need **Go 1.26+** and **Claude Code 2.1.292+** (`claude --version`).
 
 ```bash
-go install github.com/farzeni/regia@latest   # installs to $(go env GOPATH)/bin
-regia setup                                  # once per machine
+go install github.com/farzeni/regia/cmd/regia@latest   # installs to $(go env GOPATH)/bin
+regia setup                                            # once per machine
 regia
 ```
 
@@ -20,7 +20,7 @@ Make sure `$(go env GOPATH)/bin` is on your `PATH`: the Claude Code hook calls
 
 ```bash
 git clone https://github.com/farzeni/regia.git && cd regia
-go build -o regia . && install -m755 regia ~/.local/bin/
+go build -o regia ./cmd/regia && install -m755 regia ~/.local/bin/
 regia setup
 ```
 
@@ -38,7 +38,7 @@ regia setup
 Flags: `--source <url|owner/repo|path>` installs the plugin from elsewhere,
 `--no-plugin` and `--no-backfill` skip a step. Running it again is safe.
 
-**Update:** `go install github.com/farzeni/regia@latest` (or `git pull` and
+**Update:** `go install github.com/farzeni/regia/cmd/regia@latest` (or `git pull` and
 rebuild) and `claude plugin update regia@regia`.
 **Uninstall:** `claude plugin uninstall regia@regia`, delete the binary, and
 optionally `~/.config/regia/`.
@@ -148,7 +148,22 @@ that, put it in a file and point the agent to it.
 ## Development
 
 ```bash
-go test ./...          # includes a read-only scan of your real transcripts
-go test -short ./...   # skip it
-go build -o regia .
+go test ./...                  # includes a read-only scan of your real transcripts
+go test -short ./...           # skip it
+go build -o regia ./cmd/regia
 ```
+
+```
+cmd/regia/          the binary: argument parsing, `regia setup`, `regia hook spawn`
+internal/claude/    Claude Code data: `claude agents` listing, job state files, transcript history
+internal/spawns/    spawn links: the hook handler, transcript backfill, spawns.jsonl
+internal/layout/    your organization: tree, automatic placement, moves, layout.json
+internal/gitinfo/   git state of an agent's directory, cached
+internal/attach/    `claude attach` behind a pty proxy (fast return to regia)
+internal/ui/        the terminal interface (bubbletea): model, update, view, panel, input
+.claude-plugin/     plugin manifest + marketplace (this repo is its own marketplace)
+hooks/hooks.json    the PostToolUse hook the plugin installs
+```
+
+Dependencies point one way: `ui` → `layout` → `spawns` → `claude`; `gitinfo`
+and `attach` are standalone.
