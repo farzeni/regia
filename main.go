@@ -52,8 +52,15 @@ func main() {
 			_, _ = os.Stdout.WriteString("\x1b[?1049l")
 			fmt.Printf("ATTACH-RETURNED err=%v after=%dms\n", err, time.Since(t0).Milliseconds())
 			return
+		case "setup":
+			os.Exit(setup(os.Args[2:]))
+		case "hook": // called by the plugin's hook in every session; must stay quiet and fast
+			if len(os.Args) > 2 && os.Args[2] == "spawn" {
+				hookSpawn(os.Stdin, os.Getenv("CLAUDE_JOB_DIR"))
+			}
+			return
 		case "-h", "--help":
-			fmt.Println("regia — terminal control room for Claude Code background agents\n\n  regia          open the UI (? for keys)\n  regia --dump   print the tree and inbox as plain text")
+			fmt.Println("regia — terminal control room for Claude Code background agents\n\n  regia          open the UI (? for keys)\n  regia setup    install the Claude Code plugin (spawn tracking) and backfill links\n  regia --dump   print the tree and inbox as plain text")
 			return
 		}
 	}

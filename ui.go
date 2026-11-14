@@ -135,6 +135,7 @@ func (m *model) refresh() {
 	for _, a := range m.agents {
 		enrich(a)
 	}
+	m.layout.spawns = cachedSpawns()
 	if m.layout.Place(m.agents) {
 		_ = m.layout.Save()
 	}
@@ -311,6 +312,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if id != "" {
 			m.layout.Parent[id] = msg.parent
 			m.layout.Order[msg.parent] = insertAfter(remove(m.layout.Order[msg.parent], id), msg.after, id)
+			m.layout.Pinned[id] = true // you chose the place
 			m.cursorID = id
 			_ = m.layout.Save()
 			m.flash("started %s", id)

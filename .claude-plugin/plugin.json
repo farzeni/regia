@@ -1,0 +1,6 @@
+{
+  "name": "regia",
+  "description": "Records which Claude Code session started which (claude --bg), so the regia control room nests agents under their coordinator.",
+  "author": { "name": "farzeni" },
+  "repository": "https://github.com/farzeni/regia"
+}

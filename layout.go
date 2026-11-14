@@ -18,6 +18,9 @@ type Layout struct {
 	Order     map[string][]string `json:"order"`     // parent -> ordered children
 	Alias     map[string]string   `json:"alias"`     // agent id -> display name
 	Collapsed map[string]bool     `json:"collapsed"` // node -> collapsed
+	Pinned    map[string]bool     `json:"pinned"`    // placed by hand: never re-linked automatically
+
+	spawns map[string]spawnLink // child -> spawner, from spawns.jsonl (not saved here)
 
 	mtime time.Time // file mtime at last load/save, to notice other writers
 }
@@ -63,6 +66,9 @@ func loadLayout() *Layout {
 	if l.Collapsed == nil {
 		l.Collapsed = map[string]bool{}
 	}
+	if l.Pinned == nil {
+		l.Pinned = map[string]bool{}
+	}
 	return l
 }
 
@@ -88,9 +94,34 @@ func (l *Layout) Save() error {
 
 func (l *Layout) isGroup(id string) bool { _, ok := l.Groups[id]; return ok }
 
-// Place assigns a parent to agents seen for the first time: under the session
-// they were forked from, else under an auto group for their project.
-// Returns true if the layout changed.
+// autoParent is where an agent goes when regia decides: under the session it
+// was forked from, else under the session that started it (`claude --bg`,
+// learned from spawns.jsonl), else "" (its project group).
+func (l *Layout) autoParent(a *Agent, agents map[string]*Agent) string {
+	if fp := a.ForkParent; fp != "" && agents[fp] != nil && fp != a.ID {
+		return fp
+	}
+	if sp := spawnParent(l.spawns, a.ID, agents); sp != "" && sp != a.ID {
+		return sp
+	}
+	return ""
+}
+
+func (l *Layout) projectGroup(a *Agent) string {
+	gid := "p:" + project(a.Cwd)
+	if !l.isGroup(gid) {
+		l.Groups[gid] = project(a.Cwd)
+		l.Parent[gid] = ""
+		l.Order[""] = append(l.Order[""], gid)
+	}
+	return gid
+}
+
+// Place assigns a parent to agents seen for the first time (see autoParent),
+// and re-links agents still sitting in their auto project group once their
+// spawner becomes known: the hook may write the link a moment after the agent
+// first shows up, and a backfill finds links for agents placed long ago.
+// Agents moved by hand (Pinned) are left alone. Returns true if the layout changed.
 func (l *Layout) Place(agents map[string]*Agent) bool {
 	changed := false
 	ordered := make([]*Agent, 0, len(agents))
@@ -99,26 +130,38 @@ func (l *Layout) Place(agents map[string]*Agent) bool {
 	}
 	sortByStart(ordered)
 	for _, a := range ordered {
-		if _, ok := l.Parent[a.ID]; ok {
+		cur, placed := l.Parent[a.ID]
+		if placed && (l.Pinned[a.ID] || !strings.HasPrefix(cur, "p:")) {
 			continue
 		}
-		parent := ""
-		if fp := a.ForkParent; fp != "" && agents[fp] != nil && fp != a.ID {
-			parent = fp
-		} else {
-			gid := "p:" + project(a.Cwd)
-			if !l.isGroup(gid) {
-				l.Groups[gid] = project(a.Cwd)
-				l.Parent[gid] = ""
-				l.Order[""] = append(l.Order[""], gid)
-			}
-			parent = gid
+		parent := l.autoParent(a, agents)
+		if parent != "" && l.isDescendant(parent, a.ID) {
+			parent = ""
+		}
+		if placed && parent == "" {
+			continue // stays in its project group
+		}
+		if parent == "" {
+			parent = l.projectGroup(a)
+		}
+		if placed {
+			l.Order[cur] = remove(l.Order[cur], a.ID)
 		}
 		l.Parent[a.ID] = parent
 		l.Order[parent] = append(l.Order[parent], a.ID)
 		changed = true
 	}
 	return changed
+}
+
+// effParent is id's nearest ancestor that still exists: when a coordinator is
+// removed from the list its agents move up into its parent instead of vanishing.
+func (l *Layout) effParent(id string, agents map[string]*Agent) string {
+	p := l.Parent[id]
+	for n := 0; p != "" && !l.exists(p, agents) && n < 64; n++ {
+		p = l.Parent[p]
+	}
+	return p
 }
 
 func (l *Layout) exists(id string, agents map[string]*Agent) bool {
@@ -130,15 +173,15 @@ func (l *Layout) children(parent string, agents map[string]*Agent) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, id := range l.Order[parent] {
-		if !seen[id] && l.Parent[id] == parent && l.exists(id, agents) {
+		if !seen[id] && l.exists(id, agents) && l.effParent(id, agents) == parent {
 			seen[id] = true
 			out = append(out, id)
 		}
 	}
 	// Nodes whose parent is set but missing from the order list.
 	var extra []*Agent
-	for id, p := range l.Parent {
-		if p == parent && !seen[id] && l.exists(id, agents) {
+	for id := range l.Parent {
+		if !seen[id] && l.exists(id, agents) && l.effParent(id, agents) == parent {
 			if a := agents[id]; a != nil {
 				extra = append(extra, a)
 			} else {
@@ -299,6 +342,7 @@ func (l *Layout) Reparent(id, newParent, after string, agents map[string]*Agent)
 	l.materialize(newParent, agents)
 	l.Parent[id] = newParent
 	l.Order[newParent] = insertAfter(remove(l.Order[newParent], id), after, id)
+	l.Pinned[id] = true
 	delete(l.Collapsed, newParent)
 	return nil
 }

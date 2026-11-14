@@ -1,0 +1,7 @@
+{
+  "name": "regia",
+  "owner": { "name": "farzeni" },
+  "plugins": [
+    { "name": "regia", "source": "./", "description": "Spawn tracking for the regia control room" }
+  ]
+}

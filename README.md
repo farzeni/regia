@@ -6,9 +6,21 @@ order), and jump in and out of sessions instantly.
 
 ```
 go build -o regia . && install -m755 regia ~/.local/bin/
+regia setup      # once per machine: Claude Code plugin + backfill (see below)
 regia            # ? shows all keys
 regia --dump     # plain-text tree + inbox (no TTY needed)
 ```
+
+`regia setup` runs `claude plugin install regia --marketplace
+https://github.com/farzeni/regia.git` (this repo is its own marketplace;
+`--source` overrides it, `--no-plugin` / `--no-backfill` skip a step) and scans
+existing transcripts for past spawns. The plugin adds one `PostToolUse` hook on
+`Bash` to every session: `regia hook spawn` reads the payload and, when the
+command was a `claude --bg` that printed `backgrounded · <id>`, appends
+`{parent, child}` to `~/.config/regia/spawns.jsonl`. It costs a few ms per Bash
+call and does nothing if `regia` isn't on PATH. Coordinators need to know
+nothing about regia. Update with `claude plugin update regia@regia`, remove with
+`claude plugin uninstall regia@regia`.
 
 ## How it works
 
@@ -21,8 +33,13 @@ regia --dump     # plain-text tree + inbox (no TTY needed)
 | your organization | `~/.config/regia/layout.json` (groups, parents, order, aliases, folds) |
 
 New agents are placed automatically: under the session they were forked from,
-otherwise in a group named after their project (`~/Projects/<name>`, worktrees
-fold into their repo). After that the place is yours to change.
+else under the session that started them with `claude --bg` (from
+`spawns.jsonl`), otherwise in a group named after their project
+(`~/Projects/<name>`, worktrees fold into their repo). An agent still sitting in
+its project group moves under its spawner as soon as the link is known (the hook
+can land a moment after the agent appears; a backfill finds old ones). Once you
+move an agent by hand (`>` `<` `m`) it's pinned and never moved again. When a
+coordinator is removed, its agents move up into its parent.
 
 ## Keys
 
