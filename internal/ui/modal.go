@@ -20,7 +20,7 @@ var helpSections = []helpSection{
 		{"paste", "long: [Pasted text #n]"},
 		{"↑/↓ pgup/pgdn", "select (= where it goes)"},
 		{"enter (empty)", "attach (← comes back)"},
-		{"esc", "clear · again: command keys"},
+		{"esc", "clear · command keys · quit"},
 		{"alt+⌫ ctrl+w", "delete word (alt+d: next)"},
 		{"ctrl+a / ctrl+e", "line start / end"},
 		{"alt+← / alt+→", "move by word"},
@@ -44,7 +44,7 @@ var helpSections = []helpSection{
 		{"x", "remove from list (claude rm)"},
 		{"a", "show / hide finished"},
 		{"R", "refresh now"},
-		{"q  ctrl+c", "quit (ctrl+c: on empty input)"},
+		{"esc  ctrl+c", "quit (with nothing to clear)"},
 	}},
 	{"organize  (~/.config/regia/layout.json)", [][2]string{
 		{"J / K", "move down / up (siblings)"},

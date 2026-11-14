@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
 	"github.com/farzeni/regia/internal/claude"
@@ -84,7 +85,14 @@ func pad(s string, w int) string {
 	return s
 }
 
-func (m *model) bodyHeight() int { return max(1, m.h-4-m.inputRows()) } // header, status, input box
+func (m *model) bodyHeight() int { return max(1, m.h-5-m.inputRows()) } // header + gap, status, input box
+
+// padX is the margin left and right of the tree and the panel; gap separates
+// them (the divider sits in its middle).
+const (
+	padX = 1
+	gap  = 5
+)
 
 func (m *model) View() string {
 	if m.w == 0 {
@@ -92,11 +100,12 @@ func (m *model) View() string {
 	}
 	m.sizeInput() // the input box grows with the draft; the list gets the rest
 	bh := m.bodyHeight()
-	lw := max(30, min(64, m.w*42/100))
+	iw := m.w - 2*padX
+	lw := max(30, min(64, iw*42/100))
 	if m.w < 70 {
-		lw = m.w
+		lw = iw
 	}
-	dw := m.w - lw - 3
+	dw := iw - lw - gap
 
 	// scroll; when the list overflows, its last line says what's hidden
 	vis := bh
@@ -136,14 +145,15 @@ func (m *model) View() string {
 	if dw > 20 {
 		right = m.detailLines(dw)
 	}
-	sep := stDim.Render("│")
+	margin := strings.Repeat(" ", padX)
+	sep := strings.Repeat(" ", gap/2) + stDim.Render("│") + strings.Repeat(" ", gap-gap/2-1)
 	var b strings.Builder
-	b.WriteString(m.header())
-	b.WriteByte('\n')
+	b.WriteString(margin + ansi.Truncate(m.header(), iw, "…"))
+	b.WriteString("\n\n")
 	for i := 0; i < bh; i++ {
-		b.WriteString(pad(left[i], lw))
+		b.WriteString(margin + pad(left[i], lw))
 		if dw > 20 {
-			b.WriteString(" " + sep + " ")
+			b.WriteString(sep)
 			if i < len(right) {
 				b.WriteString(right[i])
 			}
@@ -204,7 +214,7 @@ func (m *model) footer() string {
 			line1 = m.status
 		}
 	}
-	return pad(trunc(line1, m.w), m.w) + "\n" + m.inputBox()
+	return pad(strings.Repeat(" ", padX)+trunc(line1, m.w-2*padX), m.w) + "\n" + m.inputBox()
 }
 
 func (m *model) renderRow(r layout.Row, w int, sel bool) string {

@@ -197,8 +197,7 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		m.typing = false
-		m.updateNormal(k) // also clears filter, help
-		m.flash("command keys (j/k, J/K, s, y, …) — i to type again")
+		m.flash("command keys (j/k, J/K, s, x, …) — i to type again, esc quits")
 		return nil
 	case "ctrl+c":
 		if !empty {

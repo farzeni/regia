@@ -55,6 +55,8 @@ type model struct {
 
 	cut string
 
+	selectID string // just started: select it as soon as it's listed
+
 	// the always-on input at the bottom: typing goes there, command keys
 	// (j/k, J/K, s, y…) work after esc
 	typing      bool
@@ -166,6 +168,9 @@ func (m *model) rebuild() {
 	for _, r := range m.rows {
 		m.visRow[r.ID] = true
 	}
+	if m.selectID != "" && m.visRow[m.selectID] { // a just-started agent appeared
+		m.cursorID, m.selectID = m.selectID, ""
+	}
 	m.cursor = 0
 	for i, r := range m.rows {
 		if r.ID == m.cursorID {
@@ -218,6 +223,7 @@ func (m *model) moveCursor(d int) {
 	m.cursor = max(0, min(len(m.rows)-1, m.cursor+d))
 	m.cursorID = m.rows[m.cursor].ID
 	m.draftInside = false
+	m.selectID = "" // you moved: don't jump to a just-started agent later
 	if m.logsFor != m.cursorID {
 		m.logs, m.logsFor = "", ""
 	}

@@ -51,12 +51,29 @@ func TestViewFrames(t *testing.T) {
 	}
 	m.Update(tkey("?"))
 	ls = check("help")
-	if all := strings.Join(ls, "\n"); !strings.Contains(all, "esc / ? closes") || !strings.Contains(all, "remove group") || !strings.HasPrefix(ls[0], "regia") {
+	if all := strings.Join(ls, "\n"); !strings.Contains(all, "esc / ? closes") || !strings.Contains(all, "remove group") || !strings.HasPrefix(ls[0], " regia") {
 		t.Fatal("help modal not drawn over the UI")
 	}
 	m.Update(tkey("j")) // ignored while the modal is open
 	m.Update(tkey("esc"))
 	if m.help {
 		t.Fatal("esc did not close the modal")
+	}
+}
+
+// TestViewWidths: with the margins, no line may exceed the terminal width.
+func TestViewWidths(t *testing.T) {
+	m := testModel(t)
+	for _, w := range []int{40, 69, 70, 90, 160, 240} {
+		m.w, m.h = w, 24
+		ls := strings.Split(ansi.Strip(m.View()), "\n")
+		if len(ls) != m.h {
+			t.Fatalf("w=%d: %d lines", w, len(ls))
+		}
+		for i, l := range ls {
+			if ansi.StringWidth(l) > w {
+				t.Fatalf("w=%d: line %d is %d wide: %q", w, i, ansi.StringWidth(l), l)
+			}
+		}
 	}
 }

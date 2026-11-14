@@ -74,8 +74,16 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		id := regexp.MustCompile(`\b[0-9a-f]{8}\b`).FindString(msg.out)
 		if id != "" {
 			m.layout.PlaceNew(id, msg.parent, msg.after)
-			m.cursorID = id
+			for p := msg.parent; p != ""; p = m.layout.Parent[p] { // so its row is on screen
+				delete(m.layout.Collapsed, p)
+			}
+			// select it once `claude agents` lists it (it may not yet): enter attaches
+			m.selectID = id
+			if m.view == viewInbox {
+				m.view = viewTree
+			}
 			_ = m.layout.Save()
+			m.rebuild()
 			m.flash("started %s", id)
 		} else {
 			m.flash("started: %s", strings.TrimSpace(msg.out))
@@ -177,7 +185,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 	r := m.selected()
 	page := max(1, m.bodyHeight()/2)
 	switch k.String() {
-	case "q", "ctrl+c":
+	case "ctrl+c":
 		return tea.Quit
 	case "?":
 		m.help = !m.help
@@ -215,8 +223,11 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 	case "/":
 		m.filterBefore = m.opts.Filter
 		m.prompt("/", m.opts.Filter, func(m *model, s string) tea.Cmd { m.opts.Filter = s; m.rebuild(); return nil })
-	case "esc":
-		m.opts.Filter, m.cut, m.help = "", "", false
+	case "esc": // clear what's active (filter, a move); with nothing to clear, quit
+		if m.opts.Filter == "" && m.cut == "" {
+			return tea.Quit
+		}
+		m.opts.Filter, m.cut = "", ""
 		m.rebuild()
 	case "R":
 		m.fetching = true

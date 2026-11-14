@@ -98,7 +98,10 @@ know regia exists.
 ## Keys
 
 Press `esc` on an empty input to switch from typing to command keys; `i`, `c`
-or `C` go back to typing.
+or `C` go back to typing. In command keys `esc` clears the filter or a pending
+move, and with nothing to clear it quits (`esc esc` from an empty input exits;
+`ctrl+c` too). A task you start is selected as soon as it shows up in the list,
+so a second `enter` attaches to it.
 
 | Key | Action |
 |---|---|
