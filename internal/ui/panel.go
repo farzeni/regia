@@ -27,11 +27,14 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string) {
 
 	// ── header: big state + how long, name
 	label := map[string]string{
-		"blocked": "WAITING ON YOU", "busy": "WORKING", "done": "DONE",
+		"blocked": "WAITING ON YOU", "ready": "READY · YOUR TURN", "busy": "WORKING", "done": "DONE",
 		"failed": "FAILED", "idle": "IDLE",
 	}[a.State]
 	if a.Interactive {
 		label = "INTERACTIVE"
+	}
+	if a.Stale {
+		label = "WAITING ON YOU · STALE"
 	}
 	if label == "" {
 		label = strings.ToUpper(a.State)

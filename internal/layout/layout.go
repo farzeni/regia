@@ -28,6 +28,7 @@ type Layout struct {
 	Pinned    map[string]bool      `json:"pinned"`             // placed by hand: never re-linked automatically
 	Sidebar   int                  `json:"sidebar,omitempty"`  // list width in columns (0: automatic)
 	Archived  map[string]time.Time `json:"archived,omitempty"` // agent id -> when: hidden by regia, untouched in Claude
+	Seen      map[string]time.Time `json:"seen,omitempty"`     // agent id -> when you last looked at it (nil: never recorded)
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 
@@ -221,6 +222,7 @@ type ViewOpts struct {
 	ShowDone     bool
 	ShowArchived bool
 	Filter       string
+	Keep         string // always shown (the selected agent, so it doesn't vanish while you read it)
 }
 
 func (o ViewOpts) Visible(a *claude.Agent, alias string) bool {
@@ -229,7 +231,7 @@ func (o ViewOpts) Visible(a *claude.Agent, alias string) bool {
 		hay := strings.ToLower(strings.Join([]string{a.Name, alias, a.ID, a.Cwd, a.Needs, a.Detail, a.Branch}, " "))
 		return strings.Contains(hay, f)
 	}
-	if !o.ShowDone && (a.State == "done") {
+	if !o.ShowDone && a.State == "done" && a.ID != o.Keep {
 		return false
 	}
 	return true
@@ -266,7 +268,7 @@ func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 			selfVisible = o.Visible(a, l.Alias[id]) && (!row.Archived || o.ShowArchived || o.Filter != "")
 			if selfVisible {
 				count++
-				if a.State == "blocked" {
+				if a.YourTurn() {
 					blocked++
 				}
 				if a.State == "busy" {

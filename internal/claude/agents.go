@@ -23,7 +23,7 @@ type Agent struct {
 	Name        string
 	Cwd         string
 	Kind        string // background | interactive
-	State       string // normalized: blocked busy idle done failed
+	State       string // normalized: blocked busy idle done failed; the UI adds ready (done, not seen yet)
 	StartedAt   time.Time
 	Interactive bool
 
@@ -38,6 +38,14 @@ type Agent struct {
 	PRs        []Link
 	ForkParent string // short id
 	Transcript string // session transcript (jsonl)
+
+	Stale bool // set by the UI: waiting on you, but nothing happened for a long time
+}
+
+// YourTurn: the agent waits on you, with a question (blocked, not stale) or
+// a result you haven't looked at yet (ready).
+func (a *Agent) YourTurn() bool {
+	return (a.State == "blocked" && !a.Stale) || a.State == "ready"
 }
 
 type Link struct {
@@ -223,6 +231,8 @@ func stateRank(s string) int {
 	switch s {
 	case "blocked":
 		return 0
+	case "ready":
+		return 1
 	case "failed":
 		return 1
 	case "busy":

@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -49,6 +50,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		m.ticks++
 		m.refresh()
+		m.dwell(time.Time(msg))
 		var cmds []tea.Cmd
 		cmds = append(cmds, tick())
 		if m.ticks%2 == 0 && !m.fetching {
@@ -58,6 +60,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 
 	case attachDoneMsg:
+		m.markSeen(msg.id, time.Now()) // you were in it
 		if msg.err != nil {
 			m.flash("attach: %v", msg.err)
 		}
@@ -269,7 +272,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 	case "b": // jump to next blocked agent
 		for i := 1; i <= len(m.rows); i++ {
 			j := (m.cursor + i) % len(m.rows)
-			if a := m.rows[j].Agent; a != nil && a.State == "blocked" {
+			if a := m.rows[j].Agent; a != nil && a.YourTurn() {
 				m.moveCursor(j - m.cursor)
 				break
 			}
@@ -309,7 +312,8 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 			m.flash("interactive session: open it in its own terminal (pid shown in `claude agents`)")
 			return nil
 		}
-		return tea.Exec(attach.Session(r.ID), func(err error) tea.Msg { return attachDoneMsg{err} })
+		id := r.ID // r points into m.rows, which changes while attached
+		return tea.Exec(attach.Session(id), func(err error) tea.Msg { return attachDoneMsg{id, err} })
 	case " ":
 		if r != nil && (r.HasKids || r.Group) {
 			m.layout.Collapsed[r.ID] = !m.layout.Collapsed[r.ID]
