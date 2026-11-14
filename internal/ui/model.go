@@ -73,7 +73,10 @@ type model struct {
 	ta          textarea.Model    // the draft: readline keys, multi-line
 	pastes      map[string]string // long pastes folded into tokens
 	pasteN      int
+	imageN      int
 	draftInside bool
+	comp        *completion // the "/" skill or "@" file popup, when open
+	compShut    string      // the word esc closed the popup for
 
 	status   string
 	statusAt time.Time

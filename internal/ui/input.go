@@ -118,6 +118,10 @@ func (m *model) inputRows() int {
 // expanded when the agent starts (like Claude Code's [Pasted text #1]).
 func (m *model) paste(s string) {
 	s = strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\r", "\n")
+	if ps, ok := droppedPaths(s); ok { // files dropped on the terminal
+		m.pasteFiles(ps)
+		return
+	}
 	lines := strings.Count(s, "\n") + 1
 	if lines <= 3 && len(s) <= 800 {
 		m.ta.InsertString(s)
@@ -135,6 +139,60 @@ func (m *model) paste(s string) {
 	m.ta.InsertString(tok)
 }
 
+// pasteFiles adds files: images as [Image #n] tokens, others as their path.
+func (m *model) pasteFiles(ps []string) {
+	for i, p := range ps {
+		if i > 0 {
+			m.ta.InsertString(" ")
+		}
+		if isImage(p) {
+			m.attachImage(p)
+		} else {
+			m.ta.InsertString(p)
+		}
+	}
+}
+
+// attachImage adds an [Image #n] token that becomes the image's path when
+// the agent starts: the agent reads it with its Read tool, which sees images.
+func (m *model) attachImage(path string) {
+	m.imageN++
+	tok := fmt.Sprintf("[Image #%d]", m.imageN)
+	if m.pastes == nil {
+		m.pastes = map[string]string{}
+	}
+	m.pastes[tok] = path
+	m.ta.InsertString(tok)
+}
+
+// pasteClipboard is ctrl+v: an image on the clipboard is saved and attached,
+// files copied in a file manager are added, anything else is pasted as text.
+func (m *model) pasteClipboard() {
+	types := clipboardTypes()
+	if data, ext, err := clipboardImage(types); err != nil {
+		m.flash("clipboard image: %v", err)
+		return
+	} else if len(data) > 0 {
+		p, err := savePastedImage(data, ext)
+		if err != nil {
+			m.flash("saving pasted image: %v", err)
+			return
+		}
+		m.attachImage(p)
+		return
+	}
+	if ps := clipboardFiles(types); len(ps) > 0 {
+		m.pasteFiles(ps)
+		return
+	}
+	s, err := readClipboard()
+	if err != nil {
+		m.flash("clipboard: %v", err)
+		return
+	}
+	m.paste(s)
+}
+
 // expandPastes swaps the paste tokens still in the text for what was pasted.
 func (m *model) expandPastes(s string) string {
 	for tok, text := range m.pastes {
@@ -146,6 +204,7 @@ func (m *model) expandPastes(s string) string {
 func (m *model) clearDraft() {
 	m.ta.Reset()
 	m.pastes, m.draftInside = nil, false
+	m.comp, m.compShut = nil, ""
 }
 
 // atEnd says whether the cursor is at the very end of the draft.
@@ -167,10 +226,14 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 	m.sizeInput()
 	m.ta.SetHeight(inputMaxRows)
 	defer m.sizeInput()
+	defer m.updateCompletion() // runs before sizeInput: the popup follows the text
 	empty := m.draft() == ""
 	multi := strings.Contains(m.draft(), "\n")
 	if k.Paste {
 		m.paste(string(k.Runes))
+		return nil
+	}
+	if m.updateCompletionKeys(k) {
 		return nil
 	}
 	switch k.String() {
@@ -208,11 +271,7 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 	case "ctrl+f":
 		return m.updateNormal(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
 	case "ctrl+v":
-		if s, err := readClipboard(); err != nil {
-			m.flash("clipboard: %v", err)
-		} else {
-			m.paste(s)
-		}
+		m.pasteClipboard()
 		return nil
 	case "up", "down":
 		if !multi { // one line: arrows move the list; several: move in the text

@@ -86,7 +86,7 @@ func pad(s string, w int) string {
 	return s
 }
 
-func (m *model) bodyHeight() int { return max(1, m.h-5-m.inputRows()) } // header + gap, status, input box
+func (m *model) bodyHeight() int { return max(1, m.h-5-m.inputRows()-m.compRows()) } // header + gap, status, popup, input box
 
 // padX is the margin left and right of the tree and the panel; gap separates
 // them (the divider sits in its middle).
@@ -239,7 +239,11 @@ func (m *model) footer() string {
 			line1 = m.status
 		}
 	}
-	return pad(strings.Repeat(" ", padX)+trunc(line1, m.w-2*padX), m.w) + "\n" + m.inputBox()
+	status := pad(strings.Repeat(" ", padX)+trunc(line1, m.w-2*padX), m.w)
+	if pop := m.compView(); pop != "" {
+		status += "\n" + pop
+	}
+	return status + "\n" + m.inputBox()
 }
 
 func (m *model) renderRow(r layout.Row, w int) string {
