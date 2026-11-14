@@ -238,7 +238,19 @@ func (m *model) confirm(msg string, do func(m *model) tea.Cmd) {
 
 // ---------------------------------------------------------------- update
 
+// Update wraps update so the selected agent's git info is refreshed in the
+// background whenever it's stale (cursor moved, or every tick).
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	mm, cmd := m.update(msg)
+	if r := m.selected(); r != nil && r.Agent != nil {
+		if g := gitCmd(r.Agent.Cwd); g != nil {
+			cmd = tea.Batch(cmd, g)
+		}
+	}
+	return mm, cmd
+}
+
+func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height

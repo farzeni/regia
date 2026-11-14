@@ -38,7 +38,7 @@ func (m *model) agentDetail(r *Row, w int) []string {
 	state := g + " " + label + " · " + ago(since)
 	out = append(out, col.Bold(true).Render(state)+"   "+stBold.Render(trunc(r.Title, w-lipgloss.Width(state)-3)))
 	meta := tildify(a.Cwd)
-	if a.Branch != "" {
+	if gi, ok := cachedGit(a.Cwd); a.Branch != "" && !(ok && gi.OK) {
 		meta += " ⎇ " + a.Branch
 	}
 	if a.Tokens > 0 {
@@ -87,6 +87,15 @@ func (m *model) agentDetail(r *Row, w int) []string {
 		if a.Suggested != "" {
 			field("REPLY", "› "+a.Suggested+"   (y copies)", plain, 2)
 		}
+	}
+	if gi, ok := cachedGit(a.Cwd); ok && gi.OK {
+		l1, l2 := gi.lines()
+		st := plain
+		if gi.Changed+gi.Untracked > 0 {
+			st = lipgloss.NewStyle().Foreground(cBlocked)
+		}
+		field("GIT", l1, st, 1)
+		field("", l2, stDim, 1)
 	}
 	if len(a.PRs) > 0 {
 		var ids []string

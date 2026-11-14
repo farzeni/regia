@@ -32,6 +32,11 @@ func main() {
 			m.w, m.h = 160, 60
 			m.cursorID = os.Args[2]
 			m.rebuild()
+			if r := m.selected(); r != nil && r.Agent != nil {
+				if c := gitCmd(r.Agent.Cwd); c != nil {
+					c()
+				}
+			}
 			if r := m.selected(); r == nil || r.ID != os.Args[2] {
 				fmt.Fprintln(os.Stderr, "not visible:", os.Args[2])
 				os.Exit(1)
