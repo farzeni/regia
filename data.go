@@ -244,3 +244,13 @@ func copyClipboard(s string) error {
 	}
 	return os.ErrNotExist
 }
+
+func readClipboard() (string, error) {
+	for _, c := range [][]string{{"wl-paste", "--no-newline"}, {"xclip", "-selection", "clipboard", "-o"}, {"pbpaste"}} {
+		if _, err := exec.LookPath(c[0]); err == nil {
+			out, err := exec.Command(c[0], c[1:]...).Output()
+			return string(out), err
+		}
+	}
+	return "", os.ErrNotExist
+}

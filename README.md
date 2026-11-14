@@ -36,6 +36,13 @@ The input takes the usual readline keys: `alt+backspace`/`ctrl+w`, `alt+d`,
 `ctrl+d` edit the text when there is some, and act on the list when it's empty;
 `ctrl+f` is the filter (use `→` to move forward).
 
+Multi-line: `alt+enter`, `ctrl+j`, or `\` at the end then `enter` add a line;
+the box grows up to 8 rows, and with several lines `↑/↓` move in the text.
+A paste longer than 3 lines or 800 characters shows as `[Pasted text #1 +N
+lines]` and is expanded when the agent starts (`ctrl+v` reads the clipboard
+the same way). The task goes to `claude --bg` as one argument, so it's capped
+at 120 KiB — beyond that, put it in a file and point the agent to it.
+
 | | |
 |---|---|
 | `enter` | attach (`←` in the session comes back) |

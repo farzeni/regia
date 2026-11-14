@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
@@ -58,7 +58,9 @@ type model struct {
 	// the always-on input at the bottom: typing goes there, command keys
 	// (j/k, J/K, s, y…) work after esc
 	typing      bool
-	ti          textinput.Model // the draft: readline keys, cursor, scrolling
+	ta          textarea.Model    // the draft: readline keys, multi-line
+	pastes      map[string]string // long pastes folded into tokens
+	pasteN      int
 	draftInside bool
 
 	status   string
@@ -92,7 +94,7 @@ type stoppedMsg struct {
 }
 
 func newModel() *model {
-	m := &model{agents: map[string]*Agent{}, layout: loadLayout(), typing: true, ti: newDraftInput()}
+	m := &model{agents: map[string]*Agent{}, layout: loadLayout(), typing: true, ta: newDraftInput()}
 	if b := cachedAgents(); b != nil {
 		m.setAgents(b)
 	}
@@ -262,6 +264,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
+		m.sizeInput()
 		return m, nil
 
 	case agentsMsg:
@@ -715,12 +718,13 @@ func pad(s string, w int) string {
 	return s
 }
 
-func (m *model) bodyHeight() int { return max(1, m.h-5) } // header, status, input box (3)
+func (m *model) bodyHeight() int { return max(1, m.h-4-m.inputRows()) } // header, status, input box
 
 func (m *model) View() string {
 	if m.w == 0 {
 		return ""
 	}
+	m.sizeInput() // the input box grows with the draft; the list gets the rest
 	bh := m.bodyHeight()
 	lw := max(30, min(64, m.w*42/100))
 	if m.w < 70 {

@@ -16,6 +16,8 @@ type helpSection struct {
 var helpSections = []helpSection{
 	{"input  (has focus at start)", [][2]string{
 		{"type + enter", "start agent by the selection"},
+		{"alt+⏎  ctrl+j", "new line (or \\ then ⏎)"},
+		{"paste", "long: [Pasted text #n]"},
 		{"↑/↓ pgup/pgdn", "select (= where it goes)"},
 		{"enter (empty)", "attach (← comes back)"},
 		{"esc", "clear · again: command keys"},
@@ -23,8 +25,6 @@ var helpSections = []helpSection{
 		{"ctrl+a / ctrl+e", "line start / end"},
 		{"alt+← / alt+→", "move by word"},
 		{"ctrl+k / ctrl+u", "cut to end / start"},
-		{"ctrl+f", "filter"},
-		{"ctrl+c", "quit (empty input)"},
 		{"i  c  C", "type again (C: inside)"},
 	}},
 	{"navigate", [][2]string{
@@ -33,7 +33,7 @@ var helpSections = []helpSection{
 		{"ctrl+d/u", "half page"},
 		{"b", "next agent waiting for you"},
 		{"tab", "tree ⇄ inbox"},
-		{"/  esc", "filter / clear"},
+		{"/ ctrl+f  esc", "filter / clear"},
 		{"←/→ h/l space", "fold / unfold"},
 	}},
 	{"sessions", [][2]string{
@@ -43,7 +43,7 @@ var helpSections = []helpSection{
 		{"s", "stop (conversation kept)"},
 		{"a", "show / hide finished"},
 		{"R", "refresh now"},
-		{"q", "quit"},
+		{"q  ctrl+c", "quit (ctrl+c: on empty input)"},
 	}},
 	{"organize  (~/.config/regia/layout.json)", [][2]string{
 		{"J / K", "move down / up (siblings)"},
@@ -74,11 +74,14 @@ func renderSections(ss []helpSection) []string {
 func helpModal(w, h int) string {
 	var body string
 	left, right := renderSections(helpSections[:2]), renderSections(helpSections[2:])
-	colW := 0
-	for _, l := range append(append([]string{}, left...), right...) {
-		colW = max(colW, lipgloss.Width(l))
+	lw, rw := 0, 0
+	for _, l := range left {
+		lw = max(lw, lipgloss.Width(l))
 	}
-	if w >= 2*colW+7 { // border 2 + padding 2 + gap 3
+	for _, l := range right {
+		rw = max(rw, lipgloss.Width(l))
+	}
+	if w >= lw+rw+7 { // border 2 + padding 2 + gap 3
 		var ls []string
 		for i := 0; i < max(len(left), len(right)); i++ {
 			l, r := "", ""
@@ -88,7 +91,7 @@ func helpModal(w, h int) string {
 			if i < len(right) {
 				r = right[i]
 			}
-			ls = append(ls, pad(l, colW+3)+r)
+			ls = append(ls, pad(l, lw+3)+r)
 		}
 		body = strings.Join(ls, "\n")
 	} else {

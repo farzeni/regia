@@ -1,11 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/cursor"
-	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -52,40 +53,145 @@ func (m *model) spawn(task string) tea.Cmd {
 	}
 }
 
-// newDraftInput is the always-on input: a standard text field (readline keys:
-// alt+backspace/ctrl+w, alt+d, ctrl+a/e, ctrl+k/u, alt+←/→, …) with a steady cursor.
-func newDraftInput() textinput.Model {
-	ti := textinput.New()
-	ti.Prompt = ""
-	ti.Cursor.SetMode(cursor.CursorStatic)
-	ti.PlaceholderStyle = stDim
-	ti.KeyMap.AcceptSuggestion.SetEnabled(false) // tab: tree ⇄ inbox
-	ti.KeyMap.NextSuggestion.SetEnabled(false)   // ↑/↓ move the list
-	ti.KeyMap.PrevSuggestion.SetEnabled(false)
-	ti.KeyMap.CharacterForward.SetKeys("right") // ctrl+f: filter, as in claude agents
-	ti.Focus()
-	return ti
+// maxPrompt keeps the task under Linux's per-argument limit (128 KiB).
+const maxPrompt = 120 << 10
+
+// newDraftInput is the always-on input: a multi-line text area with the
+// usual readline keys (alt+backspace/ctrl+w, alt+d, ctrl+a/e, ctrl+k/u,
+// alt+←/→, …). enter sends; alt+enter, ctrl+j or "\" + enter add a line.
+func newDraftInput() textarea.Model {
+	ta := textarea.New()
+	ta.ShowLineNumbers = false
+	ta.CharLimit = 0
+	ta.MaxHeight = 0 // no cap on lines; the box shows at most inputMaxRows
+	ta.Cursor.SetMode(cursor.CursorStatic)
+	ta.SetPromptFunc(2, func(i int) string {
+		if i == 0 {
+			return "❯ "
+		}
+		return "  "
+	})
+	st := &ta.FocusedStyle
+	st.CursorLine = lipgloss.NewStyle()
+	st.Placeholder = stDim
+	st.Prompt = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
+	st.EndOfBuffer = lipgloss.NewStyle()
+	ta.EndOfBufferCharacter = ' '
+	km := &ta.KeyMap
+	km.InsertNewline.SetKeys("alt+enter", "ctrl+j")
+	km.CharacterForward.SetKeys("right") // ctrl+f: filter, as in claude agents
+	km.WordForward.SetKeys("alt+right", "ctrl+right", "alt+f")
+	km.WordBackward.SetKeys("alt+left", "ctrl+left", "alt+b")
+	km.Paste.SetEnabled(false) // ctrl+v is handled here, so big pastes fold too
+	ta.Focus()
+	return ta
 }
 
-func (m *model) draft() string { return m.ti.Value() }
+const inputMaxRows = 8
+
+func (m *model) draft() string { return m.ta.Value() }
+
+// sizeInput fits the text area to the box: its width, and as many rows as the
+// draft needs (soft-wrapped), up to inputMaxRows.
+func (m *model) sizeInput() {
+	tw := max(10, m.w-4-lipgloss.Width("? keys")-1)
+	m.ta.SetWidth(tw)
+	text := max(1, tw-2)
+	rows := 0
+	for _, l := range strings.Split(m.draft(), "\n") {
+		rows += ansi.StringWidth(l)/text + 1
+	}
+	m.ta.SetHeight(min(inputMaxRows, max(1, rows)))
+}
+
+// inputRows is how many rows the input box's content takes.
+func (m *model) inputRows() int {
+	if !m.typing {
+		return 1
+	}
+	return m.ta.Height()
+}
+
+// paste adds pasted text: short pastes inline, long ones as a token that is
+// expanded when the agent starts (like Claude Code's [Pasted text #1]).
+func (m *model) paste(s string) {
+	s = strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\r", "\n")
+	lines := strings.Count(s, "\n") + 1
+	if lines <= 3 && len(s) <= 800 {
+		m.ta.InsertString(s)
+		return
+	}
+	m.pasteN++
+	tok := fmt.Sprintf("[Pasted text #%d +%d lines]", m.pasteN, lines)
+	if lines == 1 {
+		tok = fmt.Sprintf("[Pasted text #%d, %d chars]", m.pasteN, len([]rune(s)))
+	}
+	if m.pastes == nil {
+		m.pastes = map[string]string{}
+	}
+	m.pastes[tok] = s
+	m.ta.InsertString(tok)
+}
+
+// expandPastes swaps the paste tokens still in the text for what was pasted.
+func (m *model) expandPastes(s string) string {
+	for tok, text := range m.pastes {
+		s = strings.ReplaceAll(s, tok, text)
+	}
+	return s
+}
+
+func (m *model) clearDraft() {
+	m.ta.Reset()
+	m.pastes, m.draftInside = nil, false
+}
+
+// atEnd says whether the cursor is at the very end of the draft.
+func (m *model) atEnd() bool {
+	if m.ta.Line() != m.ta.LineCount()-1 {
+		return false
+	}
+	v := m.draft()
+	last := []rune(v[strings.LastIndex(v, "\n")+1:])
+	li := m.ta.LineInfo()
+	return li.StartColumn+li.ColumnOffset >= len(last)
+}
 
 // updateTyping handles keys while the bottom input has focus. Text editing
-// goes to the text field; list movement and enter-to-attach still work.
+// goes to the text area; list movement and enter-to-attach still work.
 func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
+	// Let the text area scroll as if at full height, then fit it: resizing
+	// after a 1-row update would leave its view scrolled past the first line.
+	m.sizeInput()
+	m.ta.SetHeight(inputMaxRows)
+	defer m.sizeInput()
 	empty := m.draft() == ""
+	multi := strings.Contains(m.draft(), "\n")
+	if k.Paste {
+		m.paste(string(k.Runes))
+		return nil
+	}
 	switch k.String() {
 	case "enter":
-		if task := strings.TrimSpace(m.draft()); task != "" {
-			m.ti.Reset()
+		v := m.draft()
+		if strings.HasSuffix(v, `\`) && m.atEnd() {
+			// "\" at the end + enter: a new line instead of sending
+			m.ta.SetValue(strings.TrimSuffix(v, `\`) + "\n")
+			return nil
+		}
+		if task := strings.TrimSpace(m.expandPastes(v)); task != "" {
+			if len(task) > maxPrompt {
+				m.flash("task too long (%d KiB, max %d KiB): put it in a file and point the agent to it", len(task)>>10, maxPrompt>>10)
+				return nil
+			}
 			cmd := m.spawn(task)
-			m.draftInside = false
+			m.clearDraft()
 			return cmd
 		}
 		return m.updateNormal(k) // empty: attach / fold, as in command mode
 	case "esc":
 		if !empty {
-			m.ti.Reset()
-			m.draftInside = false
+			m.clearDraft()
 			return nil
 		}
 		m.typing = false
@@ -94,52 +200,64 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 		return nil
 	case "ctrl+c":
 		if !empty {
-			m.ti.Reset()
+			m.clearDraft()
 			return nil
 		}
 		return tea.Quit
 	case "ctrl+f":
 		return m.updateNormal(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
-	case "up", "down", "pgup", "pgdown", "tab", "shift+up", "shift+down":
+	case "ctrl+v":
+		if s, err := readClipboard(); err != nil {
+			m.flash("clipboard: %v", err)
+		} else {
+			m.paste(s)
+		}
+		return nil
+	case "up", "down":
+		if !multi { // one line: arrows move the list; several: move in the text
+			return m.updateNormal(k)
+		}
+	case "pgup", "pgdown", "tab", "shift+up", "shift+down":
 		return m.updateNormal(k)
 	case "left", "right", "home", "end", "ctrl+d":
 		if empty { // nothing to edit: fold / top / bottom / half page
 			return m.updateNormal(k)
 		}
 	case "?":
-		if empty && !k.Paste {
+		if empty {
 			m.help = !m.help
 			return nil
 		}
 	}
 	var cmd tea.Cmd
-	m.ti, cmd = m.ti.Update(k)
+	m.ta, cmd = m.ta.Update(k)
 	return cmd
 }
 
 // inputBox renders the always-on input in a rounded box: the draft with its
-// cursor, or a hint saying where a new agent would go. The border is lit while
-// the input has focus.
+// cursor (growing to inputMaxRows lines), or a hint saying where a new agent
+// would go. The border is lit while the input has focus.
 func (m *model) inputBox() string {
 	iw := max(10, m.w-4) // border + padding
-	caret := lipgloss.NewStyle().Foreground(cAccent).Bold(true).Render("❯ ")
 	keys := stDim.Render("? keys")
 	border := lipgloss.Color("240")
-	var line string
+	var lines []string
 	if !m.typing {
-		line = stDim.Render("❯ command keys — i to type a new task")
+		lines = []string{stDim.Render("❯ command keys — i to type a new task")}
 	} else {
 		border = cAccent
 		_, _, cwd, where := m.spawnTarget()
-		m.ti.Placeholder = "new task — starts " + where + " in " + tildify(cwd)
-		m.ti.Width = max(5, iw-2-lipgloss.Width(keys)-3)
-		line = caret + m.ti.View()
+		m.ta.Placeholder = "new task — starts " + where + " in " + tildify(cwd)
+		m.sizeInput()
+		lines = strings.Split(m.ta.View(), "\n")
 	}
-	if lipgloss.Width(line)+lipgloss.Width(keys)+2 <= iw {
-		line = pad(line, iw-lipgloss.Width(keys)) + keys
-	} else {
-		line = ansi.Truncate(line, iw, "…")
+	for i, l := range lines {
+		l = ansi.Truncate(l, iw-lipgloss.Width(keys)-1, "…")
+		if i == 0 {
+			l = pad(l, iw-lipgloss.Width(keys)) + keys
+		}
+		lines[i] = l
 	}
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(border).
-		Padding(0, 1).Width(m.w - 2).Render(line)
+		Padding(0, 1).Width(m.w - 2).Render(strings.Join(lines, "\n"))
 }
