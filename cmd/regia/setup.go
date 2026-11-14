@@ -27,7 +27,7 @@ func setup(args []string) int {
 
 	if _, err := exec.LookPath("regia"); err != nil {
 		fmt.Println("! regia is not on PATH: the hook runs `regia hook spawn` and will do nothing until it is.")
-		fmt.Println("  install it with: go install github.com/farzeni/regia/cmd/regia@latest (and put $(go env GOPATH)/bin on PATH)")
+		fmt.Println("  install it with: go install github.com/farzeni/regia/cmd/regia@main (and put $(go env GOPATH)/bin on PATH)")
 		ok = false
 	}
 

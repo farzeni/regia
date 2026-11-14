@@ -73,9 +73,15 @@ func (b Build) String() string {
 	return b.Version
 }
 
-// Latest asks the Go module proxy (through `go list`) for the newest version.
+// Branch is what gets published: regia is released from main.
+const Branch = "main"
+
+// Latest asks the Go module proxy (through `go list`) for the newest version:
+// the head of main. Not @latest: the proxy caches that answer for a while,
+// so right after a push it still names an older commit, while a branch query
+// is resolved fresh. With tags, main's pseudo-version still sorts after them.
 func Latest(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, "go", "list", "-m", "-json", Module+"@latest")
+	cmd := exec.CommandContext(ctx, "go", "list", "-m", "-json", Module+"@"+Branch)
 	cmd.Dir = os.TempDir() // outside any module or workspace
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	out, err := cmd.Output()

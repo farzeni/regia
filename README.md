@@ -10,7 +10,7 @@ in a keystroke.
 You need **Go 1.26+** and **Claude Code 2.1.292+** (`claude --version`).
 
 ```bash
-go install github.com/farzeni/regia/cmd/regia@latest   # installs to $(go env GOPATH)/bin
+go install github.com/farzeni/regia/cmd/regia@main   # installs to $(go env GOPATH)/bin
 regia setup                                            # once per machine
 regia
 ```
