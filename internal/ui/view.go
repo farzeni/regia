@@ -27,7 +27,7 @@ var (
 	stBold   = lipgloss.NewStyle().Bold(true)
 	stAccent = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
 	stSel    = lipgloss.NewStyle().Background(lipgloss.Color("237"))
-	stYou    = lipgloss.NewStyle().Background(lipgloss.Color("235")) // your messages in the history: a shade off the agent's
+	stYou    = lipgloss.NewStyle().Foreground(lipgloss.Color("183")) // your messages in the history: a light tint of the accent
 	stHead   = lipgloss.NewStyle().Foreground(cDim).Bold(true)
 )
 

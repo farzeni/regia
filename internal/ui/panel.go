@@ -157,7 +157,7 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string) {
 			if t.Repeats > 0 {
 				rep = stDim.Render(fmt.Sprintf("  ×%d", t.Repeats+1))
 			}
-			out = append(out, bgBar(stYou, pre+trunc(claude.Tidy(t.User.Detail), w-lipgloss.Width(pre)-lipgloss.Width(rep))+rep, w))
+			out = append(out, pre+stYou.Render(trunc(claude.Tidy(t.User.Detail), w-lipgloss.Width(pre)-lipgloss.Width(rep)))+rep)
 		} else {
 			out = append(out, stDim.Render("▸ earlier activity"))
 		}

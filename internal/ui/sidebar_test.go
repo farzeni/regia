@@ -194,16 +194,19 @@ func TestYourMessagesTinted(t *testing.T) {
 		User: &claude.HEntry{At: at, Detail: "my message"}, Results: []claude.HEntry{{At: at, State: "done", Detail: "agent reply"}}, LastAt: at,
 	}}}, r.ID
 	hist, _ := m.agentDetail(r, 60)
-	bg := "\x1b[48;5;235m"
+	fg := "\x1b[38;5;183m"
 	for _, l := range hist {
+		if strings.Contains(l, "\x1b[48;") {
+			t.Fatalf("no background band in the history: %q", l)
+		}
 		switch {
 		case strings.Contains(l, "my message"):
-			if !strings.HasPrefix(l, bg) || ansi.StringWidth(l) != 60 {
-				t.Fatalf("your line should be tinted across the width: %q", l)
+			if !strings.Contains(l, fg+"my message") {
+				t.Fatalf("your message should have its own text color: %q", l)
 			}
 		case strings.Contains(l, "agent reply"):
-			if strings.Contains(l, bg) {
-				t.Fatalf("the agent's line should not be tinted: %q", l)
+			if strings.Contains(l, fg) {
+				t.Fatalf("the agent's line should not take your color: %q", l)
 			}
 		}
 	}
