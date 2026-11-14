@@ -31,6 +31,7 @@ func main() {
 			}
 			m.w, m.h = 160, 60
 			m.cursorID = os.Args[2]
+			m.layout.Collapsed = map[string]bool{} // in memory only: rebuild never saves
 			m.rebuild()
 			if r := m.selected(); r != nil && r.Agent != nil {
 				if c := gitCmd(r.Agent.Cwd); c != nil {

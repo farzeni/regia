@@ -50,43 +50,56 @@ func (m *model) agentDetail(r *Row, w int) []string {
 	out = append(out, stDim.Render(trunc(meta, w)))
 	out = append(out, "")
 
-	// ── card
+	// ── the ask: what it needs from you (or what it's doing), in a barred block
+	bar := func(c lipgloss.TerminalColor, lines []string) {
+		b := lipgloss.NewStyle().Foreground(c).Render("┃ ")
+		for _, l := range lines {
+			out = append(out, b+l)
+		}
+	}
+	plain := lipgloss.NewStyle()
+	switch {
+	case a.State == "blocked" && a.Needs != "":
+		ls := needsLines(a.Needs, w-2)
+		if a.Suggested != "" {
+			ls = append(ls, "")
+			for i, l := range clip(wrap("› "+a.Suggested, max(10, w-2-12)), 2, w-2-12) {
+				l = lipgloss.NewStyle().Foreground(cAccent).Render(strings.TrimRight(l, " "))
+				if i == 0 {
+					l += stDim.Render("   y copies")
+				}
+				ls = append(ls, l)
+			}
+		}
+		bar(cBlocked, ls)
+		out = append(out, "")
+	case a.State == "busy" && a.Detail != "":
+		bar(cBusy, clip(wrap(a.Detail, max(10, w-2)), 3, w-2))
+		out = append(out, "")
+	}
+
+	// ── context: one compact line each, dim labels
 	const lw = 8
 	field := func(name, text string, st lipgloss.Style, maxLines int) {
 		text = strings.TrimSpace(text)
 		if text == "" {
 			return
 		}
-		lines := wrap(text, max(10, w-lw))
-		if maxLines > 0 && len(lines) > maxLines {
-			lines = lines[:maxLines]
-			lines[maxLines-1] = trunc(strings.TrimRight(lines[maxLines-1], " ")+" …", w-lw)
-		}
-		for i, l := range lines {
+		for i, l := range clip(wrap(text, max(10, w-lw)), maxLines, w-lw) {
 			lab := strings.Repeat(" ", lw)
 			if i == 0 {
-				lab = stHead.Render(fmt.Sprintf("%-*s", lw, name))
+				lab = stDim.Render(fmt.Sprintf("%-*s", lw, name))
 			}
 			out = append(out, lab+st.Render(l))
 		}
 	}
-	plain := lipgloss.NewStyle()
-	field("TASK", tidy(h.Task), plain, 2)
-	switch {
-	case a.State == "busy" && a.Detail != "":
-		field("NOW", a.Detail, lipgloss.NewStyle().Foreground(cBusy), 2)
-		if h.Status != nil {
-			field("LAST", h.Status.Detail, stDim, 1)
+	field("task", taskTitle(h.Task), plain, 1)
+	if h.Status != nil {
+		label := "status"
+		if a.State == "busy" {
+			label = "last"
 		}
-	case h.Status != nil:
-		_, sc := glyph(&Agent{State: h.Status.State})
-		field("STATUS", h.Status.Detail, lipgloss.NewStyle().Foreground(sc), 2)
-	}
-	if a.State == "blocked" {
-		field("NEEDS", a.Needs, lipgloss.NewStyle().Foreground(cBlocked).Bold(true), 6)
-		if a.Suggested != "" {
-			field("REPLY", "› "+a.Suggested+"   (y copies)", plain, 2)
-		}
+		field(label, h.Status.Detail, stDim, 2)
 	}
 	if gi, ok := cachedGit(a.Cwd); ok && gi.OK {
 		l1, l2 := gi.lines()
@@ -94,7 +107,7 @@ func (m *model) agentDetail(r *Row, w int) []string {
 		if gi.Changed+gi.Untracked > 0 {
 			st = lipgloss.NewStyle().Foreground(cBlocked)
 		}
-		field("GIT", l1, st, 1)
+		field("git", l1, st, 1)
 		field("", l2, stDim, 1)
 	}
 	if len(a.PRs) > 0 {
@@ -102,7 +115,7 @@ func (m *model) agentDetail(r *Row, w int) []string {
 		for _, p := range a.PRs {
 			ids = append(ids, p.Kind+" #"+p.ID)
 		}
-		field("LINKS", strings.Join(ids, "  ")+"   "+a.PRs[len(a.PRs)-1].Href, stDim, 2)
+		field("links", strings.Join(ids, "  ")+"   "+a.PRs[len(a.PRs)-1].Href, stDim, 1)
 	}
 
 	// ── terminal output (o) replaces the history
