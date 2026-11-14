@@ -100,6 +100,15 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fetching = true
 		return m, fetchCmd
 
+	case removedBatchMsg:
+		s := fmt.Sprintf("removed %s (conversations kept)", count(len(msg.removed), "session"))
+		if len(msg.refused) > 0 {
+			s += fmt.Sprintf(" · %d refused: %s", len(msg.refused), strings.Join(msg.refused, "; "))
+		}
+		m.flash("%s", s)
+		m.fetching = true
+		return m, fetchCmd
+
 	case removedMsg:
 		if msg.err != nil {
 			// claude rm explains why (e.g. unpushed commits in the worktree)
@@ -146,6 +155,11 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 		m.syncLayout()
+		if m.selecting {
+			if c, ok := m.updateSelect(msg); ok {
+				return m, c
+			}
+		}
 		return m, m.updateNormal(msg)
 	}
 	return m, nil
@@ -214,6 +228,17 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		}
 	case "z":
 		m.foldAll()
+	case "e":
+		return m.archiveSelection()
+	case "A":
+		m.opts.ShowArchived = !m.opts.ShowArchived
+		if m.opts.ShowArchived {
+			m.flash("showing archived (dim) · e brings one back · A hides them")
+		}
+		m.rebuild()
+	case "v":
+		m.selecting, m.marked = true, map[string]bool{}
+		m.flash("select: space marks (a group: all of it), * all · e archive · x remove · esc done")
 	case "g", "home":
 		m.moveCursor(-len(m.rows))
 	case "G", "end":

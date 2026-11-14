@@ -57,6 +57,9 @@ type model struct {
 
 	selectID string // just started: select it as soon as it's listed
 
+	selecting bool            // select mode (v): space marks rows for e / x
+	marked    map[string]bool // agent ids marked in select mode
+
 	panelScroll int    // lines the panel's history is scrolled back (pgup/pgdn)
 	panelFor    string // the row panelScroll belongs to
 
@@ -141,7 +144,8 @@ func (m *model) refresh() {
 		claude.Enrich(a)
 	}
 	m.layout.Spawns = spawns.Cached()
-	if m.layout.Place(m.agents) {
+	placed := m.layout.Place(m.agents)
+	if m.layout.Revive(m.agents) || placed { // archived but working again: back in the tree
 		_ = m.layout.Save()
 	}
 	m.rebuild()
@@ -151,7 +155,7 @@ func (m *model) rebuild() {
 	if m.view == viewInbox {
 		var bl []*claude.Agent
 		for _, a := range m.agents {
-			if a.State == "blocked" && m.opts.Visible(a, m.layout.Alias[a.ID]) {
+			if a.State == "blocked" && m.shown(a.ID) {
 				bl = append(bl, a)
 			}
 		}
@@ -174,12 +178,16 @@ func (m *model) rebuild() {
 	if m.selectID != "" && m.visRow[m.selectID] { // a just-started agent appeared
 		m.cursorID, m.selectID = m.selectID, ""
 	}
-	m.cursor = 0
+	prev := m.cursor // the selected row may have gone (archived, removed): stay at its place
+	m.cursor = -1
 	for i, r := range m.rows {
 		if r.ID == m.cursorID {
 			m.cursor = i
 			break
 		}
+	}
+	if m.cursor < 0 {
+		m.cursor = max(0, prev)
 	}
 	if len(m.rows) > 0 {
 		if m.cursor >= len(m.rows) {

@@ -124,6 +124,9 @@ so a second `enter` attaches to it.
 | `z` | fold everything / unfold everything |
 | `/`, `esc` | filter by name, question, path or branch / clear |
 | `a` | show finished sessions |
+| `e` | archive the agent, or everything in a group except busy agents (asks first); on an archived agent, bring it back |
+| `A` | show / hide archived agents (dim) |
+| `v` | select mode: `space` marks a row (a group: all of it), `*` marks everything, then `e` archives or `x` removes them all; `esc` leaves |
 | `?` | help |
 
 The input takes the usual readline keys (`ctrl+a`/`ctrl+e`, `ctrl+w`,
@@ -132,6 +135,21 @@ add a line. A paste longer than 3 lines or 800 characters folds to
 `[Pasted text #1 +N lines]` and is expanded when the agent starts; `ctrl+v`
 pastes from the clipboard the same way. A task is capped at 120 KiB; beyond
 that, put it in a file and point the agent to it.
+
+## Cleaning up
+
+Agents pile up; three ways to keep the tree short:
+
+- **Archive** (`e`) hides an agent from regia only: Claude Code still has it,
+  `A` shows the archive, and `e` there brings one back. An archived agent that
+  starts working again (you resumed it) comes back by itself. Archived agents
+  don't count in the header and aren't in the inbox. Stored in `layout.json`.
+- **Remove** (`x`) runs `claude rm`: the session leaves `claude agents` too,
+  its worktree is deleted if that's safe, and the conversation stays
+  resumable. It refuses over unpushed commits.
+- **Select mode** (`v`) does either in batches: mark rows with `space` (a
+  group marks all its agents, `*` marks everything shown), then `e` or `x`
+  (one confirmation; refusals are listed, the rest go through).
 
 ## Where the data comes from
 

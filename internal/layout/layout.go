@@ -20,12 +20,13 @@ import (
 // Nodes are agent ids or group ids ("g:..." user groups, "p:..." auto project
 // groups). Any agent can be a parent: that is how a coordinator holds its agents.
 type Layout struct {
-	Groups    map[string]string   `json:"groups"`    // group id -> title
-	Parent    map[string]string   `json:"parent"`    // node -> parent node ("" = root)
-	Order     map[string][]string `json:"order"`     // parent -> ordered children
-	Alias     map[string]string   `json:"alias"`     // agent id -> display name
-	Collapsed map[string]bool     `json:"collapsed"` // node -> collapsed
-	Pinned    map[string]bool     `json:"pinned"`    // placed by hand: never re-linked automatically
+	Groups    map[string]string    `json:"groups"`             // group id -> title
+	Parent    map[string]string    `json:"parent"`             // node -> parent node ("" = root)
+	Order     map[string][]string  `json:"order"`              // parent -> ordered children
+	Alias     map[string]string    `json:"alias"`              // agent id -> display name
+	Collapsed map[string]bool      `json:"collapsed"`          // node -> collapsed
+	Pinned    map[string]bool      `json:"pinned"`             // placed by hand: never re-linked automatically
+	Archived  map[string]time.Time `json:"archived,omitempty"` // agent id -> when: hidden by regia, untouched in Claude
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 
@@ -47,6 +48,7 @@ type Row struct {
 	Agent     *claude.Agent
 	HasKids   bool
 	Collapsed bool
+	Archived  bool
 	Count     int // visible agents below
 	Blocked   int // blocked agents below
 	Busy      int
@@ -76,6 +78,9 @@ func Load() *Layout {
 	}
 	if l.Alias == nil {
 		l.Alias = map[string]string{}
+	}
+	if l.Archived == nil {
+		l.Archived = map[string]time.Time{}
 	}
 	if l.Collapsed == nil {
 		l.Collapsed = map[string]bool{}
@@ -212,8 +217,9 @@ func (l *Layout) Children(parent string, agents map[string]*claude.Agent) []stri
 }
 
 type ViewOpts struct {
-	ShowDone bool
-	Filter   string
+	ShowDone     bool
+	ShowArchived bool
+	Filter       string
 }
 
 func (o ViewOpts) Visible(a *claude.Agent, alias string) bool {
@@ -254,7 +260,9 @@ func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 			if al := l.Alias[id]; al != "" {
 				row.Title = al
 			}
-			selfVisible = o.Visible(a, l.Alias[id])
+			row.Archived = l.IsArchived(id)
+			// archived: hidden unless shown (A) or searched for
+			selfVisible = o.Visible(a, l.Alias[id]) && (!row.Archived || o.ShowArchived || o.Filter != "")
 			if selfVisible {
 				count++
 				if a.State == "blocked" {
@@ -286,6 +294,37 @@ func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 		rows = append(rows, r...)
 	}
 	return rows
+}
+
+// --- archive ----------------------------------------------------------------
+
+func (l *Layout) IsArchived(id string) bool { _, ok := l.Archived[id]; return ok }
+
+// Archive hides agents from regia's tree; Claude Code is not touched.
+func (l *Layout) Archive(ids ...string) {
+	now := time.Now()
+	for _, id := range ids {
+		l.Archived[id] = now
+	}
+}
+
+func (l *Layout) Unarchive(ids ...string) {
+	for _, id := range ids {
+		delete(l.Archived, id)
+	}
+}
+
+// Revive unarchives agents that are working again (someone resumed them),
+// reporting whether anything changed.
+func (l *Layout) Revive(agents map[string]*claude.Agent) bool {
+	changed := false
+	for id := range l.Archived {
+		if a := agents[id]; a != nil && a.State == "busy" {
+			delete(l.Archived, id)
+			changed = true
+		}
+	}
+	return changed
 }
 
 // --- editing operations -------------------------------------------------

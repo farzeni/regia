@@ -243,7 +243,11 @@ func (m *model) inputBox() string {
 	keys := stDim.Render("? keys")
 	border := lipgloss.Color("240")
 	var lines []string
-	if !m.typing {
+	if m.selecting {
+		border = cBlocked
+		lines = []string{lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("◉ select · %d marked", len(m.markedIDs()))) +
+			stDim.Render(" — space mark (group: all) · * all · e archive · x remove · esc done")}
+	} else if !m.typing {
 		lines = []string{stDim.Render("❯ command keys — i to type a new task")}
 	} else {
 		border = cAccent

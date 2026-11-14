@@ -22,8 +22,7 @@ var helpSections = []helpSection{
 		{"enter (empty)", "attach (← comes back)"},
 		{"esc", "clear · command keys · quit"},
 		{"alt+⌫ ctrl+w", "delete word (alt+d: next)"},
-		{"ctrl+a / ctrl+e", "line start / end"},
-		{"alt+← / alt+→", "move by word"},
+		{"ctrl+a/e alt+←→", "line start, end / by word"},
 		{"ctrl+k / ctrl+u", "cut to end / start"},
 	}},
 	{"navigate", [][2]string{
@@ -36,6 +35,7 @@ var helpSections = []helpSection{
 		{"/ ctrl+f  esc", "filter / clear"},
 		{"←/→ h/l space", "fold / unfold"},
 		{"z", "fold all / unfold all"},
+		{"R", "refresh now"},
 	}},
 	{"sessions", [][2]string{
 		{"enter", "attach"},
@@ -44,7 +44,8 @@ var helpSections = []helpSection{
 		{"s", "stop (conversation kept)"},
 		{"x", "remove from list (claude rm)"},
 		{"a", "show / hide finished"},
-		{"R", "refresh now"},
+		{"e  A", "archive (group: all) / show it"},
+		{"v", "select many: space * then e x"},
 		{"esc  ctrl+c", "quit (with nothing to clear)"},
 	}},
 	{"organize  (~/.config/regia/layout.json)", [][2]string{

@@ -168,8 +168,12 @@ func (m *model) View() string {
 }
 
 func (m *model) header() string {
-	var nb, nbusy, n int
+	var nb, nbusy, n, narch int
 	for _, a := range m.agents {
+		if m.layout.IsArchived(a.ID) {
+			narch++
+			continue
+		}
 		if a.State == "done" {
 			continue
 		}
@@ -193,6 +197,14 @@ func (m *model) header() string {
 		lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("● %d need you", nb)) + "  " +
 		lipgloss.NewStyle().Foreground(cBusy).Render(fmt.Sprintf("◆ %d busy", nbusy)) + "  " +
 		stDim.Render(fmt.Sprintf("%d live", n))
+	if narch > 0 {
+		arch := fmt.Sprintf("%d archived", narch)
+		if m.opts.ShowArchived {
+			s += "  " + stAccent.Render("["+arch+"]")
+		} else {
+			s += "  " + stDim.Render(arch)
+		}
+	}
 	if m.opts.Filter != "" {
 		s += "  " + stAccent.Render("/"+m.opts.Filter)
 	}
@@ -235,8 +247,9 @@ func (m *model) renderRow(r layout.Row, w int, sel bool) string {
 		if r.Blocked > 0 {
 			meta = lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("●%d ", r.Blocked)) + meta
 		}
-		title := trunc(r.Title, w-len(indent)-lipgloss.Width(meta)-4)
-		line = indent + stDim.Render(fold) + stHead.Render(title)
+		mark := m.markFor(r.ID)
+		title := trunc(r.Title, w-len(indent)-lipgloss.Width(meta)-4-lipgloss.Width(mark))
+		line = indent + stDim.Render(fold) + mark + stHead.Render(title)
 		line = pad(line, w-lipgloss.Width(meta)-1) + meta
 	} else {
 		a := r.Agent
@@ -252,7 +265,8 @@ func (m *model) renderRow(r layout.Row, w int, sel bool) string {
 		} else if r.Collapsed && r.Blocked > 0 {
 			extra = fmt.Sprintf("  (+%d waiting)", r.Blocked)
 		}
-		titleW := w - len(indent) - 6 - len(age) - len(cutMark)
+		mark := m.markFor(r.ID)
+		titleW := w - len(indent) - 6 - len(age) - len(cutMark) - lipgloss.Width(mark)
 		title := trunc(r.Title+stripNL(extra), titleW)
 		ts := lipgloss.NewStyle()
 		if a.State == "blocked" {
@@ -260,7 +274,11 @@ func (m *model) renderRow(r layout.Row, w int, sel bool) string {
 		} else if a.State == "done" {
 			ts = ts.Foreground(cDim)
 		}
-		line = indent + stDim.Render(fold) + lipgloss.NewStyle().Foreground(c).Render(g) + " " + cutMark + ts.Render(title)
+		gs := lipgloss.NewStyle().Foreground(c)
+		if r.Archived {
+			ts, gs = lipgloss.NewStyle().Foreground(cDim).Italic(true), stDim
+		}
+		line = indent + stDim.Render(fold) + mark + gs.Render(g) + " " + cutMark + ts.Render(title)
 		line = pad(line, w-len(age)-1) + stDim.Render(age)
 	}
 	if sel {
