@@ -84,7 +84,7 @@ func TestInputTypingAndSpawn(t *testing.T) {
 		t.Fatal("down did not move the selection")
 	}
 	target := m.cursorID
-	if l := m.inputLine(); !strings.Contains(l, "jj fix the kqrs bug") {
+	if l := m.inputBox(); !strings.Contains(l, "jj fix the kqrs bug") {
 		t.Fatalf("input line %q", l)
 	}
 
@@ -125,7 +125,7 @@ func TestInputEscGivesCommandKeys(t *testing.T) {
 	if !m.typing || !m.draftInside {
 		t.Fatal("C should focus the input aimed inside the selection")
 	}
-	if l := m.inputLine(); !strings.Contains(l, "inside ") {
+	if l := m.inputBox(); !strings.Contains(l, "inside ") {
 		t.Fatalf("hint should say inside: %q", l)
 	}
 	m.Update(tkey("?"))

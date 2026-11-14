@@ -326,6 +326,13 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, fetchCmd
 
 	case tea.KeyMsg:
+		if m.help { // the help modal is on top: close it, ignore the rest
+			switch msg.String() {
+			case "esc", "?", "q", "enter", "ctrl+c":
+				m.help = false
+			}
+			return m, nil
+		}
 		switch m.mode {
 		case modeInput:
 			return m, m.updateInput(msg)
@@ -707,7 +714,7 @@ func pad(s string, w int) string {
 	return s
 }
 
-func (m *model) bodyHeight() int { return max(1, m.h-4) }
+func (m *model) bodyHeight() int { return max(1, m.h-5) } // header, status, input box (3)
 
 func (m *model) View() string {
 	if m.w == 0 {
@@ -755,9 +762,7 @@ func (m *model) View() string {
 	}
 
 	var right []string
-	if m.help {
-		right = helpLines()
-	} else if dw > 20 {
+	if dw > 20 {
 		right = m.detailLines(dw)
 	}
 	sep := stDim.Render("│")
@@ -775,6 +780,9 @@ func (m *model) View() string {
 		b.WriteByte('\n')
 	}
 	b.WriteString(m.footer())
+	if m.help {
+		return overlay(b.String(), helpModal(m.w, m.h), m.w, m.h)
+	}
 	return b.String()
 }
 
@@ -825,14 +833,7 @@ func (m *model) footer() string {
 			line1 = m.status
 		}
 	}
-	keys := "i type  enter attach  ←/→ fold  J/K reorder  >/< nest  m·p move  n group  r rename  c/C new agent  y copy reply  s stop  tab inbox  b next blocked  / filter  ? help"
-	if m.typing {
-		keys = "enter start it  ↑/↓ select  enter on empty attaches  esc command keys  tab inbox  ctrl+f filter  ? help"
-		if m.draft != "" {
-			keys = "enter start it  esc clear  ctrl+w delete word  ↑/↓ change where it goes"
-		}
-	}
-	return pad(trunc(line1, m.w), m.w) + "\n" + m.inputLine() + "\n" + stDim.Render(trunc(keys, m.w))
+	return pad(trunc(line1, m.w), m.w) + "\n" + m.inputBox()
 }
 
 func (m *model) renderRow(r Row, w int, sel bool) string {
@@ -921,34 +922,3 @@ func (m *model) detailLines(w int) []string {
 	return m.agentDetail(r, w)
 }
 
-func helpLines() []string {
-	return strings.Split(`input  (bottom line, has focus at start)
-  type + enter  start a new agent next to the selection (inside, if a group)
-  enter (empty) attach        ↑/↓ pgup/pgdn  move     tab  tree ⇄ inbox
-  esc           clear the text; on an empty input: command keys below
-  ctrl+w / ctrl+u  delete word / line     ctrl+f  filter     ctrl+c  quit
-  i / c / C     back to typing (C: new agent goes inside the selection)
-
-navigate  (command keys)
-  j/k ↑/↓       move            g/G        top / bottom
-  ctrl+d/u      half page       b          next agent waiting for you
-  tab           tree ⇄ inbox    / filter   esc clear
-  ←/→ h/l       fold / unfold   space      toggle fold
-
-sessions
-  enter         attach (← in the session comes back here)
-  o             show terminal output (claude logs)
-  y / Y         copy suggested reply / session id
-  c / C         new agent next to / inside the selection
-  s             stop (conversation is kept)
-  a             show / hide finished sessions
-  R             refresh now
-
-organize  (saved in ~/.config/regia/layout.json)
-  J/K           move up / down among siblings
-  > / <         nest under the agent above (coordinator) / un-nest
-  m then p / P  move: put below / inside the target
-  n             new group      r  rename (alias)    d  remove group
-
-? closes this help`, "\n")
-}

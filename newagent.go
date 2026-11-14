@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // spawnAgent starts `claude --bg <task>` in dir and returns its output (which
@@ -119,21 +120,36 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-// inputLine renders the always-on input: the draft with a cursor, or a hint
-// saying where a new agent would go.
-func (m *model) inputLine() string {
+// inputBox renders the always-on input in a rounded box: the draft with a
+// cursor, or a hint saying where a new agent would go. The border is lit while
+// the input has focus.
+func (m *model) inputBox() string {
+	iw := max(10, m.w-4) // border + padding
 	caret := lipgloss.NewStyle().Foreground(cAccent).Bold(true).Render("❯ ")
-	if !m.typing {
-		return stDim.Render("❯ i to type a new task")
-	}
-	if m.draft == "" {
+	border := lipgloss.Color("240")
+	var line string
+	switch {
+	case !m.typing:
+		line = stDim.Render("❯ command keys — i to type a new task")
+	case m.draft == "":
 		_, _, cwd, where := m.spawnTarget()
-		return caret + "█" + stDim.Render(trunc(" new task — starts "+where+" in "+tildify(cwd), m.w-3))
+		line = caret + "█" + stDim.Render(" new task — starts "+where+" in "+tildify(cwd))
+	default:
+		d := strings.ReplaceAll(m.draft, "\n", "↵")
+		if r := []rune(d); len(r) > iw-3 && iw > 4 {
+			d = "…" + string(r[len(r)-(iw-4):])
+		}
+		line = caret + d + "█"
 	}
-	d := strings.ReplaceAll(m.draft, "\n", "↵")
-	room := m.w - 4
-	if r := []rune(d); len(r) > room && room > 1 {
-		d = "…" + string(r[len(r)-room+1:])
+	if m.typing {
+		border = cAccent
 	}
-	return caret + d + "█"
+	keys := stDim.Render("? keys")
+	if lipgloss.Width(line)+lipgloss.Width(keys)+2 <= iw {
+		line = pad(line, iw-lipgloss.Width(keys)) + keys
+	} else {
+		line = ansi.Truncate(line, iw, "…")
+	}
+	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(border).
+		Padding(0, 1).Width(m.w - 2).Render(line)
 }
