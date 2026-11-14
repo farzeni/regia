@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
@@ -57,7 +58,7 @@ type model struct {
 	// the always-on input at the bottom: typing goes there, command keys
 	// (j/k, J/K, s, y…) work after esc
 	typing      bool
-	draft       string
+	ti          textinput.Model // the draft: readline keys, cursor, scrolling
 	draftInside bool
 
 	status   string
@@ -91,7 +92,7 @@ type stoppedMsg struct {
 }
 
 func newModel() *model {
-	m := &model{agents: map[string]*Agent{}, layout: loadLayout(), typing: true}
+	m := &model{agents: map[string]*Agent{}, layout: loadLayout(), typing: true, ti: newDraftInput()}
 	if b := cachedAgents(); b != nil {
 		m.setAgents(b)
 	}

@@ -65,8 +65,8 @@ func TestInputTypingAndSpawn(t *testing.T) {
 	}
 	sel := m.cursorID
 	typeText(m, "jj fix the kq bug")
-	if m.draft != "jj fix the kq bug" {
-		t.Fatalf("draft %q", m.draft)
+	if m.draft() != "jj fix the kq bug" {
+		t.Fatalf("draft %q", m.draft())
 	}
 	if m.cursorID != sel || m.mode != modeNormal {
 		t.Fatalf("letters acted as commands: cursor %s→%s mode %v", sel, m.cursorID, m.mode)
@@ -75,8 +75,8 @@ func TestInputTypingAndSpawn(t *testing.T) {
 	m.Update(tkey("backspace"))
 	typeText(m, "rs bug")
 	// ctrl+w drops "bug", backspace the space: "jj fix the kq" + "rs bug"
-	if m.draft != "jj fix the kqrs bug" {
-		t.Fatalf("editing: draft %q", m.draft)
+	if m.draft() != "jj fix the kqrs bug" {
+		t.Fatalf("editing: draft %q", m.draft())
 	}
 
 	m.Update(tkey("down")) // arrows still move the list while typing
@@ -89,8 +89,8 @@ func TestInputTypingAndSpawn(t *testing.T) {
 	}
 
 	_, cmd := m.Update(tkey("enter"))
-	if cmd == nil || m.draft != "" {
-		t.Fatalf("enter did not start: cmd=%v draft=%q", cmd != nil, m.draft)
+	if cmd == nil || m.draft() != "" {
+		t.Fatalf("enter did not start: cmd=%v draft=%q", cmd != nil, m.draft())
 	}
 	msg := runCmd(cmd)
 	if gotTask != "jj fix the kqrs bug" || gotDir == "" {
@@ -109,8 +109,8 @@ func TestInputEscGivesCommandKeys(t *testing.T) {
 	m := testModel(t)
 	typeText(m, "draft")
 	m.Update(tkey("esc"))
-	if m.draft != "" || !m.typing {
-		t.Fatalf("first esc should clear the draft only: %q typing=%v", m.draft, m.typing)
+	if m.draft() != "" || !m.typing {
+		t.Fatalf("first esc should clear the draft only: %q typing=%v", m.draft(), m.typing)
 	}
 	m.Update(tkey("esc"))
 	if m.typing {
@@ -129,7 +129,7 @@ func TestInputEscGivesCommandKeys(t *testing.T) {
 		t.Fatalf("hint should say inside: %q", l)
 	}
 	m.Update(tkey("?"))
-	if !m.help || m.draft != "" {
+	if !m.help || m.draft() != "" {
 		t.Fatal("? on an empty input toggles help")
 	}
 }

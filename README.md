@@ -31,6 +31,10 @@ type a task and press `enter` to start it next to the selected agent (inside
 it if it's a group). `↑/↓` move the selection while you type, `enter` on an
 empty input attaches, `esc` clears the text and, on an empty input, switches
 to the command keys below; `i`, `c` or `C` (aim inside) go back to typing.
+The input takes the usual readline keys: `alt+backspace`/`ctrl+w`, `alt+d`,
+`ctrl+a`/`ctrl+e`, `alt+←/→`, `ctrl+k`/`ctrl+u`, `delete`. `←/→`, `home/end` and
+`ctrl+d` edit the text when there is some, and act on the list when it's empty;
+`ctrl+f` is the filter (use `→` to move forward).
 
 | | |
 |---|---|

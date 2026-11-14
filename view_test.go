@@ -39,7 +39,7 @@ func TestViewFrames(t *testing.T) {
 		t.Fatalf("input box not at the bottom:\n%s", strings.Join(ls[n-3:], "\n"))
 	}
 	typeText(m, "fix the flaky test")
-	if ls := check("draft"); !strings.Contains(ls[n-2], "fix the flaky test█") {
+	if ls := check("draft"); !strings.Contains(ls[n-2], "fix the flaky test") {
 		t.Fatalf("draft not in box: %q", ls[n-2])
 	}
 	m.Update(tkey("esc"))

@@ -4,6 +4,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -50,21 +52,40 @@ func (m *model) spawn(task string) tea.Cmd {
 	}
 }
 
-// updateTyping handles keys while the bottom input has focus. Text goes into
-// the draft; list movement and enter-to-attach still work.
+// newDraftInput is the always-on input: a standard text field (readline keys:
+// alt+backspace/ctrl+w, alt+d, ctrl+a/e, ctrl+k/u, alt+←/→, …) with a steady cursor.
+func newDraftInput() textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = ""
+	ti.Cursor.SetMode(cursor.CursorStatic)
+	ti.PlaceholderStyle = stDim
+	ti.KeyMap.AcceptSuggestion.SetEnabled(false) // tab: tree ⇄ inbox
+	ti.KeyMap.NextSuggestion.SetEnabled(false)   // ↑/↓ move the list
+	ti.KeyMap.PrevSuggestion.SetEnabled(false)
+	ti.KeyMap.CharacterForward.SetKeys("right") // ctrl+f: filter, as in claude agents
+	ti.Focus()
+	return ti
+}
+
+func (m *model) draft() string { return m.ti.Value() }
+
+// updateTyping handles keys while the bottom input has focus. Text editing
+// goes to the text field; list movement and enter-to-attach still work.
 func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
+	empty := m.draft() == ""
 	switch k.String() {
 	case "enter":
-		if task := strings.TrimSpace(m.draft); task != "" {
-			m.draft = ""
+		if task := strings.TrimSpace(m.draft()); task != "" {
+			m.ti.Reset()
 			cmd := m.spawn(task)
 			m.draftInside = false
 			return cmd
 		}
 		return m.updateNormal(k) // empty: attach / fold, as in command mode
 	case "esc":
-		if m.draft != "" {
-			m.draft, m.draftInside = "", false
+		if !empty {
+			m.ti.Reset()
+			m.draftInside = false
 			return nil
 		}
 		m.typing = false
@@ -72,79 +93,48 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 		m.flash("command keys (j/k, J/K, s, y, …) — i to type again")
 		return nil
 	case "ctrl+c":
-		if m.draft != "" {
-			m.draft = ""
+		if !empty {
+			m.ti.Reset()
 			return nil
 		}
 		return tea.Quit
 	case "ctrl+f":
 		return m.updateNormal(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
-	case "ctrl+u":
-		m.draft = ""
-		return nil
-	case "ctrl+w":
-		t := strings.TrimRight(m.draft, " ")
-		if i := strings.LastIndexAny(t, " \n"); i >= 0 {
-			m.draft = t[:i+1]
-		} else {
-			m.draft = ""
-		}
-		return nil
-	case "backspace":
-		if r := []rune(m.draft); len(r) > 0 {
-			m.draft = string(r[:len(r)-1])
-		}
-		return nil
-	case "up", "down", "pgup", "pgdown", "home", "end", "tab", "shift+up", "shift+down", "ctrl+d":
+	case "up", "down", "pgup", "pgdown", "tab", "shift+up", "shift+down":
 		return m.updateNormal(k)
-	case "left", "right":
-		if m.draft == "" {
+	case "left", "right", "home", "end", "ctrl+d":
+		if empty { // nothing to edit: fold / top / bottom / half page
 			return m.updateNormal(k)
 		}
-		return nil
-	}
-	switch k.Type {
-	case tea.KeySpace:
-		m.draft += " "
-	case tea.KeyRunes:
-		s := string(k.Runes)
-		if m.draft == "" && s == "?" && !k.Paste {
+	case "?":
+		if empty && !k.Paste {
 			m.help = !m.help
 			return nil
 		}
-		if k.Paste {
-			s = strings.ReplaceAll(s, "\r\n", "\n")
-		}
-		m.draft += s
 	}
-	return nil
+	var cmd tea.Cmd
+	m.ti, cmd = m.ti.Update(k)
+	return cmd
 }
 
-// inputBox renders the always-on input in a rounded box: the draft with a
+// inputBox renders the always-on input in a rounded box: the draft with its
 // cursor, or a hint saying where a new agent would go. The border is lit while
 // the input has focus.
 func (m *model) inputBox() string {
 	iw := max(10, m.w-4) // border + padding
 	caret := lipgloss.NewStyle().Foreground(cAccent).Bold(true).Render("❯ ")
+	keys := stDim.Render("? keys")
 	border := lipgloss.Color("240")
 	var line string
-	switch {
-	case !m.typing:
+	if !m.typing {
 		line = stDim.Render("❯ command keys — i to type a new task")
-	case m.draft == "":
-		_, _, cwd, where := m.spawnTarget()
-		line = caret + "█" + stDim.Render(" new task — starts "+where+" in "+tildify(cwd))
-	default:
-		d := strings.ReplaceAll(m.draft, "\n", "↵")
-		if r := []rune(d); len(r) > iw-3 && iw > 4 {
-			d = "…" + string(r[len(r)-(iw-4):])
-		}
-		line = caret + d + "█"
-	}
-	if m.typing {
+	} else {
 		border = cAccent
+		_, _, cwd, where := m.spawnTarget()
+		m.ti.Placeholder = "new task — starts " + where + " in " + tildify(cwd)
+		m.ti.Width = max(5, iw-2-lipgloss.Width(keys)-3)
+		line = caret + m.ti.View()
 	}
-	keys := stDim.Render("? keys")
 	if lipgloss.Width(line)+lipgloss.Width(keys)+2 <= iw {
 		line = pad(line, iw-lipgloss.Width(keys)) + keys
 	} else {

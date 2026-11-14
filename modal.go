@@ -19,7 +19,10 @@ var helpSections = []helpSection{
 		{"↑/↓ pgup/pgdn", "select (= where it goes)"},
 		{"enter (empty)", "attach (← comes back)"},
 		{"esc", "clear · again: command keys"},
-		{"ctrl+w/u", "delete word / line"},
+		{"alt+⌫ ctrl+w", "delete word (alt+d: next)"},
+		{"ctrl+a / ctrl+e", "line start / end"},
+		{"alt+← / alt+→", "move by word"},
+		{"ctrl+k / ctrl+u", "cut to end / start"},
 		{"ctrl+f", "filter"},
 		{"ctrl+c", "quit (empty input)"},
 		{"i  c  C", "type again (C: inside)"},
@@ -60,7 +63,7 @@ func renderSections(ss []helpSection) []string {
 		}
 		out = append(out, stHead.Render(s.title))
 		for _, k := range s.keys {
-			out = append(out, stAccent.Render(fmt.Sprintf("  %-15s", k[0]))+k[1])
+			out = append(out, stAccent.Render(fmt.Sprintf("  %-16s", k[0]))+k[1])
 		}
 	}
 	return out
@@ -75,7 +78,7 @@ func helpModal(w, h int) string {
 	for _, l := range append(append([]string{}, left...), right...) {
 		colW = max(colW, lipgloss.Width(l))
 	}
-	if w >= 2*colW+10 {
+	if w >= 2*colW+7 { // border 2 + padding 2 + gap 3
 		var ls []string
 		for i := 0; i < max(len(left), len(right)); i++ {
 			l, r := "", ""
@@ -85,7 +88,7 @@ func helpModal(w, h int) string {
 			if i < len(right) {
 				r = right[i]
 			}
-			ls = append(ls, pad(l, colW+4)+r)
+			ls = append(ls, pad(l, colW+3)+r)
 		}
 		body = strings.Join(ls, "\n")
 	} else {
@@ -97,7 +100,7 @@ func helpModal(w, h int) string {
 	}
 	title := stBold.Render("keys") + stDim.Render("   esc / ? closes")
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(cAccent).
-		Padding(0, 2).MaxWidth(w).Render(title + "\n\n" + body)
+		Padding(0, 1).MaxWidth(w).Render(title + "\n\n" + body)
 }
 
 // overlay draws box centred over base (both multi-line, possibly styled),
