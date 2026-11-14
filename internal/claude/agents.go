@@ -96,6 +96,15 @@ func FetchAgents() ([]byte, error) {
 	return out, nil
 }
 
+// CachedAge is how old the last listing is (a long time when there is none).
+func CachedAge() time.Duration {
+	fi, err := os.Stat(cacheFile())
+	if err != nil {
+		return 1 << 62
+	}
+	return time.Since(fi.ModTime())
+}
+
 // CachedAgents returns the last listing so the first frame is instant.
 func CachedAgents() []byte {
 	b, _ := os.ReadFile(cacheFile())

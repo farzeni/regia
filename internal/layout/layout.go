@@ -28,6 +28,7 @@ type Layout struct {
 	Pinned    map[string]bool      `json:"pinned"`             // placed by hand: never re-linked automatically
 	Sidebar   int                  `json:"sidebar,omitempty"`  // list width in columns (0: automatic)
 	Archived  map[string]time.Time `json:"archived,omitempty"` // agent id -> when: hidden by regia, untouched in Claude
+	Muted     map[string]bool      `json:"muted,omitempty"`    // group or coordinator -> left out of group awareness
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 
@@ -88,6 +89,9 @@ func Load() *Layout {
 	}
 	if l.Pinned == nil {
 		l.Pinned = map[string]bool{}
+	}
+	if l.Muted == nil {
+		l.Muted = map[string]bool{}
 	}
 	return l
 }

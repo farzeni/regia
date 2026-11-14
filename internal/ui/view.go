@@ -11,6 +11,7 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"github.com/farzeni/regia/internal/claude"
+	"github.com/farzeni/regia/internal/group"
 	"github.com/farzeni/regia/internal/layout"
 )
 
@@ -269,7 +270,11 @@ func (m *model) renderRow(r layout.Row, w int) string {
 			meta = lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("●%d ", r.Blocked)) + meta
 		}
 		mark := m.markFor(r.ID)
-		title := trunc(r.Title, w-len(indent)-lipgloss.Width(meta)-4-lipgloss.Width(mark))
+		muted := ""
+		if m.layout.Muted[r.ID] {
+			muted = " (muted)"
+		}
+		title := trunc(r.Title+muted, w-len(indent)-lipgloss.Width(meta)-4-lipgloss.Width(mark))
 		line = indent + stDim.Render(fold) + mark + stHead.Render(title)
 		line = pad(line, w-lipgloss.Width(meta)-1) + meta
 	} else {
@@ -285,6 +290,9 @@ func (m *model) renderRow(r layout.Row, w int) string {
 			extra = "  " + a.Needs
 		} else if r.Collapsed && r.Blocked > 0 {
 			extra = fmt.Sprintf("  (+%d waiting)", r.Blocked)
+		}
+		if m.layout.Muted[r.ID] {
+			extra += "  (muted)"
 		}
 		mark := m.markFor(r.ID)
 		titleW := w - len(indent) - 6 - len(age) - len(cutMark) - lipgloss.Width(mark)
@@ -414,8 +422,16 @@ func (m *model) detailLines(w int) panel {
 		if n == 0 {
 			out = append(out, stDim.Render("nothing"))
 		}
+		if group.IsGroup(r.ID) {
+			out = append(out, m.notesSection(r.ID, w, 10)...)
+		}
 		return panel{card: out}
 	}
 	hist, card := m.agentDetail(r, w)
+	if r.HasKids { // a coordinator: its agents' shared notes above its card
+		if ns := m.notesSection(r.ID, w, 5); len(ns) > 0 {
+			card = append(ns[1:], append([]string{""}, card...)...)
+		}
+	}
 	return panel{hist: hist, card: card, bottomUp: true}
 }

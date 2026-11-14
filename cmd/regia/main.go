@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/farzeni/regia/internal/attach"
+	"github.com/farzeni/regia/internal/group"
 	"github.com/farzeni/regia/internal/spawns"
 	"github.com/farzeni/regia/internal/ui"
 )
@@ -22,7 +23,12 @@ const usage = `regia — terminal control room for Claude Code background agents
   regia update     install the latest version and update the plugin (also daily, automatically)
   regia version    print this build's version
   regia uninstall  remove the plugin and the binary (--purge: also your layout)
-  regia --dump     print the tree and inbox as plain text`
+  regia --dump     print the tree and inbox as plain text
+
+  group awareness (agents in a hand-made group or under a coordinator):
+  regia context    run by an agent: its group, siblings' state and shared notes (--all: every note)
+  regia note "…"   run by an agent: share one line with its group
+  regia group      on | off | status: turn it on or off for every session (REGIA_GROUP=off: one session)`
 
 func main() {
 	if err := dispatch(os.Args[1:]); err != nil {
@@ -49,10 +55,21 @@ func dispatch(args []string) error {
 		cmdVersion()
 	case "uninstall":
 		return cmdUninstall(args[1:])
-	case "hook": // called by the plugin's hook in every session; must stay quiet and fast
-		if len(args) > 1 && args[1] == "spawn" {
-			spawns.HandleHook(os.Stdin, os.Getenv("CLAUDE_JOB_DIR"))
+	case "hook": // called by the plugin's hooks in every session; must stay quiet and fast
+		if len(args) > 1 {
+			switch args[1] {
+			case "spawn":
+				spawns.HandleHook(os.Stdin, os.Getenv("CLAUDE_JOB_DIR"))
+			case "group":
+				group.HandleHook(os.Stdin, os.Stdout, os.Getenv("CLAUDE_JOB_DIR"), time.Now())
+			}
 		}
+	case "context":
+		return cmdContext(args[1:], os.Stdout)
+	case "note":
+		return cmdNote(args[1:], os.Stdout)
+	case "group":
+		return cmdGroup(args[1:], os.Stdout)
 	case "--panel": // hidden: print one agent's detail panel as plain text
 		if len(args) < 2 {
 			return fmt.Errorf("usage: regia --panel <id>")

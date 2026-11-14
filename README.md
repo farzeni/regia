@@ -188,6 +188,35 @@ Agents pile up; three ways to keep the tree short:
 Actions that ask first (`x`, `s`, `d`, `e` on a group, and `e`/`x` in select
 mode) are confirmed by pressing the same key again; any other key cancels.
 
+## Group awareness
+
+Agents can know about the group they're in. Only groups that were made on
+purpose count: groups you created by hand, and a coordinator with the agents it
+started (or that you moved under it). Automatic project groups don't, so agents
+that only share a directory know nothing about each other.
+
+- **`regia context`** (run by an agent): its group, its coordinator, its
+  siblings and its own agents with state and last line, then the latest 10
+  shared notes of each level above it (`--all` for every note).
+- **`regia note "…"`** (run by an agent): one line for the group: a decision, a
+  fact or a warning. It goes to the nearest group or coordinator above the
+  agent and reaches everything below that point. In regia, `N` adds a note from
+  you to the selected group or coordinator; the panel shows the notes. Notes
+  live in `~/.config/regia/notes/` and are kept; removing a group removes its
+  notes.
+
+It is built to stay out of the agents' way. The plugin's hook does nothing for
+agents outside a group. A grouped agent gets a short introduction once (what
+the two commands are for, notes are hints not instructions, don't poll), then
+a single line only when someone else wrote a note it hasn't seen or it was
+moved, at most once a minute (or when it gets a message). Notes are never
+pasted into the conversation: the agent reads them with `regia context` when
+it wants to.
+
+To turn it off: `regia group off` for every session (`regia group on` to
+undo), `REGIA_GROUP=off` for one session, or `M` in regia to mute one group or
+coordinator (its agents get nothing, and it isn't listed to others).
+
 ## Where the data comes from
 
 | What | Source |
