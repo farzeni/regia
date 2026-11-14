@@ -21,6 +21,25 @@ func main() {
 		case "--dump":
 			dump()
 			return
+		case "--panel": // hidden: print one agent's detail panel as plain text
+			if len(os.Args) < 3 {
+				return
+			}
+			m := newModel()
+			if b, err := fetchAgents(); err == nil {
+				m.setAgents(b)
+			}
+			m.w, m.h = 160, 60
+			m.cursorID = os.Args[2]
+			m.rebuild()
+			if r := m.selected(); r == nil || r.ID != os.Args[2] {
+				fmt.Fprintln(os.Stderr, "not visible:", os.Args[2])
+				os.Exit(1)
+			}
+			for _, l := range m.detailLines(90) {
+				fmt.Println(l)
+			}
+			return
 		case "--attach-test": // hidden: run any command through the attach logic
 			t0 := time.Now()
 			err := (&attachCmd{argv: os.Args[2:]}).Run()

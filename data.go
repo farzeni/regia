@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"os"
@@ -35,18 +34,13 @@ type Agent struct {
 	UpdatedAt  time.Time
 	PRs        []Link
 	ForkParent string // short id
+	Transcript string // session transcript (jsonl)
 }
 
 type Link struct {
 	ID   string `json:"id"`
 	Href string `json:"href"`
 	Kind string `json:"kind"`
-}
-
-type TLEntry struct {
-	At     time.Time
-	State  string
-	Detail string
 }
 
 type rawAgent struct {
@@ -71,6 +65,7 @@ type rawJob struct {
 	Children   []Link          `json:"children"`
 	ForkParent string          `json:"forkParentSessionId"`
 	Branch     string          `json:"worktreeBranch"`
+	Transcript string          `json:"linkScanPath"`
 }
 
 func home() string { h, _ := os.UserHomeDir(); return h }
@@ -176,6 +171,7 @@ func enrich(a *Agent) {
 	a.Branch = j.Branch
 	a.PRs = j.Children
 	a.ForkParent = short(j.ForkParent)
+	a.Transcript = j.Transcript
 	if t, err := time.Parse(time.RFC3339Nano, j.UpdatedAt); err == nil {
 		a.UpdatedAt = t
 	}
@@ -201,29 +197,6 @@ func rawString(r json.RawMessage) string {
 		return s
 	}
 	return string(r)
-}
-
-func readTimeline(id string, max int) []TLEntry {
-	f, err := os.Open(filepath.Join(claudeDir(), "jobs", id, "timeline.jsonl"))
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-	var all []TLEntry
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 1<<16), 1<<22)
-	for sc.Scan() {
-		var e struct{ At, State, Detail string }
-		if json.Unmarshal(sc.Bytes(), &e) != nil {
-			continue
-		}
-		t, _ := time.Parse(time.RFC3339Nano, e.At)
-		all = append(all, TLEntry{At: t, State: e.State, Detail: e.Detail})
-	}
-	if len(all) > max {
-		all = all[len(all)-max:]
-	}
-	return all
 }
 
 // project derives a grouping key from a cwd: ~/Projects/<x>/... -> x.

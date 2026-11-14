@@ -57,8 +57,8 @@ type model struct {
 	status   string
 	statusAt time.Time
 
-	timeline    []TLEntry
-	timelineFor string
+	hist        History
+	histFor     string
 	logs        string
 	logsFor     string
 
@@ -189,11 +189,11 @@ func (m *model) selected() *Row {
 func (m *model) loadDetail() {
 	r := m.selected()
 	if r == nil || r.Agent == nil || r.Agent.Interactive {
-		m.timeline, m.timelineFor = nil, ""
+		m.hist, m.histFor = History{}, ""
 		return
 	}
-	m.timeline = readTimeline(r.ID, 40)
-	m.timelineFor = r.ID
+	m.hist = readHistory(r.Agent)
+	m.histFor = r.ID
 }
 
 func (m *model) flash(f string, a ...any) {
@@ -907,71 +907,7 @@ func (m *model) detailLines(w int) []string {
 		}
 		return out
 	}
-	a := r.Agent
-	g, c := glyph(a)
-	out = append(out, lipgloss.NewStyle().Foreground(c).Render(g+" "+a.State)+"  "+stBold.Render(trunc(r.Title, w-12)))
-	meta := a.ID
-	if a.Tokens > 0 {
-		meta += fmt.Sprintf(" · %dk tok", a.Tokens/1000)
-	}
-	meta += " · started " + ago(a.StartedAt) + " ago"
-	if !a.UpdatedAt.IsZero() {
-		meta += " · updated " + ago(a.UpdatedAt) + " ago"
-	}
-	out = append(out, stDim.Render(trunc(meta, w)))
-	loc := tildify(a.Cwd)
-	if a.Branch != "" {
-		loc += "  ⎇ " + a.Branch
-	}
-	out = append(out, stDim.Render(trunc(loc, w)))
-
-	if a.Needs != "" {
-		sec("NEEDS YOU")
-		for _, l := range wrap(a.Needs, w) {
-			out = append(out, lipgloss.NewStyle().Foreground(cBlocked).Render(l))
-		}
-	}
-	if a.Suggested != "" {
-		sec("suggested reply  (y copies)")
-		out = append(out, wrap("› "+a.Suggested, w)...)
-	}
-	if a.Detail != "" && a.State != "blocked" {
-		sec("now")
-		out = append(out, wrap(a.Detail, w)...)
-	}
-	if len(a.PRs) > 0 {
-		sec("links")
-		for _, p := range a.PRs {
-			out = append(out, trunc(p.Kind+" "+p.Href, w))
-		}
-	}
-	if a.Intent != "" {
-		sec("asked")
-		iw := wrap(a.Intent, w)
-		if len(iw) > 3 {
-			iw = append(iw[:3], "…")
-		}
-		out = append(out, iw...)
-	}
-	if m.logsFor == r.ID && m.logs != "" {
-		sec("terminal (o)")
-		ls := strings.Split(strings.TrimRight(m.logs, "\n"), "\n")
-		if len(ls) > 25 {
-			ls = ls[len(ls)-25:]
-		}
-		for _, l := range ls {
-			out = append(out, trunc(l, w))
-		}
-	} else if len(m.timeline) > 0 && m.timelineFor == r.ID {
-		sec("timeline")
-		for i := len(m.timeline) - 1; i >= 0; i-- {
-			e := m.timeline[i]
-			_, sc := glyph(&Agent{State: normState(e.State)})
-			out = append(out, stDim.Render(e.At.Local().Format("Jan 02 15:04")+" ")+
-				lipgloss.NewStyle().Foreground(sc).Render(fmt.Sprintf("%-7s", e.State))+" "+trunc(stripNL(e.Detail), w-21))
-		}
-	}
-	return out
+	return m.agentDetail(r, w)
 }
 
 func helpLines() []string {
