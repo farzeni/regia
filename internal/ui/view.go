@@ -84,7 +84,7 @@ func pad(s string, w int) string {
 	return s
 }
 
-func (m *model) bodyHeight() int { return max(1, m.h-4-m.inputRows()) } // header, status, input box
+func (m *model) bodyHeight() int { return max(1, m.h-4-m.inputRows()-m.compRows()) } // header, status, popup, input box
 
 func (m *model) View() string {
 	if m.w == 0 {
@@ -203,6 +203,10 @@ func (m *model) footer() string {
 		if time.Since(m.statusAt) < 6*time.Second {
 			line1 = m.status
 		}
+	}
+	if pop := m.compView(); pop != "" {
+		line1 = pad(trunc(line1, m.w), m.w) + "\n" + pop
+		return line1 + "\n" + m.inputBox()
 	}
 	return pad(trunc(line1, m.w), m.w) + "\n" + m.inputBox()
 }

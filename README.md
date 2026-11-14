@@ -126,6 +126,15 @@ add a line. A paste longer than 3 lines or 800 characters folds to
 pastes from the clipboard the same way. A task is capped at 120 KiB; beyond
 that, put it in a file and point the agent to it.
 
+A word starting with `/` anywhere in the draft lists skills and commands (your
+own, the installed plugins' as `plugin:name`, the project's, and the
+built-ins); a word starting with `@` lists the files of the directory the agent
+will start in (git's files, or a short walk outside a repository). `↑/↓` move,
+`tab` or `enter` picks, `esc` closes the list. An image on the clipboard
+(`ctrl+v`), files copied in a file manager, or image paths dropped on the
+terminal become `[Image #n]`: the image is saved under `~/.cache/regia/pastes`
+and the token turns into its path when the agent starts, so the agent reads it.
+
 ## Where the data comes from
 
 | What | Source |

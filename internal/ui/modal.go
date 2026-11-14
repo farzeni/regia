@@ -54,6 +54,10 @@ var helpSections = []helpSection{
 		{"r", "rename (alias)"},
 		{"d", "remove group"},
 	}},
+	{"in the draft", [][2]string{
+		{"/name  @path", "skill / file (tab, ⏎ picks)"},
+		{"ctrl+v", "image, files: [Image #n]"},
+	}},
 }
 
 func renderSections(ss []helpSection) []string {
