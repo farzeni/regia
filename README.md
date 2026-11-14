@@ -149,6 +149,8 @@ will start in (git's files, or a short walk outside a repository). `↑/↓` mov
 (`ctrl+v`), files copied in a file manager, or image paths dropped on the
 terminal become `[Image #n]`: the image is saved under `~/.cache/regia/pastes`
 and the token turns into its path when the agent starts, so the agent reads it.
+The clipboard is read with `wl-paste` or `xclip` on Linux and with the built-in
+`osascript` on macOS.
 
 ## Cleaning up
 

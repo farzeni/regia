@@ -36,6 +36,9 @@ var readClipboard = func() (string, error) {
 // clipboardTypes lists the MIME types the clipboard offers (nil when it
 // can't tell, e.g. no wl-paste/xclip).
 var clipboardTypes = func() []string {
+	if goos == "darwin" {
+		return macClipboardTypes()
+	}
 	for _, c := range [][]string{{"wl-paste", "--list-types"}, {"xclip", "-selection", "clipboard", "-t", "TARGETS", "-o"}} {
 		if _, err := exec.LookPath(c[0]); err == nil {
 			out, err := exec.Command(c[0], c[1:]...).Output()
@@ -50,6 +53,9 @@ var clipboardTypes = func() []string {
 
 // readClipboardAs reads the clipboard in one MIME type (an image, a uri-list).
 var readClipboardAs = func(mime string) ([]byte, error) {
+	if goos == "darwin" {
+		return macReadClipboardAs(mime)
+	}
 	for _, c := range [][]string{{"wl-paste", "--no-newline", "--type", mime}, {"xclip", "-selection", "clipboard", "-t", mime, "-o"}} {
 		if _, err := exec.LookPath(c[0]); err == nil {
 			return exec.Command(c[0], c[1:]...).Output()
@@ -82,7 +88,7 @@ func clipboardImage(types []string) (data []byte, ext string, err error) {
 }
 
 // clipboardFiles returns the local files on the clipboard (copied in a file
-// manager: text/uri-list).
+// manager: text/uri-list). A uri-list of web links gives none.
 func clipboardFiles(types []string) []string {
 	for _, t := range types {
 		if t == "text/uri-list" || t == "x-special/gnome-copied-files" {

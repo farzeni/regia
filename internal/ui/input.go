@@ -169,6 +169,11 @@ func (m *model) attachImage(path string) {
 // files copied in a file manager are added, anything else is pasted as text.
 func (m *model) pasteClipboard() {
 	types := clipboardTypes()
+	// files first: Finder puts a copied file's icon on the clipboard as an image
+	if ps := clipboardFiles(types); len(ps) > 0 {
+		m.pasteFiles(ps)
+		return
+	}
 	if data, ext, err := clipboardImage(types); err != nil {
 		m.flash("clipboard image: %v", err)
 		return
@@ -179,10 +184,6 @@ func (m *model) pasteClipboard() {
 			return
 		}
 		m.attachImage(p)
-		return
-	}
-	if ps := clipboardFiles(types); len(ps) > 0 {
-		m.pasteFiles(ps)
 		return
 	}
 	s, err := readClipboard()
