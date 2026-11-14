@@ -27,6 +27,7 @@ var (
 	stBold   = lipgloss.NewStyle().Bold(true)
 	stAccent = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
 	stSel    = lipgloss.NewStyle().Background(lipgloss.Color("237"))
+	stYou    = lipgloss.NewStyle().Background(lipgloss.Color("235")) // your messages in the history: a shade off the agent's
 	stHead   = lipgloss.NewStyle().Foreground(cDim).Bold(true)
 )
 
@@ -296,11 +297,14 @@ func (m *model) renderRow(r layout.Row, w int) string {
 	return line // the selection bar is drawn by View, across the margins
 }
 
-// selBar paints the selection background across a styled line: every style
+// selBar paints the selection background across a styled line.
+func selBar(line string, w int) string { return bgBar(stSel, line, w) }
+
+// bgBar paints st's background across a styled line, w wide: every style
 // reset inside it would otherwise end the background mid-row.
-func selBar(line string, w int) string {
+func bgBar(st lipgloss.Style, line string, w int) string {
 	line = pad(line, w)
-	r := stSel.Render("x")
+	r := st.Render("x")
 	bg := r[:strings.Index(r, "x")]
 	if bg == "" { // no colors (not a terminal)
 		return line

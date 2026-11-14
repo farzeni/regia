@@ -180,3 +180,31 @@ func TestPanelDivider(t *testing.T) {
 	}
 	t.Fatal("history not shown")
 }
+
+func TestYourMessagesTinted(t *testing.T) {
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.ANSI256)
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+	m := testModel(t)
+	m.Update(tkey("esc"))
+	m.moveCursor(1)
+	r := m.selected()
+	at := time.Now().Add(-time.Minute)
+	m.hist, m.histFor = claude.History{Turns: []claude.Turn{{
+		User: &claude.HEntry{At: at, Detail: "my message"}, Results: []claude.HEntry{{At: at, State: "done", Detail: "agent reply"}}, LastAt: at,
+	}}}, r.ID
+	hist, _ := m.agentDetail(r, 60)
+	bg := "\x1b[48;5;235m"
+	for _, l := range hist {
+		switch {
+		case strings.Contains(l, "my message"):
+			if !strings.HasPrefix(l, bg) || ansi.StringWidth(l) != 60 {
+				t.Fatalf("your line should be tinted across the width: %q", l)
+			}
+		case strings.Contains(l, "agent reply"):
+			if strings.Contains(l, bg) {
+				t.Fatalf("the agent's line should not be tinted: %q", l)
+			}
+		}
+	}
+}
