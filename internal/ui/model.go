@@ -50,6 +50,7 @@ type model struct {
 	inputPrompt  string
 	inputAction  func(m *model, s string) tea.Cmd
 	confirmMsg   string
+	confirmKey   string // the action's key: pressed again, it confirms
 	confirmDo    func(m *model) tea.Cmd
 	filterBefore string
 
@@ -270,8 +271,12 @@ func (m *model) prompt(p, initial string, do func(m *model, s string) tea.Cmd) {
 	m.mode, m.inputPrompt, m.input, m.inputAction = modeInput, p, initial, do
 }
 
-func (m *model) confirm(msg string, do func(m *model) tea.Cmd) {
-	m.mode, m.confirmMsg, m.confirmDo = modeConfirm, msg, do
+// confirm asks before do runs: pressing the action's key again confirms
+// (x then x removes), any other key cancels.
+func (m *model) confirm(key, msg string, do func(m *model) tea.Cmd) {
+	m.mode, m.confirmKey, m.confirmDo = modeConfirm, key, do
+	// the hint first: a long question is cut at the screen's edge
+	m.confirmMsg = "[" + key + " again to confirm]  " + msg
 }
 
 // foldAll folds every group and coordinator, keeping the selection on its

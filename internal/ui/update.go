@@ -140,11 +140,10 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.updateInput(msg)
 		case modeConfirm:
 			m.mode = modeNormal
-			switch msg.String() {
-			case "y", "Y", "enter":
+			if msg.String() == m.confirmKey {
 				return m, m.confirmDo(m)
 			}
-			m.flash("cancelled (y confirms)")
+			m.flash("cancelled (%s again confirms)", m.confirmKey)
 			return m, nil
 		}
 		if m.typing {
@@ -352,7 +351,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 	case "x":
 		if r != nil && r.Agent != nil && !r.Agent.Interactive {
 			id, name := r.ID, r.Title
-			m.confirm(fmt.Sprintf("remove %q (%s) from the list? its worktree is deleted if safe; conversation kept  [y/N]", name, id), func(m *model) tea.Cmd {
+			m.confirm("x", fmt.Sprintf("remove %q (%s) from the list? its worktree is deleted if safe; conversation kept", name, id), func(m *model) tea.Cmd {
 				return func() tea.Msg {
 					out, err := removeAgent(id)
 					return removedMsg{id, out, err}
@@ -362,7 +361,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 	case "s":
 		if r != nil && r.Agent != nil && !r.Agent.Interactive {
 			id, name := r.ID, r.Title
-			m.confirm(fmt.Sprintf("stop %q (%s)? conversation is kept  [y/N]", name, id), func(m *model) tea.Cmd {
+			m.confirm("s", fmt.Sprintf("stop %q (%s)? conversation is kept", name, id), func(m *model) tea.Cmd {
 				return func() tea.Msg {
 					out, err := exec.Command("claude", "stop", id).CombinedOutput()
 					if err != nil {
@@ -452,7 +451,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 	case "d":
 		if r != nil && r.Group {
 			id, title := r.ID, r.Title
-			m.confirm(fmt.Sprintf("remove group %q? its agents move up a level  [y/N]", title), func(m *model) tea.Cmd {
+			m.confirm("d", fmt.Sprintf("remove group %q? its agents move up a level", title), func(m *model) tea.Cmd {
 				m.syncLayout()
 				m.layout.DeleteGroup(id, m.agents)
 				m.saveLayout()

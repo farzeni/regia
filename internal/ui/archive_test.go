@@ -92,7 +92,10 @@ func TestArchiveGroupSkipsBusy(t *testing.T) {
 	if m.mode != modeConfirm {
 		t.Fatal("archiving a group should ask first")
 	}
-	m.Update(tkey("y"))
+	if !strings.Contains(m.confirmMsg, "e again to confirm") {
+		t.Fatalf("prompt: %q", m.confirmMsg)
+	}
+	m.Update(tkey("e"))
 	for id, want := range map[string]bool{"aaaa0001": true, "aaaa0002": true, "aaaa0003": false, "bbbb0001": false} {
 		if m.layout.IsArchived(id) != want {
 			t.Errorf("%s archived=%v, want %v", id, !want, want)
@@ -165,7 +168,7 @@ func TestSelectModeRemove(t *testing.T) {
 	if m.mode != modeConfirm || len(ran) > 0 {
 		t.Fatal("x should ask before removing anything")
 	}
-	_, cmd = m.Update(tkey("y"))
+	_, cmd = m.Update(tkey("x"))
 	msg := cmd()
 	if len(ran) != 3 {
 		t.Fatalf("claude rm ran for %v", ran)

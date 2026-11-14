@@ -79,7 +79,7 @@ func (m *model) archiveSelection() tea.Cmd {
 	if len(ids) == 1 && r.Agent != nil {
 		return do(m)
 	}
-	m.confirm(fmt.Sprintf("archive %s under %q? (hidden from regia only)  [y/N]", count(len(ids), "agent"), r.Title), do)
+	m.confirm("e", fmt.Sprintf("archive %s under %q? (hidden from regia only)", count(len(ids), "agent"), r.Title), do)
 	return nil
 }
 
@@ -193,7 +193,7 @@ func (m *model) removeMarked() tea.Cmd {
 		return nil
 	}
 	list := strings.Join(names, ", ")
-	m.confirm(fmt.Sprintf("remove %s with claude rm (%s)? worktrees deleted if safe; conversations kept  [y/N]", count(len(ids), "session"), trunc(list, 60)), func(m *model) tea.Cmd {
+	m.confirm("x", fmt.Sprintf("remove %s with claude rm (%s)? worktrees deleted if safe; conversations kept", count(len(ids), "session"), trunc(list, 60)), func(m *model) tea.Cmd {
 		m.selecting, m.marked = false, nil
 		m.flash("removing %s…", count(len(ids), "session"))
 		return func() tea.Msg {

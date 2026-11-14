@@ -185,6 +185,9 @@ Agents pile up; three ways to keep the tree short:
   group marks all its agents, `*` marks everything shown), then `e` or `x`
   (one confirmation; refusals are listed, the rest go through).
 
+Actions that ask first (`x`, `s`, `d`, `e` on a group, and `e`/`x` in select
+mode) are confirmed by pressing the same key again; any other key cancels.
+
 ## Where the data comes from
 
 | What | Source |

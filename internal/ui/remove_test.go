@@ -31,7 +31,12 @@ func TestRemoveAgent(t *testing.T) {
 		t.Fatal("removed without confirmation")
 	}
 	send(m, tkey("x"))
-	send(m, tkey("y"))
+	send(m, tkey("y")) // y no longer confirms: it cancels
+	if len(calls) != 0 || m.mode == modeConfirm {
+		t.Fatalf("y should cancel: calls=%v mode=%v", calls, m.mode)
+	}
+	send(m, tkey("x"))
+	send(m, tkey("x"))
 	if len(calls) != 1 || calls[0] != "aaaa1111" || !strings.Contains(m.status, "removed aaaa1111") {
 		t.Fatalf("calls %v status %q", calls, m.status)
 	}
@@ -40,7 +45,7 @@ func TestRemoveAgent(t *testing.T) {
 	m.cursorID = "bbbb2222"
 	m.rebuild()
 	send(m, tkey("x"))
-	send(m, tkey("y"))
+	send(m, tkey("x"))
 	if !strings.Contains(m.status, "not removed: Not removed: worktree has 2 unpushed commits.") {
 		t.Fatalf("refusal not shown: %q", m.status)
 	}

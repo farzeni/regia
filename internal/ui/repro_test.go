@@ -47,9 +47,9 @@ func TestDeleteGroupRealLayout(t *testing.T) {
 	if m.mode != modeConfirm {
 		t.Fatalf("d did not ask for confirmation (mode %v, status %q)", m.mode, m.status)
 	}
-	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
 	if _, still := m.layout.Groups[gid]; still {
-		t.Fatalf("group still in memory after d,y")
+		t.Fatalf("group still in memory after d,d")
 	}
 	for _, r := range m.rows {
 		if r.ID == gid {
