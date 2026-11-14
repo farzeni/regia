@@ -10,7 +10,10 @@ import (
 	"os"
 	"strings"
 
+	"syscall"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"golang.org/x/sys/unix"
 )
 
 func main() {
@@ -18,6 +21,12 @@ func main() {
 		switch os.Args[1] {
 		case "--dump":
 			dump()
+			return
+		case "--attach-test": // hidden: run any command through the attach logic
+			err := (&attachCmd{argv: os.Args[2:]}).Run()
+			_, _ = os.Stdout.WriteString("\x1b[?1049l")
+			fg, _ := unix.IoctlGetInt(int(os.Stdin.Fd()), unix.TIOCGPGRP)
+			fmt.Printf("ATTACH-RETURNED err=%v foreground=%v\n", err, fg == syscall.Getpgrp())
 			return
 		case "-h", "--help":
 			fmt.Println("regia — terminal control room for Claude Code background agents\n\n  regia          open the UI (? for keys)\n  regia --dump   print the tree and inbox as plain text")

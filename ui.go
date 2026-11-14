@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -121,6 +122,7 @@ func (m *model) setAgents(b []byte) {
 // refresh re-reads job state files and rebuilds rows, keeping the cursor on
 // the same node.
 func (m *model) refresh() {
+	m.syncLayout()
 	for _, a := range m.agents {
 		enrich(a)
 	}
@@ -209,6 +211,14 @@ func (m *model) moveCursor(d int) {
 		m.logs, m.logsFor = "", ""
 	}
 	m.loadDetail()
+}
+
+// syncLayout reloads the layout when another process (a second regia) saved
+// it, so this instance never writes back a stale copy.
+func (m *model) syncLayout() {
+	if fi, err := os.Stat(layoutPath()); err == nil && !fi.ModTime().Equal(m.layout.mtime) {
+		m.layout = loadLayout()
+	}
 }
 
 func (m *model) saveLayout() {
@@ -302,24 +312,25 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.updateInput(msg)
 		case modeConfirm:
 			m.mode = modeNormal
-			if msg.String() == "y" || msg.String() == "enter" {
+			switch msg.String() {
+			case "y", "Y", "enter":
 				return m, m.confirmDo(m)
 			}
-			m.flash("cancelled")
+			m.flash("cancelled (y confirms)")
 			return m, nil
 		}
 		// Runes that arrive together (fast typing, key repeat) come as one
-		// message: handle them one key at a time so none is dropped.
+		// message: feed them one at a time through Update, so a key that opens
+		// a prompt (d, n, /…) passes the following keys to that prompt.
 		if msg.Type == tea.KeyRunes && len(msg.Runes) > 1 && !msg.Paste {
 			var cmds []tea.Cmd
 			for _, r := range msg.Runes {
-				if m.mode != modeNormal {
-					break
-				}
-				cmds = append(cmds, m.updateNormal(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}, Alt: msg.Alt}))
+				_, c := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}, Alt: msg.Alt})
+				cmds = append(cmds, c)
 			}
 			return m, tea.Batch(cmds...)
 		}
+		m.syncLayout()
 		return m, m.updateNormal(msg)
 	}
 	return m, nil
@@ -422,7 +433,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 			m.flash("interactive session: open it in its own terminal (pid shown in `claude agents`)")
 			return nil
 		}
-		return tea.ExecProcess(exec.Command("claude", "attach", r.ID), func(err error) tea.Msg { return attachDoneMsg{err} })
+		return tea.Exec(&attachCmd{id: r.ID}, func(err error) tea.Msg { return attachDoneMsg{err} })
 	case " ":
 		if r != nil && (r.HasKids || r.Group) {
 			m.layout.Collapsed[r.ID] = !m.layout.Collapsed[r.ID]
@@ -558,8 +569,10 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		if r != nil && r.Group {
 			id, title := r.ID, r.Title
 			m.confirm(fmt.Sprintf("remove group %q? its agents move up a level  [y/N]", title), func(m *model) tea.Cmd {
+				m.syncLayout()
 				m.layout.DeleteGroup(id, m.agents)
 				m.saveLayout()
+				m.flash("removed group %q", title)
 				return nil
 			})
 		}

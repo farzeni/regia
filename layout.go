@@ -18,6 +18,8 @@ type Layout struct {
 	Order     map[string][]string `json:"order"`     // parent -> ordered children
 	Alias     map[string]string   `json:"alias"`     // agent id -> display name
 	Collapsed map[string]bool     `json:"collapsed"` // node -> collapsed
+
+	mtime time.Time // file mtime at last load/save, to notice other writers
 }
 
 type Row struct {
@@ -42,6 +44,9 @@ func loadLayout() *Layout {
 	l := &Layout{}
 	if b, err := os.ReadFile(layoutPath()); err == nil {
 		_ = json.Unmarshal(b, l)
+	}
+	if fi, err := os.Stat(layoutPath()); err == nil {
+		l.mtime = fi.ModTime()
 	}
 	if l.Groups == nil {
 		l.Groups = map[string]string{}
@@ -72,7 +77,13 @@ func (l *Layout) Save() error {
 	if err := os.WriteFile(tmp, b, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, p)
+	if err := os.Rename(tmp, p); err != nil {
+		return err
+	}
+	if fi, err := os.Stat(p); err == nil {
+		l.mtime = fi.ModTime()
+	}
+	return nil
 }
 
 func (l *Layout) isGroup(id string) bool { _, ok := l.Groups[id]; return ok }
