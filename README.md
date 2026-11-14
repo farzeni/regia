@@ -59,7 +59,7 @@ The screen has two views, switched with `tab`:
   and reads bottom-up, like a chat: its state and what it is asking sit at the
   bottom, above them the task and git status, and above those its history
   grouped by your messages, newest last (`pgup`/`pgdn` scroll back).
-- **inbox** — only the agents waiting for you, longest wait first.
+- **inbox** — only the agents waiting for you, most recent first.
 
 At the bottom is an always-on input (`i` focuses it): type a task and press `enter` to start a
 new background agent next to the selected one (inside it if it's a group, or
@@ -122,12 +122,17 @@ so a second `enter` attaches to it.
 | `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up) |
 | `←` `→` `space` | fold / unfold |
 | `z` | fold everything / unfold everything |
+| `-` / `+` | list narrower / wider (or drag the divider; remembered) |
 | `/`, `esc` | filter by name, question, path or branch / clear |
 | `a` | show finished sessions |
 | `e` | archive the agent, or everything in a group except busy agents (asks first); on an archived agent, bring it back |
 | `A` | show / hide archived agents (dim) |
 | `v` | select mode: `space` marks a row (a group: all of it), `*` marks everything, then `e` archives or `x` removes them all; `esc` leaves |
 | `?` | help |
+
+The mouse works too: the wheel scrolls the list or the panel (whichever is
+under the pointer), a click selects a row, and dragging the divider resizes
+the list. Hold `shift` to select text with the mouse as usual.
 
 The input takes the usual readline keys (`ctrl+a`/`ctrl+e`, `ctrl+w`,
 `alt+←/→`, `ctrl+k`/`ctrl+u`, …). `alt+enter`, `ctrl+j`, or `\` then `enter`

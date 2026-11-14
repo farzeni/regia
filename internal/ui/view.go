@@ -101,28 +101,29 @@ func (m *model) View() string {
 	m.sizeInput() // the input box grows with the draft; the list gets the rest
 	bh := m.bodyHeight()
 	iw := m.w - 2*padX
-	lw := max(30, min(64, iw*42/100))
-	if m.w < 70 {
-		lw = iw
-	}
+	lw := m.sidebarWidth(iw)
 	dw := iw - lw - gap
+	m.lw = lw
 
-	// scroll; when the list overflows, its last line says what's hidden
+	// scroll, keeping a few rows of context around the selection; when the
+	// list overflows, its last line says what's hidden
 	vis := bh
 	if len(m.rows) > bh && bh > 2 {
 		vis = bh - 1
 	}
-	if m.cursor < m.offset {
-		m.offset = m.cursor
+	so := min(scrollOff, max(0, (vis-1)/2))
+	if m.cursor < m.offset+so {
+		m.offset = m.cursor - so
 	}
-	if m.cursor >= m.offset+vis {
-		m.offset = m.cursor - vis + 1
+	if m.cursor >= m.offset+vis-so {
+		m.offset = m.cursor - vis + 1 + so
 	}
 	m.offset = max(0, min(m.offset, max(0, len(m.rows)-vis)))
+	m.vis = vis
 
 	left := make([]string, 0, bh)
 	for i := m.offset; i < len(m.rows) && len(left) < vis; i++ {
-		left = append(left, m.renderRow(m.rows[i], lw, i == m.cursor))
+		left = append(left, m.renderRow(m.rows[i], lw))
 	}
 	if vis < bh {
 		left = append(left, hiddenLine(m.rows[:m.offset], m.rows[m.offset+len(left):]))
@@ -143,7 +144,7 @@ func (m *model) View() string {
 
 	var right []string
 	if dw > 20 {
-		right = m.placePanel(m.detailLines(dw), bh)
+		right = m.placePanel(m.detailLines(dw), bh, dw)
 	}
 	margin := strings.Repeat(" ", padX)
 	sep := strings.Repeat(" ", gap/2) + stDim.Render("│") + strings.Repeat(" ", gap-gap/2-1)
@@ -151,9 +152,20 @@ func (m *model) View() string {
 	b.WriteString(margin + ansi.Truncate(m.header(), iw, "…"))
 	b.WriteString("\n\n")
 	for i := 0; i < bh; i++ {
-		b.WriteString(margin + pad(left[i], lw))
+		row := margin + pad(left[i], lw)
+		if i < vis && m.offset+i == m.cursor && len(m.rows) > 0 {
+			row = selBar(row+" ", padX+lw+1) // the whole row, margins too
+			if dw > 20 {
+				b.WriteString(row + sep[1:])
+			} else {
+				b.WriteString(row)
+			}
+		} else if dw > 20 {
+			b.WriteString(row + sep)
+		} else {
+			b.WriteString(row)
+		}
 		if dw > 20 {
-			b.WriteString(sep)
 			if i < len(right) {
 				b.WriteString(right[i])
 			}
@@ -229,7 +241,7 @@ func (m *model) footer() string {
 	return pad(strings.Repeat(" ", padX)+trunc(line1, m.w-2*padX), m.w) + "\n" + m.inputBox()
 }
 
-func (m *model) renderRow(r layout.Row, w int, sel bool) string {
+func (m *model) renderRow(r layout.Row, w int) string {
 	indent := strings.Repeat("  ", r.Depth)
 	fold := "  "
 	if r.HasKids || r.Group {
@@ -281,11 +293,39 @@ func (m *model) renderRow(r layout.Row, w int, sel bool) string {
 		line = indent + stDim.Render(fold) + mark + gs.Render(g) + " " + cutMark + ts.Render(title)
 		line = pad(line, w-len(age)-1) + stDim.Render(age)
 	}
-	if sel {
-		return stSel.Render(pad(line, w))
-	}
-	return line
+	return line // the selection bar is drawn by View, across the margins
 }
+
+// selBar paints the selection background across a styled line: every style
+// reset inside it would otherwise end the background mid-row.
+func selBar(line string, w int) string {
+	line = pad(line, w)
+	r := stSel.Render("x")
+	bg := r[:strings.Index(r, "x")]
+	if bg == "" { // no colors (not a terminal)
+		return line
+	}
+	return bg + strings.ReplaceAll(line, "\x1b[0m", "\x1b[0m"+bg) + "\x1b[0m"
+}
+
+// scrollOff is how many rows of context stay visible above and below the
+// selection while scrolling the list.
+const scrollOff = 3
+
+// sidebarWidth is the list's width: what you set with -/+ or by dragging the
+// divider, else about a third of the screen.
+func (m *model) sidebarWidth(iw int) int {
+	if m.w < 70 {
+		return iw
+	}
+	w := m.layout.Sidebar
+	if w == 0 {
+		w = min(48, max(28, iw*30/100))
+	}
+	return max(minSidebar, min(w, iw-gap-30)) // leave the panel 30 columns
+}
+
+const minSidebar = 20
 
 func stripNL(s string) string { return strings.ReplaceAll(s, "\n", " ") }
 
@@ -308,7 +348,7 @@ func (p panel) lines() []string { return append(append([]string{}, p.hist...), p
 // placePanel fits the panel into h rows. Bottom-up panels stick to the
 // bottom; the history scrolls by panelScroll lines (pgup/pgdn), which goes
 // back to 0 when another row is selected.
-func (m *model) placePanel(p panel, h int) []string {
+func (m *model) placePanel(p panel, h, w int) []string {
 	if !p.bottomUp {
 		return p.card[:min(h, len(p.card))]
 	}
@@ -316,8 +356,8 @@ func (m *model) placePanel(p panel, h int) []string {
 		m.panelFor, m.panelScroll = m.cursorID, 0
 	}
 	card := p.card
-	if len(p.hist) > 0 {
-		card = append([]string{""}, card...)
+	if len(p.hist) > 0 { // a rule between the history and the card
+		card = append([]string{stDim.Render(strings.Repeat("─", w))}, card...)
 	}
 	if len(card) > h { // keep the state line, the bottom one
 		card = card[len(card)-h:]

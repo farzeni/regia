@@ -12,7 +12,7 @@ import (
 
 // Run opens the full-screen control room.
 func Run() error {
-	_, err := tea.NewProgram(newModel(), tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(newModel(), tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 	return err
 }
 

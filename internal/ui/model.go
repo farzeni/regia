@@ -60,6 +60,10 @@ type model struct {
 	selecting bool            // select mode (v): space marks rows for e / x
 	marked    map[string]bool // agent ids marked in select mode
 
+	// geometry of the last frame, for the mouse
+	lw, vis  int
+	dragging bool // dragging the divider to resize the list
+
 	panelScroll int    // lines the panel's history is scrolled back (pgup/pgdn)
 	panelFor    string // the row panelScroll belongs to
 
@@ -159,7 +163,7 @@ func (m *model) rebuild() {
 				bl = append(bl, a)
 			}
 		}
-		sort.SliceStable(bl, func(i, j int) bool { return waitedSince(bl[i]).Before(waitedSince(bl[j])) })
+		sort.SliceStable(bl, func(i, j int) bool { return waitedSince(bl[i]).After(waitedSince(bl[j])) }) // newest first
 		m.rows = m.rows[:0]
 		for _, a := range bl {
 			t := a.Name

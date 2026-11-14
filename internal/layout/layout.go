@@ -26,6 +26,7 @@ type Layout struct {
 	Alias     map[string]string    `json:"alias"`              // agent id -> display name
 	Collapsed map[string]bool      `json:"collapsed"`          // node -> collapsed
 	Pinned    map[string]bool      `json:"pinned"`             // placed by hand: never re-linked automatically
+	Sidebar   int                  `json:"sidebar,omitempty"`  // list width in columns (0: automatic)
 	Archived  map[string]time.Time `json:"archived,omitempty"` // agent id -> when: hidden by regia, untouched in Claude
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)

@@ -35,6 +35,7 @@ var helpSections = []helpSection{
 		{"/ ctrl+f  esc", "filter / clear"},
 		{"←/→ h/l space", "fold / unfold"},
 		{"z", "fold all / unfold all"},
+		{"- / +  drag │", "list narrower / wider"},
 		{"R", "refresh now"},
 	}},
 	{"sessions", [][2]string{

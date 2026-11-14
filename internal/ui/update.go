@@ -55,7 +55,11 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.flash("attach: %v", msg.err)
 		}
 		m.fetching = true
-		return m, fetchCmd
+		// bubbletea turns the mouse off for the attached session and doesn't turn it back on
+		return m, tea.Batch(fetchCmd, tea.EnableMouseCellMotion)
+
+	case tea.MouseMsg:
+		return m, m.updateMouse(msg)
 
 	case logsMsg:
 		if msg.id == m.cursorID {
@@ -228,6 +232,12 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		}
 	case "z":
 		m.foldAll()
+	case "-", "+", "=": // narrower / wider list
+		d := 4
+		if k.String() == "-" {
+			d = -4
+		}
+		m.resizeSidebar(m.sidebarWidth(m.w-2*padX) + d)
 	case "e":
 		return m.archiveSelection()
 	case "A":
