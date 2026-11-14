@@ -329,6 +329,16 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fetching = true
 		return m, fetchCmd
 
+	case removedMsg:
+		if msg.err != nil {
+			// claude rm explains why (e.g. unpushed commits in the worktree)
+			m.flash("not removed: %s", oneLine(msg.out, msg.err))
+			return m, nil
+		}
+		m.flash("removed %s (conversation kept: claude --resume)", msg.id)
+		m.fetching = true
+		return m, fetchCmd
+
 	case tea.KeyMsg:
 		if m.help { // the help modal is on top: close it, ignore the rest
 			switch msg.String() {
@@ -508,6 +518,16 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 				out, _ := exec.Command("claude", "logs", id).CombinedOutput()
 				return logsMsg{id, string(out)}
 			}
+		}
+	case "x":
+		if r != nil && r.Agent != nil && !r.Agent.Interactive {
+			id, name := r.ID, r.Title
+			m.confirm(fmt.Sprintf("remove %q (%s) from the list? its worktree is deleted if safe; conversation kept  [y/N]", name, id), func(m *model) tea.Cmd {
+				return func() tea.Msg {
+					out, err := removeAgent(id)
+					return removedMsg{id, out, err}
+				}
+			})
 		}
 	case "s":
 		if r != nil && r.Agent != nil && !r.Agent.Interactive {

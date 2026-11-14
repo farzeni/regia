@@ -41,6 +41,7 @@ var helpSections = []helpSection{
 		{"o", "terminal output (logs)"},
 		{"y / Y", "copy reply / session id"},
 		{"s", "stop (conversation kept)"},
+		{"x", "remove from list (claude rm)"},
 		{"a", "show / hide finished"},
 		{"R", "refresh now"},
 		{"q  ctrl+c", "quit (ctrl+c: on empty input)"},

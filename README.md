@@ -52,6 +52,7 @@ at 120 KiB — beyond that, put it in a file and point the agent to it.
 | `o` | show the session's terminal output |
 | `i` / `c` / `C` | back to the input; `C` aims the new agent inside the selection (under a coordinator) |
 | `s` | stop (conversation kept) |
+| `x` | remove from the list (`claude rm`: worktree deleted if safe, conversation kept; refuses over unpushed commits) |
 | `J` / `K` | move down / up among siblings |
 | `>` / `<` | nest under the agent above (make it the coordinator) / un-nest |
 | `m` then `p` / `P` | move: put below / inside the target |

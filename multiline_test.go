@@ -25,7 +25,8 @@ func stubSpawn(t *testing.T) *string {
 // text area only scrolls once a render has given its viewport content).
 func send(m *model, msg tea.KeyMsg) {
 	if _, cmd := m.Update(msg); cmd != nil {
-		if r, ok := runCmd(cmd).(spawnedMsg); ok {
+		switch r := runCmd(cmd).(type) {
+		case spawnedMsg, removedMsg: // deliver the result; its follow-up refresh isn't run
 			m.Update(r)
 		}
 	}
