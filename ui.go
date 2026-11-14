@@ -734,18 +734,25 @@ func (m *model) View() string {
 	}
 	dw := m.w - lw - 3
 
-	// scroll
+	// scroll; when the list overflows, its last line says what's hidden
+	vis := bh
+	if len(m.rows) > bh && bh > 2 {
+		vis = bh - 1
+	}
 	if m.cursor < m.offset {
 		m.offset = m.cursor
 	}
-	if m.cursor >= m.offset+bh {
-		m.offset = m.cursor - bh + 1
+	if m.cursor >= m.offset+vis {
+		m.offset = m.cursor - vis + 1
 	}
-	m.offset = max(0, min(m.offset, max(0, len(m.rows)-bh)))
+	m.offset = max(0, min(m.offset, max(0, len(m.rows)-vis)))
 
 	left := make([]string, 0, bh)
-	for i := m.offset; i < len(m.rows) && len(left) < bh; i++ {
+	for i := m.offset; i < len(m.rows) && len(left) < vis; i++ {
 		left = append(left, m.renderRow(m.rows[i], lw, i == m.cursor))
+	}
+	if vis < bh {
+		left = append(left, hiddenLine(m.rows[:m.offset], m.rows[m.offset+len(left):]))
 	}
 	if len(m.rows) == 0 {
 		msg := "no agents"
