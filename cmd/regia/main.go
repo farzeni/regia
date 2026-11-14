@@ -17,9 +17,12 @@ import (
 
 const usage = `regia — terminal control room for Claude Code background agents
 
-  regia          open the UI (? for keys)
-  regia setup    install the Claude Code plugin (spawn tracking) and backfill links
-  regia --dump   print the tree and inbox as plain text`
+  regia            open the UI (? for keys)
+  regia setup      install the Claude Code plugin (spawn tracking) and backfill links
+  regia update     install the latest version and update the plugin (also daily, automatically)
+  regia version    print this build's version
+  regia uninstall  remove the plugin and the binary (--purge: also your layout)
+  regia --dump     print the tree and inbox as plain text`
 
 func main() {
 	if err := dispatch(os.Args[1:]); err != nil {
@@ -40,6 +43,12 @@ func dispatch(args []string) error {
 		return ui.DumpTree(os.Stdout)
 	case "setup":
 		os.Exit(setup(args[1:]))
+	case "update":
+		return cmdUpdate(args[1:])
+	case "version", "--version", "-v":
+		cmdVersion()
+	case "uninstall":
+		return cmdUninstall(args[1:])
 	case "hook": // called by the plugin's hook in every session; must stay quiet and fast
 		if len(args) > 1 && args[1] == "spawn" {
 			spawns.HandleHook(os.Stdin, os.Getenv("CLAUDE_JOB_DIR"))

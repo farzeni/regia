@@ -81,6 +81,8 @@ type model struct {
 	status   string
 	statusAt time.Time
 
+	updateNote string // set once a background update ran; shown in the header
+
 	hist    claude.History
 	histFor string
 	logs    string
@@ -127,7 +129,7 @@ func tick() tea.Cmd {
 
 func (m *model) Init() tea.Cmd {
 	m.fetching = true
-	return tea.Batch(fetchCmd, tick())
+	return tea.Batch(fetchCmd, tick(), autoUpdateCmd)
 }
 
 func (m *model) setAgents(b []byte) {

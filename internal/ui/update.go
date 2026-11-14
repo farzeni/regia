@@ -31,6 +31,10 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sizeInput()
 		return m, nil
 
+	case updatedMsg:
+		m.noteUpdate(msg)
+		return m, nil
+
 	case agentsMsg:
 		m.fetching = false
 		m.fetchErr = msg.err

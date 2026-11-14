@@ -221,6 +221,9 @@ func (m *model) header() string {
 	if m.opts.Filter != "" {
 		s += "  " + stAccent.Render("/"+m.opts.Filter)
 	}
+	if m.updateNote != "" {
+		s += "  " + stAccent.Render("⬆ "+m.updateNote)
+	}
 	if m.fetchErr != nil {
 		s += "  " + lipgloss.NewStyle().Foreground(cFailed).Render("listing failed: "+m.fetchErr.Error())
 	}

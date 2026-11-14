@@ -38,10 +38,26 @@ regia setup
 Flags: `--source <url|owner/repo|path>` installs the plugin from elsewhere,
 `--no-plugin` and `--no-backfill` skip a step. Running it again is safe.
 
-**Update:** `go install github.com/farzeni/regia/cmd/regia@latest` (or `git pull` and
-rebuild) and `claude plugin update regia@regia`.
-**Uninstall:** `claude plugin uninstall regia@regia`, delete the binary, and
-optionally `~/.config/regia/`.
+### Updates
+
+regia keeps itself current: once a day, when you open it, it checks for a newer
+version in the background, installs it over the running binary and updates the
+plugin; the header then says `⬆ updated to … · restart regia`. Nothing is
+interrupted, and the new version runs the next time you start regia.
+
+```bash
+regia update             # update now (binary + plugin)
+regia update --check     # only say whether there's a newer version
+regia update --auto off  # no automatic updates (or REGIA_NO_AUTOUPDATE=1); --auto on brings them back
+regia version
+```
+
+A binary you built yourself from a checkout is a dev build: it may be ahead of
+what's published, so regia never updates it automatically and `regia update`
+asks for `--force` before replacing it with the published version.
+
+**Uninstall:** `regia uninstall` removes the plugin and the binary after a y/N;
+`--purge` also deletes your layout (`~/.config/regia/`) and the update cache.
 
 ## Usage
 
@@ -49,6 +65,8 @@ optionally `~/.config/regia/`.
 regia            # open the UI; ? shows every key
 regia --dump     # print the tree and the inbox as plain text (no TTY needed)
 regia setup      # install the plugin and backfill links (see above)
+regia update     # update now; it also happens on its own once a day
+regia uninstall  # remove the plugin and the binary
 ```
 
 The screen has two views, switched with `tab`:
@@ -195,16 +213,17 @@ go build -o regia ./cmd/regia
 ```
 
 ```
-cmd/regia/          the binary: argument parsing, `regia setup`, `regia hook spawn`
+cmd/regia/          the binary: argument parsing, `regia setup`, `update`, `uninstall`, `hook spawn`
 internal/claude/    Claude Code data: `claude agents` listing, job state files, transcript history
 internal/spawns/    spawn links: the hook handler, transcript backfill, spawns.jsonl
 internal/layout/    your organization: tree, automatic placement, moves, layout.json
 internal/gitinfo/   git state of an agent's directory, cached
 internal/attach/    `claude attach` behind a pty proxy (fast return to regia)
+internal/update/    self-update: version check on the Go module proxy, `go install` in place
 internal/ui/        the terminal interface (bubbletea): model, update, view, panel, input
 .claude-plugin/     plugin manifest + marketplace (this repo is its own marketplace)
 hooks/hooks.json    the PostToolUse hook the plugin installs
 ```
 
-Dependencies point one way: `ui` → `layout` → `spawns` → `claude`; `gitinfo`
-and `attach` are standalone.
+Dependencies point one way: `ui` → `layout` → `spawns` → `claude`; `gitinfo`,
+`attach` and `update` are standalone.
