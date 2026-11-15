@@ -40,7 +40,7 @@ func glyph(a *claude.Agent) (string, lipgloss.Color) {
 	}
 	switch a.State {
 	case "blocked":
-		if a.Stale {
+		if a.Stale || a.Snoozed {
 			return "●", cIdle
 		}
 		return "●", cBlocked
@@ -214,7 +214,7 @@ func (m *model) header() string {
 		}
 		n++
 		switch {
-		case a.State == "blocked" && !a.Stale:
+		case a.State == "blocked" && a.YourTurn():
 			nb++
 		case a.State == "ready":
 			nready++
@@ -306,10 +306,16 @@ func (m *model) renderRow(r layout.Row, w int) []string {
 // and coordinator it sits under, then what it is waiting on.
 func (m *model) inboxSubline(r layout.Row, w int) string {
 	a := r.Agent
+	if r.ID == earlierID {
+		return m.earlierSubline(r)
+	}
 	if a == nil {
 		return ""
 	}
 	indent := "    " // under the title, past fold and glyph
+	if r.Depth > 0 {
+		indent += strings.Repeat("  ", r.Depth)
+	}
 	what := stripNL(a.Needs)
 	if what == "" {
 		what = stripNL(a.Detail)
@@ -338,14 +344,14 @@ func (m *model) inboxSubline(r layout.Row, w int) string {
 	return indent + st.Render(place) + wst.Render(what)
 }
 
-// faded reports whether a row's title goes gray: waiting on you too long, or
-// finished (done or failed) and untouched for over staleAfter. Recent finished
-// rows stay white so today's chats are easy to spot.
+// faded reports whether a row's title goes gray: a question from before today
+// or snoozed, or finished (done or failed) before today. Today's finished rows
+// stay white so today's chats are easy to spot.
 func faded(a *claude.Agent, now time.Time) bool {
-	if a.Stale {
+	if a.Stale || a.Snoozed {
 		return true
 	}
-	return (a.State == "done" || a.State == "failed") && now.Sub(waitedSince(a)) > staleAfter
+	return (a.State == "done" || a.State == "failed") && !fromToday(a, now)
 }
 
 func (m *model) rowLine(r layout.Row, w int) string {
@@ -388,6 +394,9 @@ func (m *model) rowLine(r layout.Row, w int) string {
 		}
 		if m.layout.Muted[r.ID] {
 			extra += "  (muted)"
+		}
+		if a.Snoozed {
+			extra += "  (snoozed)"
 		}
 		mark := m.markFor(r.ID)
 		pin := ""
@@ -505,6 +514,9 @@ func (m *model) detailLines(w int) panel {
 	r := m.selected()
 	if r == nil {
 		return panel{}
+	}
+	if r.ID == earlierID {
+		return m.earlierPanel(w)
 	}
 	var out []string
 	sec := func(t string) { out = append(out, "", stHead.Render(t)) }

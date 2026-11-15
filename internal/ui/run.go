@@ -34,12 +34,24 @@ func DumpTree(w io.Writer) error {
 		fmt.Fprintf(w, "%s%s %-8s %s  [%s]\n", ind, g, r.Agent.State, r.Title, r.ID)
 	}
 	m.view = viewInbox
+	m.earlierOpen = true // plain text: list everything
 	m.rebuild()
-	fmt.Fprintf(w, "\ninbox (%d):\n", len(m.rows))
+	fmt.Fprintf(w, "\ninbox (%d):\n", len(m.rows)-btoi(len(m.earlier) > 0))
 	for _, r := range m.rows {
-		fmt.Fprintf(w, "  ● %s — %s\n", r.Title, trunc(r.Agent.Needs, 100))
+		if r.ID == earlierID {
+			fmt.Fprintf(w, "  ▾ earlier days — %s\n", m.earlierSummary())
+			continue
+		}
+		fmt.Fprintf(w, "%s  ● %s — %s\n", strings.Repeat("  ", r.Depth), r.Title, trunc(r.Agent.Needs, 100))
 	}
 	return nil
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // DumpPanel prints one agent's detail panel as plain text.

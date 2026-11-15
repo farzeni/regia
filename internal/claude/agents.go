@@ -39,13 +39,14 @@ type Agent struct {
 	ForkParent string // short id
 	Transcript string // session transcript (jsonl)
 
-	Stale bool // set by the UI: waiting on you, but nothing happened for a long time
+	Stale   bool // set by the UI: waiting on you since before today
+	Snoozed bool // set by the UI: a question you put off (Z) until the agent does something new
 }
 
-// YourTurn: the agent waits on you, with a question (blocked, not stale) or
-// a result you haven't looked at yet (ready).
+// YourTurn: the agent waits on you, with a question (blocked, not stale or
+// snoozed) or a result you haven't looked at yet (ready).
 func (a *Agent) YourTurn() bool {
-	return (a.State == "blocked" && !a.Stale) || a.State == "ready"
+	return (a.State == "blocked" && !a.Stale && !a.Snoozed) || a.State == "ready"
 }
 
 type Link struct {
