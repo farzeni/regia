@@ -256,6 +256,8 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		m.resizeSidebar(m.sidebarWidth(m.w-2*padX) + d)
 	case "e":
 		return m.archiveSelection()
+	case "f":
+		return m.pinKey(r)
 	case "A":
 		m.opts.ShowArchived = !m.opts.ShowArchived
 		if m.opts.ShowArchived {
@@ -264,7 +266,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		m.rebuild()
 	case "v":
 		m.selecting, m.marked = true, map[string]bool{}
-		m.flash("select: space marks (a group: all of it), * all · e archive · x remove · esc done")
+		m.flash("select: space marks (a group: all of it), * all · e archive · x remove · f pin · esc done")
 	case "g", "home":
 		m.moveCursor(-len(m.rows))
 	case "G", "end":

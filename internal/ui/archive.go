@@ -15,7 +15,7 @@ import (
 // shown says whether an agent appears in the tree with the current options.
 func (m *model) shown(id string) bool {
 	a := m.agents[id]
-	if a == nil || !m.opts.Visible(a, m.layout.Alias[id]) {
+	if a == nil || !m.opts.Visible(a, m.layout.Alias[id], m.layout.Pins[id]) {
 		return false
 	}
 	return !m.layout.IsArchived(id) || m.opts.ShowArchived || m.opts.Filter != ""
@@ -145,6 +145,9 @@ func (m *model) updateSelect(k tea.KeyMsg) (tea.Cmd, bool) {
 		return nil, true
 	case "x":
 		return m.removeMarked(), true
+	case "f":
+		m.pinMarked()
+		return nil, true
 	}
 	return nil, false
 }

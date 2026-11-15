@@ -308,7 +308,11 @@ func (m *model) renderRow(r layout.Row, w int) string {
 			extra += "  (muted)"
 		}
 		mark := m.markFor(r.ID)
-		titleW := w - len(indent) - 6 - len(age) - len(cutMark) - lipgloss.Width(mark)
+		pin := ""
+		if m.layout.Pins[r.ID] {
+			pin = stAccent.Render(pinGlyph) + " "
+		}
+		titleW := w - len(indent) - 6 - len(age) - len(cutMark) - lipgloss.Width(mark) - lipgloss.Width(pin)
 		title := trunc(r.Title+stripNL(extra), titleW)
 		ts := lipgloss.NewStyle()
 		if a.YourTurn() {
@@ -320,7 +324,7 @@ func (m *model) renderRow(r layout.Row, w int) string {
 		if r.Archived {
 			ts, gs = lipgloss.NewStyle().Foreground(cDim).Italic(true), stDim
 		}
-		line = indent + stDim.Render(fold) + mark + gs.Render(g) + " " + cutMark + ts.Render(title)
+		line = indent + stDim.Render(fold) + mark + gs.Render(g) + " " + cutMark + pin + ts.Render(title)
 		line = pad(line, w-len(age)-1) + stDim.Render(age)
 	}
 	return line // the selection bar is drawn by View, across the margins
