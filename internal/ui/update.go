@@ -166,6 +166,11 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 		m.syncLayout()
+		if m.notesFor != "" {
+			if c, ok := m.updateNotes(msg); ok {
+				return m, c
+			}
+		}
 		if m.selecting {
 			if c, ok := m.updateSelect(msg); ok {
 				return m, c
@@ -453,7 +458,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 			})
 		}
 	case "N":
-		return m.addNoteKey(r)
+		return m.notesKey(r)
 	case "M":
 		return m.muteKey(r)
 	case "i":

@@ -10,9 +10,10 @@ import (
 	"github.com/farzeni/regia/internal/layout"
 )
 
-// Group awareness in the UI: the shared notes of a hand-made group or a
-// coordinator's agents show in the panel, N adds one from you, M mutes a
-// group or coordinator (its agents get nothing from regia about the group).
+// Group awareness in the UI: the blackboard of a hand-made group or a
+// coordinator's agents shows in the panel; N opens it to add, edit or delete
+// notes; M mutes a group or coordinator (its agents get nothing from regia
+// about the group).
 
 func (m *model) groupTree() *group.Tree {
 	return &group.Tree{L: m.layout, Spawns: m.layout.Spawns}
@@ -30,8 +31,8 @@ func (m *model) isContainer(r *layout.Row) bool {
 	return r.HasKids
 }
 
-// noteTarget is where a note from you goes for the selected row: the row
-// itself when it holds notes, else the selected agent's nearest group.
+// noteTarget is the blackboard for the selected row: the row itself when it
+// holds notes, else the selected agent's nearest group.
 func (m *model) noteTarget(r *layout.Row) string {
 	if r == nil {
 		return ""
@@ -45,22 +46,94 @@ func (m *model) noteTarget(r *layout.Row) string {
 	return ""
 }
 
-func (m *model) addNoteKey(r *layout.Row) tea.Cmd {
+// notesKey (N) opens the blackboard of the selected group or coordinator (or
+// of the selected agent's nearest one): ↑/↓ pick a note, n adds, e edits,
+// x deletes, esc leaves. An empty blackboard asks for the first note.
+func (m *model) notesKey(r *layout.Row) tea.Cmd {
 	target := m.noteTarget(r)
 	if target == "" {
 		m.flash("notes belong to a hand-made group (n) or a coordinator's agents")
 		return nil
 	}
+	if m.visRow[target] { // select it: its panel is where the notes are drawn
+		m.cursorID = target
+		m.rebuild()
+	}
+	m.notesFor = target
+	m.noteSel = len(group.ReadNotes(target)) - 1
+	m.flash("blackboard of %s open · esc closes it", m.titleOf(target))
+	if m.noteSel < 0 {
+		m.addNote()
+	}
+	return nil
+}
+
+// updateNotes handles keys while a blackboard is open; a key it doesn't use
+// closes the blackboard and then works as usual.
+func (m *model) updateNotes(k tea.KeyMsg) (tea.Cmd, bool) {
+	if m.cursorID != m.notesFor { // the selection moved (a click): the blackboard goes
+		m.notesFor = ""
+		return nil, false
+	}
+	notes := group.ReadNotes(m.notesFor)
+	m.noteSel = max(0, min(m.noteSel, len(notes)-1))
+	switch k.String() {
+	case "esc", "q", "N":
+		m.notesFor = ""
+		m.flash("")
+	case "j", "down":
+		m.noteSel = max(0, min(m.noteSel+1, len(notes)-1))
+	case "k", "up":
+		m.noteSel = max(m.noteSel-1, 0)
+	case "n", "a":
+		m.addNote()
+	case "e", "enter":
+		if len(notes) == 0 {
+			m.addNote()
+			break
+		}
+		n, c := notes[m.noteSel], m.notesFor
+		m.prompt("edit note: ", n.Text, func(m *model, s string) tea.Cmd {
+			if err := group.EditNote(c, n, s); err != nil {
+				m.flash("not saved: %v", err)
+			} else {
+				m.flash("note edited: the agents of %s are told", m.titleOf(c))
+			}
+			return nil
+		})
+	case "x", "delete":
+		if len(notes) == 0 {
+			break
+		}
+		n, c := notes[m.noteSel], m.notesFor
+		m.confirm("x", fmt.Sprintf("delete %s's note %q?", n.Name, trunc(n.Text, 40)), func(m *model) tea.Cmd {
+			if err := group.DeleteNote(c, n); err != nil {
+				m.flash("not deleted: %v", err)
+			} else {
+				m.flash("note deleted")
+			}
+			return nil
+		})
+	default:
+		m.notesFor = ""
+		return nil, false
+	}
+	return nil, true
+}
+
+// addNote asks for a note from you on the open blackboard.
+func (m *model) addNote() {
+	target := m.notesFor
 	title := m.titleOf(target)
 	m.prompt("note for "+title+": ", "", func(m *model, s string) tea.Cmd {
 		if err := group.AddNote(target, group.Note{By: group.FromUser, Name: "you", Text: s}); err != nil {
 			m.flash("note: %v", err)
 			return nil
 		}
+		m.noteSel = len(group.ReadNotes(target)) - 1
 		m.flash("note shared with %s (%d agents)", title, m.groupTree().Members(target))
 		return nil
 	})
-	return nil
 }
 
 func (m *model) muteKey(r *layout.Row) tea.Cmd {
@@ -83,42 +156,73 @@ func (m *model) muteKey(r *layout.Row) tea.Cmd {
 	return nil
 }
 
-// notesSection is the panel's "shared notes" block (a blank line, a heading,
-// the notes), or a hint on a group without notes.
+// notesSection is the panel's blackboard block (a blank line, a heading, the
+// notes), or a hint on a group without notes. With the blackboard open (N)
+// it shows more notes and the one picked.
 func (m *model) notesSection(container string, w, last int) []string {
-	head := "shared notes  (N adds · M mutes)"
-	if m.layout.Muted[container] {
-		head = "shared notes  (muted: M unmutes)"
+	open := m.notesFor == container
+	head := "blackboard  (N opens · M mutes)"
+	switch {
+	case open:
+		head = "blackboard  ↑↓ · n add · e edit · x delete · esc"
+		last = max(last, 12)
+	case m.layout.Muted[container]:
+		head = "blackboard  (muted: M unmutes)"
 	}
-	ns := m.notesLines(container, w, last)
+	ns := m.notesLines(container, w, last, open)
 	if len(ns) == 0 {
-		if !group.IsGroup(container) {
+		if !group.IsGroup(container) && !open {
 			return nil
 		}
-		ns = []string{stDim.Render("none yet — agents write them with regia note")}
+		ns = []string{stDim.Render("empty — agents write with regia note, N adds yours")}
 	}
 	return append([]string{"", stHead.Render(head)}, ns...)
 }
 
-// notesLines renders a container's latest notes for the panel.
-func (m *model) notesLines(container string, w, last int) []string {
+// notesLines renders a container's notes for the panel: the latest, or with
+// the blackboard open, a window that keeps the picked note in view.
+func (m *model) notesLines(container string, w, last int, open bool) []string {
 	notes := group.ReadNotes(container)
 	if len(notes) == 0 {
 		return nil
 	}
+	sel := -1
+	start := max(0, len(notes)-last)
+	if open {
+		sel = max(0, min(m.noteSel, len(notes)-1))
+		start = min(start, sel)
+	}
+	end := min(len(notes), start+last)
 	var out []string
-	if len(notes) > last {
-		out = append(out, stDim.Render(fmt.Sprintf("+%d older", len(notes)-last)))
-		notes = notes[len(notes)-last:]
+	if start > 0 {
+		out = append(out, stDim.Render(fmt.Sprintf("+%d older", start)))
 	}
 	now := time.Now()
-	for _, n := range notes {
+	for i := start; i < end; i++ {
+		n := notes[i]
 		when := n.At.Format("15:04")
 		if n.At.Format("2006-01-02") != now.Format("2006-01-02") {
 			when = n.At.Format("Jan 2")
 		}
-		pre := stDim.Render(when+" ") + stAccent.Render(n.Name) + stDim.Render(": ")
-		out = append(out, pre+trunc(n.Text, w-len(when)-len(n.Name)-3))
+		text := n.Text
+		if !n.Edited.IsZero() {
+			text += " (edited)"
+		}
+		mark, room := "", w-len(when)-len(n.Name)-3
+		if open {
+			mark, room = "  ", room-2
+			if i == sel {
+				mark = "› "
+			}
+		}
+		line := mark + stDim.Render(when+" ") + stAccent.Render(n.Name) + stDim.Render(": ") + trunc(text, room)
+		if i == sel {
+			line = stSel.Render(line)
+		}
+		out = append(out, line)
+	}
+	if end < len(notes) {
+		out = append(out, stDim.Render(fmt.Sprintf("+%d newer", len(notes)-end)))
 	}
 	return out
 }

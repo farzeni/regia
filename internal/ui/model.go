@@ -61,6 +61,9 @@ type model struct {
 	selecting bool            // select mode (v): space marks rows for e / x
 	marked    map[string]bool // agent ids marked in select mode
 
+	notesFor string // the blackboard open with N (a group or coordinator id)
+	noteSel  int    // the note picked on it, oldest first
+
 	// geometry of the last frame, for the mouse
 	lw, vis  int
 	dragging bool // dragging the divider to resize the list

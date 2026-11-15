@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/farzeni/regia/internal/group"
@@ -29,7 +30,7 @@ func TestNoteFromRegia(t *testing.T) {
 	m := teamModel(t)
 	m.cursorID = "g:t"
 	m.rebuild()
-	if v := ansi.Strip(m.View()); !strings.Contains(v, "shared notes") || !strings.Contains(v, "none yet") {
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "blackboard") || !strings.Contains(v, "empty") {
 		t.Fatalf("group panel should show the notes section:\n%s", v)
 	}
 	send(m, tkey("N"))
@@ -68,6 +69,75 @@ func TestNoteFromRegia(t *testing.T) {
 	send(m, tkey("d"))
 	if group.ReadNotes("g:t") != nil {
 		t.Fatal("notes of a removed group should go")
+	}
+}
+
+func TestBlackboardEditDelete(t *testing.T) {
+	m := teamModel(t)
+	group.AddNote("g:t", group.Note{By: "aaaa1111", Name: "alpha", Text: "first"})
+	group.AddNote("g:t", group.Note{By: "aaaa1111", Name: "alpha", Text: "second"})
+	m.cursorID = "bbbb2222" // N on a worker opens its coordinator's blackboard
+	m.rebuild()
+	send(m, tkey("N"))
+	if m.notesFor != "aaaa1111" || m.cursorID != "aaaa1111" {
+		t.Fatalf("N on a worker: for %q cursor %q", m.notesFor, m.cursorID)
+	}
+	send(m, tkey("esc")) // closes the prompt for a first note
+	send(m, tkey("esc")) // closes the blackboard
+	m.cursorID = "g:t"
+	m.rebuild()
+	send(m, tkey("N"))
+	if m.notesFor != "g:t" || m.noteSel != 1 || m.mode != modeNormal {
+		t.Fatalf("N: for %q cursor %q sel %d mode %v", m.notesFor, m.cursorID, m.noteSel, m.mode)
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "› ") || !strings.Contains(v, "e edit") {
+		t.Fatalf("open blackboard not shown:\n%s", v)
+	}
+
+	send(m, tkey("k")) // pick "first", edit it
+	send(m, tkey("e"))
+	if m.mode != modeInput || m.input != "first" {
+		t.Fatalf("edit prompt: %v %q", m.mode, m.input)
+	}
+	send(m, tea.KeyMsg{Type: tea.KeyCtrlU})
+	typeText(m, "first, fixed")
+	send(m, tkey("enter"))
+	ns := group.ReadNotes("g:t")
+	if ns[0].Text != "first, fixed" || ns[0].Edited.IsZero() || ns[1].Text != "second" {
+		t.Fatalf("after edit %+v (%q)", ns, m.status)
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "first, fixed (edited)") {
+		t.Fatalf("edit not shown:\n%s", v)
+	}
+
+	send(m, tkey("j")) // pick "second": x asks, x again deletes
+	send(m, tkey("x"))
+	if m.mode != modeConfirm || len(group.ReadNotes("g:t")) != 2 {
+		t.Fatal("x should ask first")
+	}
+	send(m, tkey("x"))
+	if ns := group.ReadNotes("g:t"); len(ns) != 1 || ns[0].Text != "first, fixed" {
+		t.Fatalf("after delete %+v (%q)", ns, m.status)
+	}
+	if m.notesFor != "g:t" {
+		t.Fatal("the blackboard should stay open after a delete")
+	}
+
+	send(m, tkey("n")) // add from the open blackboard
+	typeText(m, "third")
+	send(m, tkey("enter"))
+	if ns := group.ReadNotes("g:t"); len(ns) != 2 || ns[1].Text != "third" || m.noteSel != 1 {
+		t.Fatalf("add %+v sel %d", ns, m.noteSel)
+	}
+
+	send(m, tkey("esc"))
+	if m.notesFor != "" {
+		t.Fatal("esc should close the blackboard")
+	}
+	send(m, tkey("N")) // another key closes it and works as usual
+	send(m, tkey("tab"))
+	if m.notesFor != "" || m.view != viewInbox {
+		t.Fatalf("tab: notes %q view %v", m.notesFor, m.view)
 	}
 }
 

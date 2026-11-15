@@ -17,10 +17,10 @@ var Throttle = time.Minute
 
 // state is what the hook remembers per session, in ~/.cache/regia/group.
 type state struct {
-	Intro   bool           `json:"intro"`   // the intro was given
-	Checked time.Time      `json:"checked"` // last look for news
-	Told    map[string]int `json:"told"`    // container -> notes from others already announced or read
-	Nearest string         `json:"nearest"` // nearest container at the last look
+	Intro   bool                 `json:"intro"`   // the intro was given
+	Checked time.Time            `json:"checked"` // last look for news
+	Seen    map[string]time.Time `json:"seen"`    // container -> last change from others already announced or read
+	Nearest string               `json:"nearest"` // nearest container at the last look
 }
 
 func statePath(self string) string {
@@ -36,8 +36,8 @@ func loadState(self string) state {
 	if b, err := os.ReadFile(statePath(self)); err == nil {
 		_ = json.Unmarshal(b, &s)
 	}
-	if s.Told == nil {
-		s.Told = map[string]int{}
+	if s.Seen == nil {
+		s.Seen = map[string]time.Time{}
 	}
 	return s
 }
@@ -56,7 +56,7 @@ func saveState(self string, s state) {
 func MarkRead(t *Tree, pos Position) {
 	s := loadState(pos.Self)
 	for _, c := range pos.Visible() {
-		s.Told[c], _ = fromOthers(c, pos.Self)
+		s.Seen[c] = latest(fromOthers(c, pos.Self))
 	}
 	s.Intro = true
 	saveState(pos.Self, s)
@@ -120,8 +120,9 @@ func Check(t *Tree, self, event string, now time.Time, name func(string) string)
 		s.Intro, s.Nearest = true, pos.Nearest()
 		total := 0
 		for _, c := range pos.Visible() {
-			s.Told[c], _ = fromOthers(c, self)
-			total += s.Told[c]
+			others := fromOthers(c, self)
+			s.Seen[c] = latest(others)
+			total += len(others)
 		}
 		return intro(t, pos, name, total)
 	}
@@ -133,14 +134,14 @@ func Check(t *Tree, self, event string, now time.Time, name func(string) string)
 	}
 	news, authors := 0, map[string]bool{}
 	for _, c := range pos.Visible() {
-		count, others := fromOthers(c, self)
-		if count > s.Told[c] {
-			for _, n := range others[min(s.Told[c], len(others)):] {
+		others := fromOthers(c, self)
+		for _, n := range others {
+			if n.touched().After(s.Seen[c]) {
 				authors[n.author()] = true
+				news++
 			}
-			news += count - s.Told[c]
 		}
-		s.Told[c] = count
+		s.Seen[c] = latest(others)
 	}
 	if news > 0 {
 		names := make([]string, 0, len(authors))

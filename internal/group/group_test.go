@@ -260,6 +260,80 @@ func TestAddNote(t *testing.T) {
 	}
 }
 
+func TestEditDeleteNote(t *testing.T) {
+	tr := fixture(t)
+	t0 := time.Now()
+	AddNote("g:1", Note{By: "a1", Name: "copy", Text: "launch nov 20"})
+	AddNote("g:1", Note{By: "w2", Name: "layout", Text: "grid is 12 cols"})
+	os.WriteFile(notesPath("g:1"), append(must(os.ReadFile(notesPath("g:1"))), "not json\n"...), 0o644) // kept as is
+	Check(tr, "w1", "UserPromptSubmit", t0, names)                                                      // intro: both seen
+
+	ns := ReadNotes("g:1")
+	if err := EditNote("g:1", ns[0], "launch moved to dec 1"); err != nil {
+		t.Fatal(err)
+	}
+	// an edit is news, like a new note
+	if msg := Check(tr, "w1", "UserPromptSubmit", t0.Add(time.Second), names); !strings.Contains(msg, "1 new note in your group from copy") {
+		t.Fatalf("edit should be news: %q", msg)
+	}
+	ns = ReadNotes("g:1")
+	if len(ns) != 2 || ns[0].Text != "launch moved to dec 1" || ns[0].Edited.IsZero() || !ns[0].At.Equal(ns[0].At) || ns[1].Text != "grid is 12 cols" {
+		t.Fatalf("after edit: %+v", ns)
+	}
+	if c := Context(tr, tr.Resolve("w1"), nil, false, t0); !strings.Contains(c, "copy: launch moved to dec 1 (edited)") {
+		t.Fatalf("context:\n%s", c)
+	}
+	if EditNote("g:1", ns[0], "  ") == nil {
+		t.Fatal("an empty edit should fail")
+	}
+
+	// a delete then a new note: the new one is still news (a count would miss it)
+	if err := DeleteNote("g:1", ns[1]); err != nil {
+		t.Fatal(err)
+	}
+	AddNote("g:1", Note{By: "w2", Name: "layout", Text: "grid is 16 cols"})
+	if msg := Check(tr, "w1", "UserPromptSubmit", t0.Add(2*time.Second), names); !strings.Contains(msg, "1 new note in your group from layout") {
+		t.Fatalf("delete+add: %q", msg)
+	}
+	if DeleteNote("g:1", ns[1]) == nil {
+		t.Fatal("deleting a gone note should fail")
+	}
+	if b := string(must(os.ReadFile(notesPath("g:1")))); !strings.Contains(b, "not json") {
+		t.Fatalf("an unreadable line was lost:\n%s", b)
+	}
+}
+
+// Agents append while the user edits: no append may be lost.
+func TestRewriteVsAppends(t *testing.T) {
+	fixture(t)
+	AddNote("g:1", Note{By: FromUser, Name: "you", Text: "v0"})
+	first := ReadNotes("g:1")[0]
+	done := make(chan bool)
+	go func() {
+		for i := range 200 {
+			AddNote("g:1", Note{By: "w1", Name: "w", Text: fmt.Sprint("n", i)})
+		}
+		done <- true
+	}()
+	for i := range 200 {
+		if err := EditNote("g:1", first, fmt.Sprint("v", i+1)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	<-done
+	ns := ReadNotes("g:1")
+	if len(ns) != 201 || ns[0].Text != "v200" {
+		t.Fatalf("%d notes, first %q", len(ns), ns[0].Text)
+	}
+}
+
+func must(b []byte, err error) []byte {
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
 func TestSelfID(t *testing.T) {
 	if SelfID("/x/jobs/ab12cd34", "ffff") != "ab12cd34" || SelfID("", "0123456789") != "s:01234567" || SelfID("", "") != "" {
 		t.Fatal("SelfID")

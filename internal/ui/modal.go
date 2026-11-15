@@ -54,7 +54,7 @@ var helpSections = []helpSection{
 		{"> / <", "nest under above / un-nest"},
 		{"m then p", "into group / after agent"},
 		{"m then P", "after group / under agent"},
-		{"n  N  M", "new group · note · mute"},
+		{"n  N  M", "new group · notes · mute"},
 		{"r / d", "rename / remove group"},
 	}},
 	{"in the draft", [][2]string{

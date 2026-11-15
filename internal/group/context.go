@@ -128,7 +128,11 @@ func Context(t *Tree, pos Position, agents map[string]*claude.Agent, all bool, n
 			if n.By == pos.Self {
 				who = "you"
 			}
-			fmt.Fprintf(&b, "    %s %s: %s\n", noteTime(n.At, now), who, n.Text)
+			text := n.Text
+			if !n.Edited.IsZero() {
+				text += " (edited)"
+			}
+			fmt.Fprintf(&b, "    %s %s: %s\n", noteTime(n.At, now), who, text)
 		}
 	}
 	if shown == 0 {

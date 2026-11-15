@@ -200,10 +200,15 @@ that only share a directory know nothing about each other.
   shared notes of each level above it (`--all` for every note).
 - **`regia note "…"`** (run by an agent): one line for the group: a decision, a
   fact or a warning. It goes to the nearest group or coordinator above the
-  agent and reaches everything below that point. In regia, `N` adds a note from
-  you to the selected group or coordinator; the panel shows the notes. Notes
-  live in `~/.config/regia/notes/` and are kept; removing a group removes its
-  notes.
+  agent and reaches everything below that point. Notes live in
+  `~/.config/regia/notes/` and are kept; removing a group removes its notes.
+
+In regia, the panel of a group (or of a coordinator, above its card) shows its
+blackboard. `N` opens it, from the group, the coordinator or any agent in it:
+`↑/↓` pick a note, `n` adds one from you, `e` edits the picked note (yours or
+an agent's), `x x` deletes it, `esc` closes. An edit reaches the agents like a
+new note does. Outside regia, `regia context <id>` prints what an agent would
+see (`--all` for every note).
 
 It is built to stay out of the agents' way. The plugin's hook does nothing for
 agents outside a group. A grouped agent gets a short introduction once (what
