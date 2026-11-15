@@ -49,7 +49,21 @@ func (i Info) Reason() string {
 	return "PR #" + strconv.Itoa(i.Number) + ": " + strings.Join(r, ", ")
 }
 
-const openTTL = 60 * time.Second
+const (
+	openTTL = 60 * time.Second
+	noneTTL = 10 * time.Minute // no PR for this branch (yet): asked again rarely
+)
+
+// due reports whether cached info i, fetched at i.Fetched, should be asked again.
+func due(i Info) bool {
+	switch {
+	case i.Final():
+		return false
+	case !i.OK:
+		return time.Since(i.Fetched) > noneTTL
+	}
+	return time.Since(i.Fetched) > openTTL
+}
 
 var (
 	mu       sync.Mutex
@@ -79,7 +93,35 @@ func Cached(dir, ref string) (Info, bool) {
 	if !ok {
 		return i, true
 	}
-	return i, !i.Final() && time.Since(i.Fetched) > openTTL
+	return i, due(i)
+}
+
+// Refresher returns the work to refresh ref in dir when it's due (nil when
+// it isn't, gh is unusable, or a fetch is already running), marking it in
+// flight right away so callers on every frame don't start it twice. The
+// returned func blocks on gh: run it in a tea.Cmd.
+func Refresher(dir, ref string) func() {
+	if dir == "" || ref == "" {
+		return nil
+	}
+	k := key(dir, ref)
+	mu.Lock()
+	defer mu.Unlock()
+	i, ok := cache[k]
+	if ghBroken || inFlight[k] || (ok && !due(i)) {
+		return nil
+	}
+	inFlight[k] = true
+	return func() { fetch(dir, ref) }
+}
+
+// Seed stores i as the fresh status of ref in dir, as if gh had just
+// answered. For tests of the packages that show it.
+func Seed(dir, ref string, i Info) {
+	i.Fetched = time.Now()
+	mu.Lock()
+	cache[key(dir, ref)] = i
+	mu.Unlock()
 }
 
 // Fetch runs gh (blocking: call it from a tea.Cmd) and caches the result.
@@ -93,6 +135,12 @@ func Fetch(dir, ref string) Info {
 	}
 	inFlight[k] = true
 	mu.Unlock()
+	return fetch(dir, ref)
+}
+
+// fetch does the work; the caller has marked ref in flight.
+func fetch(dir, ref string) Info {
+	k := key(dir, ref)
 	defer func() { mu.Lock(); delete(inFlight, k); mu.Unlock() }()
 
 	if _, err := lookPath("gh"); err != nil {
@@ -112,7 +160,7 @@ func Fetch(dir, ref string) Info {
 			ghBroken = true
 			mu.Unlock()
 		}
-		// no PR for this ref (yet): retried after the TTL
+		// no PR for this ref (yet): retried after noneTTL
 	} else {
 		info = Parse(out)
 	}

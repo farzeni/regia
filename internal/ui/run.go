@@ -68,6 +68,9 @@ func DumpPanel(w io.Writer, id string) error {
 		if c := gitCmd(r.Agent.Cwd); c != nil {
 			c()
 		}
+		if c := prCmd(r.Agent); c != nil {
+			c()
+		}
 	}
 	if r := m.selected(); r == nil || r.ID != id {
 		return fmt.Errorf("not visible: %s", id)

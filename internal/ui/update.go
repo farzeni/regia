@@ -29,6 +29,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if g := gitCmd(r.Agent.Cwd); g != nil {
 			cmd = tea.Batch(cmd, g)
 		}
+		if p := prCmd(r.Agent); p != nil {
+			cmd = tea.Batch(cmd, p)
+		}
 	}
 	return mm, cmd
 }
@@ -70,7 +73,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refresh()
 		m.dwell(time.Time(msg))
 		var cmds []tea.Cmd
-		cmds = append(cmds, tick())
+		cmds = append(cmds, tick(), m.prCmds())
 		if c := m.pollListing(); c != nil {
 			cmds = append(cmds, c)
 		}

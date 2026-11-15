@@ -131,7 +131,7 @@ func inboxRank(a *claude.Agent) int {
 	switch {
 	case a.State == "blocked" && !a.Stale:
 		return 0
-	case a.State == "ready":
+	case a.State == "ready" || prNeedsLook(a):
 		return 1
 	case a.Stale:
 		return 2

@@ -42,6 +42,28 @@ func TestMergedNotRefetched(t *testing.T) {
 	}
 }
 
+func TestRefresherOnce(t *testing.T) {
+	ghBroken = false
+	lookPath = func(string) (string, error) { return "gh", nil }
+	run = func(context.Context, string, ...string) ([]byte, error) {
+		return []byte(`{"number":9,"state":"OPEN"}`), nil
+	}
+	f := Refresher("/r", "feat")
+	if f == nil || Refresher("/r", "feat") != nil {
+		t.Fatal("first call must return work, the second (in flight) nil")
+	}
+	f()
+	if i, due := Cached("/r", "feat"); !i.OK || i.Number != 9 || due {
+		t.Fatalf("%+v due=%v", i, due)
+	}
+	if Refresher("/r", "feat") != nil {
+		t.Fatal("fresh open PR must wait for the TTL")
+	}
+	if Refresher("", "x") != nil || Refresher("/r", "") != nil {
+		t.Fatal("empty dir/ref: nothing to do")
+	}
+}
+
 func TestGhMissingIsSilent(t *testing.T) {
 	ghBroken = false
 	lookPath = func(string) (string, error) { return "", errors.New("no gh") }

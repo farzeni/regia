@@ -23,7 +23,10 @@ func (m *model) inboxRows(now time.Time) []layout.Row {
 	var today, earlier []*claude.Agent
 	for _, a := range m.agents {
 		keep := a.ID == m.opts.Keep // the one you're reading stays until you move away
-		if !(a.State == "blocked" || a.State == "ready" || keep) || !m.shown(a.ID) || (a.Snoozed && !keep) {
+		// finished, but its PR fails CI or has changes requested: listed even
+		// when done-and-seen agents are hidden from the tree
+		pr := prNeedsLook(a) && !m.layout.IsArchived(a.ID) && (m.opts.Filter == "" || m.shown(a.ID))
+		if !pr && (!(a.State == "blocked" || a.State == "ready" || keep) || !m.shown(a.ID) || (a.Snoozed && !keep)) {
 			continue
 		}
 		if fromToday(a, now) {

@@ -81,10 +81,21 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   full, its markdown rendered; when it's longer than the panel, the panel opens
   at its start (`pgdn` reads on). `t` swaps the history for the whole
   conversation: your messages and the agent's replies in full, tool calls
-  left out (`t` again goes back).
+  left out (`t` again goes back). When the agent has a **pull request** (a PR
+  link in its job state, or else a PR for its branch), the card has a `pr`
+  line: number, draft/open, CI checks (✓ passing, ✗ failing, … pending) and
+  review (review requested, approved, changes requested), or **✓ merged** /
+  closed, so "is the work landed?" is answered at a glance. It's read with
+  `gh` in the background: open PRs at most once a minute, merged and closed
+  ones never again; without `gh`, or not logged in, the line is simply not
+  there.
 - **inbox** — what is waiting for you today: questions first, then results
   to read; most recent first in each. Each item takes two lines: the agent,
-  then the group (and coordinator) it sits under and what it is asking.
+  then the group (and coordinator) it sits under and what it is asking. A
+  finished agent (ready or done, even already seen) whose open PR has failing
+  CI or changes requested is listed too, with the reason in red
+  (`⚠ PR #12: CI failing, changes requested`); it leaves once the PR is fixed,
+  merged or closed, or when you archive the agent.
   Whatever has waited since before today (the day starts at 4am) folds into
   one row at the bottom, **earlier days**, with how many and how old; `space`
   opens it (a `/` filter searches inside it too). It starts folded each time
@@ -305,6 +316,7 @@ coordinator (its agents get nothing, and it isn't listed to others).
 |---|---|
 | list of sessions | `claude agents --json --all` (run again when a job or session file changes, at most every 2 s and at least every 10 s; the last result is cached so the first frame is instant) |
 | question, suggested reply, now-doing, tokens, PRs | `~/.claude/jobs/<id>/state.json` and `timeline.jsonl`, read-only, every 1 s |
+| PR status (state, CI, review) | `gh pr view <PR link or branch> --json …` in the agent's directory, in the background: open PRs every 60 s at most, a branch without a PR every 10 min, merged/closed never again (the selected agent, plus finished agents from today or with a PR link, up to 4 new calls per second); skipped when `gh` is missing or not logged in |
 | history | the session transcript (`~/.claude/projects/…/<session>.jsonl`), read-only |
 | attach / stop / start / output / remove | `claude attach`, `claude stop`, `claude --bg`, `claude logs`, `claude rm` |
 | your organization | `~/.config/regia/layout.json` |
@@ -332,6 +344,7 @@ internal/claude/    Claude Code data: `claude agents` listing, job state files, 
 internal/spawns/    spawn links: the hook handler, transcript backfill, spawns.jsonl
 internal/layout/    your organization: tree, automatic placement, moves, layout.json
 internal/gitinfo/   git state of an agent's directory, cached
+internal/prinfo/    PR status of an agent (state, CI, review) via `gh`, cached
 internal/attach/    `claude attach` behind a pty proxy (fast return to regia)
 internal/update/    self-update: version check on the Go module proxy, `go install` in place
 internal/ui/        the terminal interface (bubbletea): model, update, view, panel, input
@@ -340,4 +353,4 @@ hooks/hooks.json    the PostToolUse hook the plugin installs
 ```
 
 Dependencies point one way: `ui` → `layout` → `spawns` → `claude`; `gitinfo`,
-`attach` and `update` are standalone.
+`prinfo`, `attach` and `update` are standalone.
