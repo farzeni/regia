@@ -153,7 +153,7 @@ func ReadHistory(a *Agent) History {
 		return h
 	}
 	defer f.Close()
-	users := userMessages(a.Transcript)
+	users := userMessages(TranscriptPath(a)) // the job file's path goes stale once the session enters a worktree
 
 	var cur *Turn
 	sc := bufio.NewScanner(f)

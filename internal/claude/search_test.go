@@ -157,3 +157,21 @@ func TestSearchRealData(t *testing.T) {
 		}
 	}
 }
+
+// A session that entered a worktree: its transcript moved to the worktree's
+// project folder, and the job file still names the old path.
+func TestTranscriptPathMoved(t *testing.T) {
+	cd := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", cd)
+	moved := filepath.Join(cd, "projects", "-repo--claude-worktrees-x", "sid-1.jsonl")
+	_ = os.MkdirAll(filepath.Dir(moved), 0o755)
+	_ = os.WriteFile(moved, []byte("{}\n"), 0o644)
+	a := &Agent{SessionID: "sid-1", Transcript: filepath.Join(cd, "projects", "-repo", "sid-1.jsonl")}
+	if got := TranscriptPath(a); got != moved {
+		t.Fatalf("TranscriptPath = %q, want %q", got, moved)
+	}
+	a.Transcript = moved
+	if got := TranscriptPath(a); got != moved {
+		t.Fatalf("existing path: %q", got)
+	}
+}
