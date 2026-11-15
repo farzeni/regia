@@ -28,6 +28,7 @@ const (
 	modeNormal mode = iota
 	modeInput
 	modeConfirm
+	modeDir // the directory picker (ctrl+o, w)
 )
 
 type model struct {
@@ -79,6 +80,8 @@ type model struct {
 	pasteN      int
 	imageN      int
 	draftInside bool
+	draftDir    string      // directory picked for this task (ctrl+o); "" = the usual rule
+	dirPick     *dirPicker  // the directory picker, when open
 	comp        *completion // the "/" skill or "@" file popup, when open
 	compShut    string      // the word esc closed the popup for
 

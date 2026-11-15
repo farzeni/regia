@@ -9,7 +9,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/farzeni/regia/internal/attach"
-	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/group"
 )
 
@@ -142,6 +141,8 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.mode {
 		case modeInput:
 			return m, m.updateInput(msg)
+		case modeDir:
+			return m, m.updateDirPick(msg)
 		case modeConfirm:
 			m.mode = modeNormal
 			if msg.String() == m.confirmKey {
@@ -461,25 +462,14 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		return m.notesKey(r)
 	case "M":
 		return m.muteKey(r)
+	case "w":
+		m.groupDirKey(r)
 	case "i":
 		m.typing = true
 	case "c", "C":
 		m.typing, m.draftInside = true, k.String() == "C" && r != nil
 	}
 	return nil
-}
-
-// cwdFor finds a working directory for a node: its own, or the first agent below it.
-func (m *model) cwdFor(id string) string {
-	if a := m.agents[id]; a != nil && a.Cwd != "" {
-		return a.Cwd
-	}
-	for _, k := range m.layout.Children(id, m.agents) {
-		if c := m.cwdFor(k); c != claude.Home() {
-			return c
-		}
-	}
-	return claude.Home()
 }
 
 func (m *model) titleOf(id string) string {

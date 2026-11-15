@@ -56,10 +56,12 @@ var helpSections = []helpSection{
 		{"m then P", "after group / under agent"},
 		{"n  N  M", "new group · notes · mute"},
 		{"r / d", "rename / remove group"},
+		{"w", "group's dir for new agents"},
 	}},
 	{"in the draft", [][2]string{
 		{"/name  @path", "skill / file (tab, ⏎ picks)"},
 		{"ctrl+v", "image, files: [Image #n]"},
+		{"ctrl+o", "pick its directory"},
 	}},
 }
 

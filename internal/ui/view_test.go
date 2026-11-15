@@ -37,12 +37,12 @@ func TestViewFrames(t *testing.T) {
 	}
 	ls := check("typing")
 	n := len(ls)
-	if !strings.HasPrefix(ls[n-3], "╭") || !strings.HasPrefix(ls[n-1], "╰") || !strings.Contains(ls[n-2], "❯") {
-		t.Fatalf("input box not at the bottom:\n%s", strings.Join(ls[n-3:], "\n"))
+	if !strings.HasPrefix(ls[n-4], "╭") || !strings.HasPrefix(ls[n-1], "╰") || !strings.Contains(ls[n-3], "❯") || !strings.Contains(ls[n-2], "ctrl+o") {
+		t.Fatalf("input box not at the bottom:\n%s", strings.Join(ls[n-4:], "\n"))
 	}
 	typeText(m, "fix the flaky test")
-	if ls := check("draft"); !strings.Contains(ls[n-2], "fix the flaky test") {
-		t.Fatalf("draft not in box: %q", ls[n-2])
+	if ls := check("draft"); !strings.Contains(ls[n-3], "fix the flaky test") {
+		t.Fatalf("draft not in box: %q", ls[n-3])
 	}
 	m.Update(tkey("esc"))
 	m.Update(tkey("esc"))

@@ -47,7 +47,7 @@ func TestMultilineDraft(t *testing.T) {
 	send(m, tea.KeyMsg{Type: tea.KeyEnter, Alt: true}) // alt+enter
 	typeAndRender(m, "second")
 	// the first line must stay in view as the box grows (it used to scroll off)
-	if ls := strings.Split(ansi.Strip(m.View()), "\n"); !strings.Contains(ls[28-3], "❯ first line") || !strings.Contains(ls[28-2], "second") {
+	if ls := strings.Split(ansi.Strip(m.View()), "\n"); !strings.Contains(ls[28-4], "❯ first line") || !strings.Contains(ls[28-3], "second") || !strings.Contains(ls[28-2], "in ") {
 		t.Fatalf("box after two lines:\n%s", strings.Join(ls[22:], "\n"))
 	}
 	send(m, tea.KeyMsg{Type: tea.KeyCtrlJ}) // ctrl+j
@@ -74,7 +74,7 @@ func TestMultilineDraft(t *testing.T) {
 	if len(ls) != 28 {
 		t.Fatalf("frame has %d lines", len(ls))
 	}
-	if !strings.HasPrefix(ls[28-6], "╭") || !strings.Contains(ls[28-5], "❯ first line") || !strings.Contains(ls[28-2], "fourth") {
+	if !strings.HasPrefix(ls[28-7], "╭") || !strings.Contains(ls[28-6], "❯ first line") || !strings.Contains(ls[28-3], "fourth") {
 		t.Fatalf("box should grow to 4 rows:\n%s", strings.Join(ls[20:], "\n"))
 	}
 
@@ -140,7 +140,7 @@ func TestInputGrowsToMax(t *testing.T) {
 	if len(ls) != 28 {
 		t.Fatalf("frame has %d lines", len(ls))
 	}
-	if m.inputRows() != inputMaxRows || !strings.HasPrefix(ls[28-inputMaxRows-2], "╭") {
+	if m.inputRows() != inputMaxRows+1 || !strings.HasPrefix(ls[28-inputMaxRows-3], "╭") {
 		t.Fatalf("box rows %d:\n%s", m.inputRows(), strings.Join(ls[14:], "\n"))
 	}
 }

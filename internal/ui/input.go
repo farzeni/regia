@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/farzeni/regia/internal/claude"
+	"github.com/farzeni/regia/internal/layout"
 )
 
 // spawnAgent starts `claude --bg <task>` in dir and returns its output (which
@@ -24,17 +24,23 @@ var spawnAgent = func(dir, task string) (string, error) {
 }
 
 // spawnTarget says where a new agent goes: next to the selected agent, or
-// inside it (C, or a group), in the working directory of that part of the tree.
-func (m *model) spawnTarget() (parent, after, cwd, where string) {
-	cwd = claude.Home()
+// inside it (C, or a group); and the directory it starts in, with why
+// (layout.SpawnDir, or the one picked with ctrl+o).
+func (m *model) spawnTarget() (parent, after, cwd, where, why string) {
+	start := ""
 	if r := m.selected(); r != nil {
 		if m.draftInside || r.Group {
 			parent = r.ID
 		} else {
 			parent, after = m.layout.Parent[r.ID], r.ID
 		}
-		cwd = m.cwdFor(r.ID)
+		start = r.ID
 	}
+	src := layout.DirSource{Kind: "chosen"}
+	if cwd = m.draftDir; cwd == "" {
+		cwd, src = m.layout.SpawnDir(start, m.agents)
+	}
+	why = m.dirWhy(src)
 	switch {
 	case parent == "":
 		where = "top level"
@@ -47,7 +53,7 @@ func (m *model) spawnTarget() (parent, after, cwd, where string) {
 }
 
 func (m *model) spawn(task string) tea.Cmd {
-	parent, after, cwd, where := m.spawnTarget()
+	parent, after, cwd, where, _ := m.spawnTarget()
 	m.flash("starting %s in %s…", where, tildify(cwd))
 	return func() tea.Msg {
 		out, err := spawnAgent(cwd, task)
@@ -111,7 +117,7 @@ func (m *model) inputRows() int {
 	if !m.typing {
 		return 1
 	}
-	return m.ta.Height()
+	return m.ta.Height() + 1 // the draft, then where it will run
 }
 
 // paste adds pasted text: short pastes inline, long ones as a token that is
@@ -204,7 +210,7 @@ func (m *model) expandPastes(s string) string {
 
 func (m *model) clearDraft() {
 	m.ta.Reset()
-	m.pastes, m.draftInside = nil, false
+	m.pastes, m.draftInside, m.draftDir = nil, false, ""
 	m.comp, m.compShut = nil, ""
 }
 
@@ -250,6 +256,10 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 				m.flash("task too long (%d KiB, max %d KiB): put it in a file and point the agent to it", len(task)>>10, maxPrompt>>10)
 				return nil
 			}
+			if _, _, cwd, _, _ := m.spawnTarget(); !isDir(cwd) {
+				m.flash("%s no longer exists · ctrl+o picks another directory", tildify(cwd))
+				return nil
+			}
 			cmd := m.spawn(task)
 			m.clearDraft()
 			return cmd
@@ -273,6 +283,10 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 		return m.updateNormal(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
 	case "ctrl+v":
 		m.pasteClipboard()
+		return nil
+	case "ctrl+o":
+		m.comp = nil
+		m.openDirPick("")
 		return nil
 	case "up", "down":
 		if !multi { // one line: arrows move the list; several: move in the text
@@ -311,10 +325,15 @@ func (m *model) inputBox() string {
 		lines = []string{stDim.Render("❯ command keys — i to type a new task")}
 	} else {
 		border = cAccent
-		_, _, cwd, where := m.spawnTarget()
-		m.ta.Placeholder = "new task — starts " + where + " in " + tildify(cwd)
+		_, _, cwd, where, why := m.spawnTarget()
+		m.ta.Placeholder = "new task — starts " + where
 		m.sizeInput()
 		lines = strings.Split(m.ta.View(), "\n")
+		dir := tildify(cwd)
+		if !isDir(cwd) {
+			dir = lipgloss.NewStyle().Foreground(cFailed).Render(dir + " (missing)")
+		}
+		lines = append(lines, stDim.Render("  in ")+dir+stDim.Render(" · "+why+" · ctrl+o change"))
 	}
 	for i, l := range lines {
 		l = ansi.Truncate(l, iw-lipgloss.Width(keys)-1, "…")

@@ -29,6 +29,7 @@ type Layout struct {
 	Sidebar   int                  `json:"sidebar,omitempty"`  // list width in columns (0: automatic)
 	Archived  map[string]time.Time `json:"archived,omitempty"` // agent id -> when: hidden by regia, untouched in Claude
 	Muted     map[string]bool      `json:"muted,omitempty"`    // group or coordinator -> left out of group awareness
+	Dirs      map[string]string    `json:"dirs,omitempty"`     // group -> directory new agents in it start in
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 
@@ -92,6 +93,9 @@ func Load() *Layout {
 	}
 	if l.Muted == nil {
 		l.Muted = map[string]bool{}
+	}
+	if l.Dirs == nil {
+		l.Dirs = map[string]string{}
 	}
 	return l
 }
@@ -492,6 +496,9 @@ func (l *Layout) GroupOf(title string, ids []string, agents map[string]*claude.A
 		l.DeleteGroup(gid, agents)
 		return "", err
 	}
+	if d, n, all := l.agentDirs(gid, agents); all && n > 0 {
+		l.Dirs[gid] = d // they all work in one place: so will new agents
+	}
 	return gid, nil
 }
 
@@ -546,6 +553,7 @@ func (l *Layout) DeleteGroup(gid string, agents map[string]*claude.Agent) {
 	delete(l.Groups, gid)
 	delete(l.Parent, gid)
 	delete(l.Collapsed, gid)
+	delete(l.Dirs, gid)
 }
 
 // spawnParent resolves a child's spawner to a listed agent id, if any.

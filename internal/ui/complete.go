@@ -86,7 +86,7 @@ func (m *model) updateCompletion() {
 		return // esc closed it for this word
 	}
 	m.compShut = ""
-	_, _, cwd, _ := m.spawnTarget()
+	_, _, cwd, _, _ := m.spawnTarget()
 	var items []compItem
 	if kind == '/' {
 		items = rankSkills(skillsFor(cwd), q)

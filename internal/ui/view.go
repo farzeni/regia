@@ -88,7 +88,7 @@ func pad(s string, w int) string {
 	return s
 }
 
-func (m *model) bodyHeight() int { return max(1, m.h-5-m.inputRows()-m.compRows()) } // header + gap, status, popup, input box
+func (m *model) bodyHeight() int { return max(1, m.h-5-m.inputRows()-m.compRows()-m.dirPickRows()) } // header + gap, status, popup, input box
 
 // padX is the margin left and right of the tree and the panel; gap separates
 // them (the divider sits in its middle).
@@ -237,6 +237,8 @@ func (m *model) footer() string {
 	switch m.mode {
 	case modeInput:
 		line1 = stAccent.Render(m.inputPrompt) + m.input + "█"
+	case modeDir:
+		line1 = m.dirPickPrompt()
 	case modeConfirm:
 		line1 = lipgloss.NewStyle().Foreground(cBlocked).Render(m.confirmMsg)
 	default:
@@ -245,7 +247,9 @@ func (m *model) footer() string {
 		}
 	}
 	status := pad(strings.Repeat(" ", padX)+trunc(line1, m.w-2*padX), m.w)
-	if pop := m.compView(); pop != "" {
+	if m.dirPickRows() > 0 {
+		status += "\n" + m.dirPickView()
+	} else if pop := m.compView(); pop != "" {
 		status += "\n" + pop
 	}
 	return status + "\n" + m.inputBox()
@@ -410,7 +414,8 @@ func (m *model) detailLines(w int) panel {
 	var out []string
 	sec := func(t string) { out = append(out, "", stHead.Render(t)) }
 	if r.Group {
-		out = append(out, stBold.Render(r.Title), stDim.Render(fmt.Sprintf("%d agents · %d need you · %d busy", r.Count, r.Blocked, r.Busy)))
+		out = append(out, stBold.Render(r.Title), stDim.Render(fmt.Sprintf("%d agents · %d need you · %d busy", r.Count, r.Blocked, r.Busy)),
+			trunc(m.groupDirLine(r.ID), w))
 		sec("waiting for you")
 		n := 0
 		for _, rr := range m.layout.Flatten(m.agents, layout.ViewOpts{ShowDone: false}) {

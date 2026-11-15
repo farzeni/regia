@@ -138,6 +138,7 @@ so a second `enter` attaches to it.
 | `>` / `<` | nest under the agent above (it becomes the coordinator) / un-nest |
 | `m`, then `p` / `P` | move: `p` puts it into the group under the cursor (at the top), or right after the agent; `P` puts it after the group, or under the agent (as its coordinator) |
 | `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up) |
+| `w` | set the directory new agents in the group start in (on an agent: its group's); see [Where a new agent starts](#where-a-new-agent-starts) |
 | `←` `→` `space` | fold / unfold |
 | `z` | fold everything / unfold everything |
 | `-` / `+` | list narrower / wider (or drag the divider; remembered) |
@@ -169,6 +170,38 @@ terminal become `[Image #n]`: the image is saved under `~/.cache/regia/pastes`
 and the token turns into its path when the agent starts, so the agent reads it.
 The clipboard is read with `wl-paste` or `xclip` on Linux and with the built-in
 `osascript` on macOS.
+
+### Where a new agent starts
+
+The line under the draft says which directory the task will run in and why,
+e.g. `in ~/Projects/regia · group regia · ctrl+o change`. It follows the
+selection; regia walks up the tree from the selected row and takes the first of:
+
+1. an **agent's directory**, unless it is your home directory (an agent
+   running in `~` was usually started from a terminal there);
+2. a **group's saved directory**, set with `w`;
+
+and, when the walk finds neither, a guess for the nearest group:
+
+3. the directory **most of its agents** work in (a tie goes to the most
+   recently active);
+4. `~/Projects/<name>` or `~/Git/<name>`, for the group's project or title;
+
+and finally your home directory. A worktree (`…/.claude/worktrees/x`) counts
+as its repository, so a new task never starts inside another agent's
+worktree. A group made from a selection (`v` … `n`) saves its directory when
+all its agents work in the same one.
+
+`ctrl+o` picks a directory for this task only: the list holds where it would
+start now, the groups' saved directories, the directories your agents work in
+(most recent first) and the folders in `~/Projects` and `~/Git`. Type to
+filter, or type a path (`~/…`, `/…`) to browse; `tab` goes into the selected
+folder, `enter` picks, `ctrl+s` picks and also saves it as the group's
+directory, `esc` cancels. The pick lasts until the task is sent or the draft
+is cleared, even if you move the selection to place the task elsewhere. `w`
+opens the same picker on the group: `enter` saves, and the first entry,
+`(no saved dir)`, forgets it. If the directory no longer exists, regia doesn't
+start the task: pick another one.
 
 ## Cleaning up
 
