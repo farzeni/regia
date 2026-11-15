@@ -63,20 +63,21 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string, to
 	}
 	meta = stDim.Render(trunc(meta, w))
 
-	// ── context: one compact line each, dim labels
-	var out []string
+	// ── context: one compact line each, dim labels, in a box like the plugins' cards
+	var out, ctx []string
 	const lw = 8
+	iw := boxInner(w)
 	field := func(name, text string, st lipgloss.Style, maxLines int) {
 		text = strings.TrimSpace(text)
 		if text == "" {
 			return
 		}
-		for i, l := range clip(wrap(text, max(10, w-lw)), maxLines, w-lw) {
+		for i, l := range clip(wrap(text, max(10, iw-lw)), maxLines, iw-lw) {
 			lab := strings.Repeat(" ", lw)
 			if i == 0 {
 				lab = stDim.Render(fmt.Sprintf("%-*s", lw, name))
 			}
-			out = append(out, lab+st.Render(l))
+			ctx = append(ctx, lab+st.Render(l))
 		}
 	}
 	plain := lipgloss.NewStyle()
@@ -110,11 +111,13 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string, to
 		field("links", strings.Join(ids, "  ")+"   "+a.PRs[len(a.PRs)-1].Href, stDim, 1)
 	}
 
-	out = append(out, pluginCards(a, w)...)
-
 	if a.Unhealthy != "" {
 		field("stuck?", stuckGlyph+" "+a.Unhealthy, lipgloss.NewStyle().Foreground(cDim), 1)
 	}
+	if len(ctx) > 0 {
+		out = append(out, box("", stBold, "", ctx, w)...)
+	}
+	out = append(out, pluginCards(a, w)...)
 
 	// ── the ask: what it needs from you (or what it's doing), in a barred block
 	bar := func(c lipgloss.TerminalColor, lines []string) {

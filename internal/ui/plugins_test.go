@@ -13,6 +13,41 @@ import (
 	"github.com/farzeni/regia/internal/prinfo"
 )
 
+// The context (task, status, git…) sits in a box as wide as the panel,
+// above the plugins' cards.
+func TestContextInABox(t *testing.T) {
+	f := newReady(t)
+	m := f.m
+	m.opts.ShowDone = true
+	m.cursorID = "done0001"
+	m.rebuild()
+	p := &plugins.Manifest{Name: "gh-pr", Command: []string{"x"}}
+	plugins.SetForTest([]*plugins.Manifest{p})
+	defer plugins.SetForTest(nil)
+	plugins.Seed(p, "done0001", plugins.Output{Fields: []plugins.Field{{Label: "ci", Text: "3/3"}}})
+	r := m.selected()
+	r.Agent.Unhealthy = "no output for 20m" // a context line (the fixture has no task, git or status)
+	_, card, _, _ := m.agentDetail(r, 70)
+	var ctxTop, plugTop = -1, -1
+	for i, l := range card {
+		s := ansi.Strip(l)
+		if strings.HasPrefix(s, "╭──") && ctxTop < 0 {
+			ctxTop = i
+		}
+		if strings.HasPrefix(s, "╭─ gh-pr") {
+			plugTop = i
+		}
+		if strings.HasPrefix(s, "╭") || strings.HasPrefix(s, "│") || strings.HasPrefix(s, "╰") {
+			if ansi.StringWidth(l) != 70 {
+				t.Fatalf("line %d is %d wide: %q", i, ansi.StringWidth(l), s)
+			}
+		}
+	}
+	if ctxTop < 0 || plugTop < 0 || ctxTop > plugTop {
+		t.Fatalf("context box %d, plugin card %d:\n%s", ctxTop, plugTop, ansi.Strip(strings.Join(card, "\n")))
+	}
+}
+
 // regia's own pr line steps aside when a plugin's card links the same PR.
 func TestPluginHidesDuplicatePRLine(t *testing.T) {
 	f := newReady(t)
