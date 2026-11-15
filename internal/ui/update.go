@@ -32,6 +32,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if p := prCmd(r.Agent); p != nil {
 			cmd = tea.Batch(cmd, p)
 		}
+		if p := m.pluginCmd(r.Agent); p != nil {
+			cmd = tea.Batch(cmd, p)
+		}
 	}
 	if !pulse {
 		if c := m.timelineCmd(); c != nil { // the shown timeline's git logs
@@ -78,7 +81,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refresh()
 		m.dwell(time.Time(msg))
 		var cmds []tea.Cmd
-		cmds = append(cmds, tick(), m.prCmds())
+		cmds = append(cmds, tick(), m.prCmds(), m.pluginCmds())
 		if c := m.pollListing(); c != nil {
 			cmds = append(cmds, c)
 		}
@@ -98,6 +101,9 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseMsg:
 		return m, m.updateMouse(msg)
+
+	case pluginActionMsg:
+		return m, m.pluginActionDone(msg)
 
 	case diffMsg:
 		m.gotDiff(msg)
@@ -188,6 +194,8 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.updateInput(msg)
 		case modeDir:
 			return m, m.updateDirPick(msg)
+		case modeMenu:
+			return m, m.updateMenu(msg)
 		case modeConfirm:
 			m.mode = modeNormal
 			if msg.String() == m.confirmKey {
@@ -421,6 +429,8 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 			_ = copyClipboard(r.Agent.SessionID)
 			m.flash("copied session id %s", r.Agent.SessionID)
 		}
+	case "!": // plugin actions and links for the selected agent
+		return m.pluginMenuKey(r)
 	case "D": // the panel shows the agent's git diff / back
 		return m.diffKey(r)
 	case "o":

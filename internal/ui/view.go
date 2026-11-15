@@ -199,6 +199,9 @@ func (m *model) View() string {
 	if m.help {
 		return overlay(b.String(), helpModal(m.w, m.h), m.w, m.h)
 	}
+	if m.mode == modeMenu {
+		return overlay(b.String(), m.menuModal(), m.w, m.h)
+	}
 	return b.String()
 }
 
@@ -342,6 +345,9 @@ func (m *model) inboxSubline(r layout.Row, w int) string {
 	if a.State != "blocked" && prNeedsLook(a) {
 		prWhy = "⚠ " + prFor(a).Reason()
 		what = prWhy
+	} else if why, label := pluginAttention(a); a.State != "blocked" && why != "" {
+		prWhy = "⚠ " + label + ": " + stripNL(why)
+		what = prWhy
 	}
 	what = trunc(what, room-runewidth.StringWidth(place))
 	st, wst := stDim, lipgloss.NewStyle().Foreground(cDim)
@@ -377,6 +383,7 @@ type rowKey struct {
 	color                              lipgloss.Color
 	cut, pin, yourTurn, faded, snoozed bool
 	unhealthy                          bool
+	badges                             string
 }
 
 var rowCache = map[rowKey]string{}
@@ -394,6 +401,7 @@ func (m *model) rowLine(r layout.Row, w int) string {
 		k.pin = m.layout.Pins[r.ID]
 		k.yourTurn, k.faded, k.snoozed = a.YourTurn(), faded(a, time.Now()), a.Snoozed
 		k.unhealthy = a.Unhealthy != ""
+		k.badges = pluginBadges(a.ID)
 	}
 	if l, ok := rowCache[k]; ok {
 		return l
@@ -458,6 +466,9 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 		warn := ""
 		if a.Unhealthy != "" && !r.Archived {
 			warn = " " + stDim.Render(stuckGlyph)
+		}
+		if b := pluginBadges(a.ID); b != "" && !r.Archived {
+			warn += " " + b
 		}
 		titleW := w - len(indent) - 6 - len(age) - len(cutMark) - lipgloss.Width(mark) - lipgloss.Width(pin) - lipgloss.Width(warn)
 		title := trunc(r.Title+stripNL(extra), titleW)

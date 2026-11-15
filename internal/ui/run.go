@@ -71,6 +71,9 @@ func DumpPanel(w io.Writer, id string) error {
 		if c := prCmd(r.Agent); c != nil {
 			c()
 		}
+		for _, f := range m.pluginRefreshers(r.Agent) {
+			f()
+		}
 	}
 	if r := m.selected(); r == nil || r.ID != id {
 		return fmt.Errorf("not visible: %s", id)

@@ -201,6 +201,7 @@ so a second `enter` attaches to it.
 | `b` | jump to the next agent whose turn is yours (waiting or ready) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `o` | show the session's terminal output |
+| `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |
 | `D` | the panel shows the agent's git diff against the default branch (uncommitted changes too) / back (`esc` too) |
 | `i` / `c` / `C` | type a new task; `C` starts it inside the selection |
 | `s` | stop the session (conversation kept) |
@@ -342,6 +343,27 @@ To turn it off: `regia group off` for every session (`regia group on` to
 undo), `REGIA_GROUP=off` for one session, or `M` in regia to mute one group or
 coordinator (its agents get nothing, and it isn't listed to others).
 
+## Plugins
+
+Your own scripts can add to the agent panel: lines on the card (ticket status,
+the CI workflows you care about, whether the PR was posted in the review
+channel), a badge on the row, a reason to put the agent in the inbox, and
+actions in the `!` menu (move the ticket, copy a failing log). A plugin is a
+directory in `~/.config/regia/plugins/` with a `plugin.json` and any program:
+regia runs it per agent in the background with the agent as JSON on stdin and
+shows the JSON it prints. `dirs` in the manifest keeps work plugins on work
+repos.
+
+```bash
+regia plugin new jira                # a working skeleton to start from
+regia plugin run jira <agent-id>     # run it once and check its output
+regia plugin list
+```
+
+The full contract (input, output, actions, caching, rules and a checklist) is
+in [docs/plugins.md](docs/plugins.md), written so an agent can build a plugin
+from it.
+
 ## Where the data comes from
 
 | What | Source |
@@ -353,6 +375,7 @@ coordinator (its agents get nothing, and it isn't listed to others).
 | stuck (⚠) | mtimes of the job files, the transcript and its subagents' transcripts; the transcript's tail, read incrementally |
 | history | the session transcript (`~/.claude/projects/…/<session>.jsonl`), read-only |
 | attach / stop / start / output / remove | `claude attach`, `claude stop`, `claude --bg`, `claude logs`, `claude rm` |
+| plugins | your scripts in `~/.config/regia/plugins/`, in the background: per agent at most every `every` (2 min by default), up to 4 runs per second, backing off when one fails |
 | your organization | `~/.config/regia/layout.json` |
 | who started whom | `~/.config/regia/spawns.jsonl` |
 

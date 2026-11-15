@@ -83,6 +83,16 @@ func prNeedsLook(a *claude.Agent) bool {
 	return prFor(a).NeedsLook()
 }
 
+// needsLook: listed in the inbox although not waiting on you: its PR needs a
+// look, or a plugin says so (attention).
+func needsLook(a *claude.Agent) bool {
+	if prNeedsLook(a) {
+		return true
+	}
+	why, _ := pluginAttention(a)
+	return why != ""
+}
+
 // prCmd refreshes a's PR in the background when it's due.
 func prCmd(a *claude.Agent) tea.Cmd {
 	dir, ref := prRef(a)
