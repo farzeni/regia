@@ -82,8 +82,8 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   at its start (`pgdn` reads on). `t` swaps the history for the whole
   conversation: your messages and the agent's replies in full, tool calls
   left out (`t` again goes back).
-- **inbox** — what is waiting for you today: questions first, then results
-  to read; most recent first in each. Each item takes two lines: the agent,
+- **inbox** — what is waiting for you today: questions first, then agents
+  that look stuck (see below), then results to read; most recent first in each. Each item takes two lines: the agent,
   then the group (and coordinator) it sits under and what it is asking.
   Whatever has waited since before today (the day starts at 4am) folds into
   one row at the bottom, **earlier days**, with how many and how old; `space`
@@ -114,6 +114,15 @@ for 2 seconds or attaching to it. Then it's plain *done*, hidden unless you
 press `a` (the one you're reading stays until you move away). A question from
 before today (4am) is **stale** (grey ●): still listed, but not counted in
 "need you"; done and failed sessions from before today go grey the same way. What you've seen is remembered in `layout.json`.
+
+A busy agent that **looks stuck** gets a dim ⚠ after its name, a `stuck?`
+line on its card saying why, and an inbox item after the questions (not
+counted in "need you"). Two guesses, checked every second for busy agents
+only: nothing was written for 10 minutes (job state, timeline, transcript or
+a subagent's transcript: `no activity for 23m`), or the last 3 or more tool
+results were the same error from the same tool (`same Bash error 5×: …`).
+It's a guess: a long build is quiet too. It only stats files and reads what
+was appended to the transcript since the last check.
 
 To keep a session in sight whatever its state, **pin** it with `f` (⚑ before
 its name): a pinned session stays in the tree after it's done and seen, until
@@ -305,6 +314,7 @@ coordinator (its agents get nothing, and it isn't listed to others).
 |---|---|
 | list of sessions | `claude agents --json --all` (run again when a job or session file changes, at most every 2 s and at least every 10 s; the last result is cached so the first frame is instant) |
 | question, suggested reply, now-doing, tokens, PRs | `~/.claude/jobs/<id>/state.json` and `timeline.jsonl`, read-only, every 1 s |
+| stuck (⚠) | mtimes of the job files, the transcript and its subagents' transcripts; the transcript's tail, read incrementally |
 | history | the session transcript (`~/.claude/projects/…/<session>.jsonl`), read-only |
 | attach / stop / start / output / remove | `claude attach`, `claude stop`, `claude --bg`, `claude logs`, `claude rm` |
 | your organization | `~/.config/regia/layout.json` |

@@ -42,8 +42,9 @@ type Agent struct {
 	Transcript string // session transcript (jsonl)
 	JobState   string // the job file's own state, raw (see ListingStamp)
 
-	Stale   bool // set by the UI: waiting on you since before today
-	Snoozed bool // set by the UI: a question you put off (Z) until the agent does something new
+	Stale     bool   // set by the UI: waiting on you since before today
+	Snoozed   bool   // set by the UI: a question you put off (Z) until the agent does something new
+	Unhealthy string // set by the UI from Health: why a busy agent looks stuck, "" if fine
 }
 
 // YourTurn: the agent waits on you, with a question (blocked, not stale or

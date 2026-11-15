@@ -26,6 +26,7 @@ var helpSections = []helpSection{
 		{"a", "show / hide finished"},
 		{"f", "pin (stays when done) / unpin"},
 		{"v", "select several (space, *)"},
+		{"⚠ (dim)", "looks stuck: why is on the card"},
 	}},
 	{"organize", [][2]string{
 		{"J / K", "move down / up"},

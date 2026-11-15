@@ -126,15 +126,18 @@ func (m *model) snoozeKey(r *layout.Row) {
 	m.saveLayout()
 }
 
-// inboxRank orders the inbox: questions, then results to read, then stale.
+// inboxRank orders the inbox: questions, then agents that look stuck
+// (health.go), then results to read, then stale.
 func inboxRank(a *claude.Agent) int {
 	switch {
 	case a.State == "blocked" && !a.Stale:
 		return 0
-	case a.State == "ready":
+	case stuck(a):
 		return 1
-	case a.Stale:
+	case a.State == "ready":
 		return 2
+	case a.Stale:
+		return 3
 	}
-	return 3 // the selected agent, kept while you read it
+	return 4 // the selected agent, kept while you read it
 }

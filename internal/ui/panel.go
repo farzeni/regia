@@ -105,6 +105,10 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int)
 		field("links", strings.Join(ids, "  ")+"   "+a.PRs[len(a.PRs)-1].Href, stDim, 1)
 	}
 
+	if a.Unhealthy != "" {
+		field("stuck?", stuckGlyph+" "+a.Unhealthy, lipgloss.NewStyle().Foreground(cDim), 1)
+	}
+
 	// ── the ask: what it needs from you (or what it's doing), in a barred block
 	bar := func(c lipgloss.TerminalColor, lines []string) {
 		b := lipgloss.NewStyle().Foreground(c).Render("┃ ")
