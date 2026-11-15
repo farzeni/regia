@@ -1,0 +1,18 @@
+# Throwaway workflow for demonstrating the gh-pr regia plugin: one job passes,
+# one takes a few minutes (CI progress), one fails (failure + re-run action).
+# Not meant to be merged.
+name: plugin-demo
+on: pull_request
+jobs:
+  quick:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "passes right away"
+  slow:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sleep 180 && echo "done after 3 minutes"
+  flaky:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "fails on purpose so the plugin has something to show" && exit 1
