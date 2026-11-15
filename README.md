@@ -184,8 +184,8 @@ The clipboard is read with `wl-paste` or `xclip` on Linux and with the built-in
 
 ### Where a new agent starts
 
-The line under the draft says which directory the task will run in and why,
-e.g. `in ~/Projects/regia · group regia · ctrl+o change`. It follows the
+The input box's bottom border shows the directory the task will run in
+(`╰── ~/Projects/regia · ctrl+o ─╯`; `ctrl+o` also says why). It follows the
 selection; regia walks up the tree from the selected row and takes the first of:
 
 1. an **agent's directory**, unless it is your home directory (an agent

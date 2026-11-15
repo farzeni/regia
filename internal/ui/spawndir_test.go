@@ -39,8 +39,8 @@ func TestPickDirForOneTask(t *testing.T) {
 	m, home, got := dirModel(t)
 	goTo(t, m, "aaaa1111")
 	agentDir := m.agents["aaaa1111"].Cwd
-	if !strings.Contains(screen(m), "· dir of alpha · ctrl+o change") {
-		t.Fatalf("input box should say where the task runs and why:\n%s", screen(m))
+	if !strings.Contains(screen(m), tildify(agentDir)+" · ctrl+o ─╯") {
+		t.Fatalf("the box's border should say where the task runs:\n%s", screen(m))
 	}
 
 	m.Update(ctrl(tea.KeyCtrlO))
@@ -60,7 +60,7 @@ func TestPickDirForOneTask(t *testing.T) {
 	if m.mode != modeNormal || m.draftDir != home+"/Projects/spalla/sub" || !m.typing {
 		t.Fatalf("pick: mode %v draftDir %q typing %v", m.mode, m.draftDir, m.typing)
 	}
-	if !strings.Contains(screen(m), "in ~/Projects/spalla/sub · picked for this task") {
+	if !strings.Contains(screen(m), " ~/Projects/spalla/sub picked · ctrl+o ─╯") {
 		t.Fatalf("box should show the picked dir:\n%s", screen(m))
 	}
 
@@ -169,7 +169,7 @@ func TestMissingDirIsRefused(t *testing.T) {
 	if *got != "" || m.draft() != "task" || !strings.Contains(m.status, "no longer exists") {
 		t.Fatalf("missing dir: spawned in %q, draft %q, status %q", *got, m.draft(), m.status)
 	}
-	if !strings.Contains(screen(m), "(missing)") {
+	if !strings.Contains(screen(m), "gone missing · ctrl+o ─╯") {
 		t.Fatalf("box should flag the missing dir:\n%s", screen(m))
 	}
 }

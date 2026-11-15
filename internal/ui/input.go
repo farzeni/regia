@@ -117,7 +117,7 @@ func (m *model) inputRows() int {
 	if !m.typing {
 		return 1
 	}
-	return m.ta.Height() + 1 // the draft, then where it will run
+	return m.ta.Height()
 }
 
 // paste adds pasted text: short pastes inline, long ones as a token that is
@@ -317,6 +317,7 @@ func (m *model) inputBox() string {
 	keys := stDim.Render("? keys")
 	border := lipgloss.Color("240")
 	var lines []string
+	label := "" // shown in the bottom border, on the right
 	if m.selecting {
 		border = cBlocked
 		lines = []string{lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("◉ select · %d marked", len(m.markedIDs()))) +
@@ -325,15 +326,11 @@ func (m *model) inputBox() string {
 		lines = []string{stDim.Render("❯ command keys — i to type a new task")}
 	} else {
 		border = cAccent
-		_, _, cwd, where, why := m.spawnTarget()
+		_, _, cwd, where, _ := m.spawnTarget()
 		m.ta.Placeholder = "new task — starts " + where
 		m.sizeInput()
 		lines = strings.Split(m.ta.View(), "\n")
-		dir := tildify(cwd)
-		if !isDir(cwd) {
-			dir = lipgloss.NewStyle().Foreground(cFailed).Render(dir + " (missing)")
-		}
-		lines = append(lines, stDim.Render("  in ")+dir+stDim.Render(" · "+why+" · ctrl+o change"))
+		label = m.dirLabel(cwd, m.w/2)
 	}
 	for i, l := range lines {
 		l = ansi.Truncate(l, iw-lipgloss.Width(keys)-1, "…")
@@ -342,6 +339,44 @@ func (m *model) inputBox() string {
 		}
 		lines[i] = l
 	}
-	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(border).
+	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(border).
 		Padding(0, 1).Width(m.w - 2).Render(strings.Join(lines, "\n"))
+	if label == "" {
+		return box
+	}
+	// the directory sits in the bottom border: ╰──── ~/x · ctrl+o ─╯
+	rows := strings.Split(box, "\n")
+	w := ansi.StringWidth(rows[len(rows)-1])
+	lw := lipgloss.Width(label)
+	if w < lw+6 {
+		return box
+	}
+	bs := lipgloss.NewStyle().Foreground(border)
+	rows[len(rows)-1] = bs.Render("╰"+strings.Repeat("─", w-lw-5)) + " " + label + " " + bs.Render("─╯")
+	return strings.Join(rows, "\n")
+}
+
+// dirLabel is the input's directory, for the box's border: where the task
+// will run (its tail when long), flagged when picked or missing.
+func (m *model) dirLabel(cwd string, max int) string {
+	dir := tildify(cwd)
+	note := ""
+	switch {
+	case !isDir(cwd):
+		note = lipgloss.NewStyle().Foreground(cFailed).Render(" missing")
+	case m.draftDir != "":
+		note = stAccent.Render(" picked")
+	}
+	tail := stDim.Render(" · ctrl+o")
+	if r := []rune(dir); len(r) > 0 && lipgloss.Width(note+tail)+len(r) > max {
+		keep := max - lipgloss.Width(note+tail) - 1
+		if keep < 4 {
+			return ""
+		}
+		dir = "…" + string(r[len(r)-keep:])
+	}
+	if !isDir(cwd) {
+		dir = lipgloss.NewStyle().Foreground(cFailed).Render(dir)
+	}
+	return dir + note + tail
 }
