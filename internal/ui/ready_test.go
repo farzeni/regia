@@ -55,6 +55,7 @@ func newReady(t *testing.T) *readyFixture {
 	f.job("busy0001", "working", now)
 	f.m = newModel()
 	f.m.w, f.m.h = 140, 30
+	f.m.opts.ShowDone = false // these tests check the hiding; `a` toggles it
 	f.list(baseStates)
 	return f
 }
@@ -174,4 +175,10 @@ func maps(base map[string]string, k, v string) map[string]string {
 	}
 	out[k] = v
 	return out
+}
+
+func TestDoneShownByDefault(t *testing.T) {
+	if !newModel().opts.ShowDone {
+		t.Fatal("finished sessions should be shown when regia opens")
+	}
 }

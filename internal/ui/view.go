@@ -325,6 +325,16 @@ func (m *model) inboxSubline(r layout.Row, w int) string {
 	return indent + st.Render(place) + wst.Render(what)
 }
 
+// faded reports whether a row's title goes gray: waiting on you too long, or
+// finished (done or failed) and untouched for over staleAfter. Recent finished
+// rows stay white so today's chats are easy to spot.
+func faded(a *claude.Agent, now time.Time) bool {
+	if a.Stale {
+		return true
+	}
+	return (a.State == "done" || a.State == "failed") && now.Sub(waitedSince(a)) > staleAfter
+}
+
 func (m *model) rowLine(r layout.Row, w int) string {
 	indent := strings.Repeat("  ", r.Depth)
 	fold := "  "
@@ -376,7 +386,7 @@ func (m *model) rowLine(r layout.Row, w int) string {
 		ts := lipgloss.NewStyle()
 		if a.YourTurn() {
 			ts = ts.Bold(true)
-		} else if a.State == "done" || a.Stale {
+		} else if faded(a, time.Now()) {
 			ts = ts.Foreground(cDim)
 		}
 		gs := lipgloss.NewStyle().Foreground(c)
