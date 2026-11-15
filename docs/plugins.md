@@ -26,6 +26,12 @@ needs your attention.
 This document is the full contract. If you are an agent asked to write a
 plugin, read it to the end and use the checklist at the bottom.
 
+A complete working plugin to read before writing your own:
+[`examples/plugins/gh-pr`](../examples/plugins/gh-pr/check.py). It shows the
+agent's GitHub PR (state, CI progress, reviews, comments) with a badge,
+attention and three actions, in about 200 lines of Python using only the
+standard library and `gh`.
+
 ---
 
 ## Quick start
@@ -236,7 +242,7 @@ draws no card.
 | `text` | The line. Wrapped to at most 2 lines, then cut. Keep it short: lead with what matters, put details after ` · `. |
 | `label` | The dim label on the left. Cut to 10 characters; the label column is as wide as the card's longest label. Defaults to the manifest's `label`. |
 | `status` | Color: `ok` (green), `warn` (amber), `error` (red), `dim` (gray), or omitted (plain). Use `error` only for things that need action. |
-| `url` | Shown after the text, and offered as "open …" in the `!` menu (opens in the browser). |
+| `url` | Shown after the text, and offered as "open …" in the `!` menu (opens in the browser). If it is the agent's PR URL, regia hides its own `pr` line on the card, since your card already covers the PR. |
 
 ### badge
 

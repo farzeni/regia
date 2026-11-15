@@ -362,7 +362,9 @@ regia plugin list
 
 The full contract (input, output, actions, caching, rules and a checklist) is
 in [docs/plugins.md](docs/plugins.md), written so an agent can build a plugin
-from it.
+from it. [examples/plugins](examples/plugins) has a working one to install or
+start from: `gh-pr`, the agent's PR with CI progress, reviews and comments
+(`cp -r examples/plugins/gh-pr ~/.config/regia/plugins/`).
 
 ## Where the data comes from
 

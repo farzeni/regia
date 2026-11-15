@@ -10,7 +10,37 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/farzeni/regia/internal/plugins"
+	"github.com/farzeni/regia/internal/prinfo"
 )
+
+// regia's own pr line steps aside when a plugin's card links the same PR.
+func TestPluginHidesDuplicatePRLine(t *testing.T) {
+	f := newReady(t)
+	m := f.m
+	a := m.agents["done0001"]
+	a.Cwd, a.Branch = t.TempDir(), "feat-pr"
+	prinfo.Seed(a.Cwd, "feat-pr", prinfo.Info{OK: true, Number: 5, State: "open", URL: "https://gh/o/r/pull/5"})
+	p := &plugins.Manifest{Name: "gh-pr", Command: []string{"x"}}
+	plugins.SetForTest([]*plugins.Manifest{p})
+	defer plugins.SetForTest(nil)
+	m.opts.ShowDone = true
+	m.cursorID = "done0001"
+	m.rebuild()
+	builtin := func() bool {
+		return strings.Contains(ansi.Strip(strings.Join(m.detailLines(100).lines(), "\n")), "#5 · open")
+	}
+	if !builtin() {
+		t.Fatal("no plugin: regia's pr line shows")
+	}
+	plugins.Seed(p, "done0001", plugins.Output{Fields: []plugins.Field{{Text: "other", URL: "https://jira/X-1"}}})
+	if !builtin() {
+		t.Fatal("a plugin linking elsewhere: regia's pr line stays")
+	}
+	plugins.Seed(p, "done0001", plugins.Output{Fields: []plugins.Field{{Label: "pr", Text: "#5 open", URL: "https://gh/o/r/pull/5/"}}})
+	if builtin() {
+		t.Fatal("a plugin linking the PR: regia's pr line is hidden")
+	}
+}
 
 // What a plugin says shows up on the card, as a badge on the row, puts the
 // agent in the inbox with the reason, and fills the ! menu.

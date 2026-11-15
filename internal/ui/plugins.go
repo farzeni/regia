@@ -229,6 +229,29 @@ func pluginCard(r plugins.Result, w int) []string {
 	return append(lines, bst.Render("╰"+strings.Repeat("─", w-2)+"╯"))
 }
 
+// pluginShowsPR: a plugin has a field linking to a's PR (prURL, or else the
+// last PR link the agent recorded), so regia's own pr line would repeat it.
+func pluginShowsPR(a *claude.Agent, prURL string) bool {
+	if prURL == "" {
+		for i := len(a.PRs) - 1; i >= 0 && prURL == ""; i-- {
+			if a.PRs[i].Kind == "pr" {
+				prURL = a.PRs[i].Href
+			}
+		}
+	}
+	if prURL == "" {
+		return false
+	}
+	for _, r := range plugins.Results(a.ID) {
+		for _, f := range r.Out.Fields {
+			if strings.TrimSuffix(f.URL, "/") == strings.TrimSuffix(prURL, "/") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // pluginBadges is the badges a's row shows, rendered ("" when none).
 func pluginBadges(id string) string {
 	var bs []string
