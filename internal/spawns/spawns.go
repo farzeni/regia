@@ -40,13 +40,13 @@ func Path() string {
 var (
 	reBgCmd     = regexp.MustCompile(`claude\b[^\n|;&]*\s--bg\b`)
 	reBgOut     = regexp.MustCompile(`backgrounded · ([0-9a-f]{8})\b`)
-	reAttachOut = regexp.MustCompile(`claude attach ([0-9a-f]{8})\b`)
+	reAttachOut = regexp.MustCompile(`claude (?:attach|logs|stop|rm) ([0-9a-f]{8})\b`)
 )
 
 // spawnedIDs returns the session ids a Bash command started, from its output.
 // The command must look like `claude ... --bg`; the ids come from the
-// "backgrounded · <id>" line, or the "claude attach <id>" hint when the first
-// line was cut (e.g. `| tail -3`).
+// "backgrounded · <id>" line, or the "claude attach|logs|stop|rm <id>" hints
+// when the first lines were cut (e.g. `| tail -2` keeps only logs and stop).
 func spawnedIDs(cmd, out string) []string {
 	if !reBgCmd.MatchString(cmd) {
 		return nil
