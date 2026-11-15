@@ -13,55 +13,46 @@ type helpSection struct {
 	keys  [][2]string
 }
 
+// helpSections, in two even columns: sessions + organize | navigate + new agent.
+// Text editing in the input box (the usual readline keys) is left out.
 var helpSections = []helpSection{
-	{"input  (i, c, C)", [][2]string{
-		{"type + enter", "start agent by the selection"},
-		{"alt+⏎  ctrl+j", "new line (or \\ then ⏎)"},
-		{"paste", "long: [Pasted text #n]"},
-		{"↑/↓  ctrl+↑/↓", "select (= where it goes)"},
-		{"enter (empty)", "attach (← comes back)"},
-		{"esc", "clear · leave the input · quit"},
-		{"alt+⌫ ctrl+w", "delete word (alt+d: next)"},
-		{"ctrl+a/e alt+←→", "line start, end / by word"},
-		{"ctrl+k / ctrl+u", "cut to end / start"},
-	}},
-	{"navigate", [][2]string{
-		{"j/k ↑/↓", "move"},
-		{"[ ]  ctrl+↑/↓", "previous / next group"},
-		{"g G  ctrl+d/u", "top, bottom / half page"},
-		{"pgup / pgdn", "scroll the panel's history"},
-		{"b", "next agent waiting for you"},
-		{"tab", "tree ⇄ inbox"},
-		{"/ ctrl+f  esc", "filter / clear"},
-		{"←/→ h/l space", "fold / unfold"},
-		{"z", "fold all / unfold all"},
-		{"- / +  drag │", "list narrower / wider"},
-		{"R", "refresh now"},
-	}},
 	{"sessions", [][2]string{
-		{"enter", "attach"},
+		{"enter", "attach (detach to come back)"},
 		{"o", "terminal output (logs)"},
 		{"y / Y", "copy reply / session id"},
 		{"s", "stop (conversation kept)"},
-		{"x", "remove from list (claude rm)"},
+		{"x", "remove (claude rm)"},
+		{"e / A", "archive / show archived"},
 		{"a", "show / hide finished"},
 		{"f", "pin (stays when done) / unpin"},
-		{"e  A", "archive (group: all) / show it"},
-		{"v", "select: space *, then e x m n f"},
-		{"esc  ctrl+c", "quit (with nothing to clear)"},
+		{"v", "select several (space, *)"},
 	}},
-	{"organize  (~/.config/regia/layout.json)", [][2]string{
-		{"J / K", "move down / up (siblings)"},
+	{"organize", [][2]string{
+		{"J / K", "move down / up"},
 		{"> / <", "nest under above / un-nest"},
-		{"m then p", "into group / after agent"},
-		{"m then P", "after group / under agent"},
-		{"n  N  M", "new group · notes · mute"},
-		{"r / d", "rename / remove group"},
+		{"m, then p", "into group / after agent"},
+		{"m, then P", "the other way round"},
+		{"n  r  d", "new / rename / remove group"},
+		{"N  M", "group notes / mute"},
 		{"w", "group's dir for new agents"},
 	}},
-	{"in the draft", [][2]string{
-		{"/name  @path", "skill / file (tab, ⏎ picks)"},
-		{"ctrl+v", "image, files: [Image #n]"},
+	{"navigate", [][2]string{
+		{"j/k  ↑/↓", "move"},
+		{"[ ]  ctrl+↑/↓", "previous / next group"},
+		{"g / G", "top / bottom"},
+		{"ctrl+d / u", "half page down / up"},
+		{"pgup / pgdn", "scroll the panel"},
+		{"b", "next agent waiting for you"},
+		{"tab", "tree ⇄ inbox"},
+		{"/", "filter (esc clears)"},
+		{"h/l  space  z", "fold / unfold / all"},
+		{"- / +", "list narrower / wider"},
+		{"R", "refresh"},
+	}},
+	{"new agent", [][2]string{
+		{"type + enter", "start it at the selection"},
+		{"/name  @path", "skill / file (tab completes)"},
+		{"ctrl+v", "paste image or files"},
 		{"ctrl+o", "pick its directory"},
 	}},
 }
@@ -84,9 +75,8 @@ func renderSections(ss []helpSection) []string {
 // the screen is wide enough, one otherwise (cut to the screen height).
 func helpModal(w, h int) string {
 	var body string
-	// input + sessions | navigate + organize: the two columns come out even
 	hs := helpSections
-	left, right := renderSections([]helpSection{hs[0], hs[2]}), renderSections([]helpSection{hs[1], hs[3]})
+	left, right := renderSections(hs[:2]), renderSections(hs[2:])
 	lw, rw := 0, 0
 	for _, l := range left {
 		lw = max(lw, lipgloss.Width(l))
@@ -114,7 +104,7 @@ func helpModal(w, h int) string {
 		}
 		body = strings.Join(ls, "\n")
 	}
-	title := stBold.Render("keys") + stDim.Render("   esc / ? closes")
+	title := stBold.Render("keys") + stDim.Render("   esc / ? closes · ctrl+c quits")
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(cAccent).
 		Padding(0, 1).MaxWidth(w).Render(title + "\n\n" + body)
 }
