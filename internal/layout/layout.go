@@ -32,6 +32,7 @@ type Layout struct {
 	Dirs      map[string]string    `json:"dirs,omitempty"`     // group -> directory new agents in it start in
 	Seen      map[string]time.Time `json:"seen,omitempty"`     // agent id -> when you last looked at it (nil: never recorded)
 	Pins      map[string]bool      `json:"pins,omitempty"`     // agent id -> pinned by you: shown even when done (Pinned above is placement)
+	Snoozed   map[string]time.Time `json:"snoozed,omitempty"`  // agent id -> its last change when you snoozed it: off the inbox until it changes again
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 

@@ -100,9 +100,10 @@ func TestFinishedTurnIsReadyUntilYouLook(t *testing.T) {
 	if head := ansi.Strip(m.header()); !strings.Contains(head, "● 1 need you") || !strings.Contains(head, "✓ 1 ready") {
 		t.Fatalf("header %q (the stale question must not count)", head)
 	}
-	// inbox: the question, then the result to read, then the stale question
+	// inbox: the question, then the result to read; the stale question is
+	// folded under "earlier days"
 	m.Update(tkey("tab"))
-	if got := rowIDs(m); !slices.Equal(got, []string{"ask00001", "busy0001", "oldask01"}) {
+	if got := rowIDs(m); !slices.Equal(got, []string{"ask00001", "busy0001", earlierID}) {
 		t.Fatalf("inbox order %v", got)
 	}
 	// moving over it doesn't count as looking; staying on it does
