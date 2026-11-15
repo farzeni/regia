@@ -387,7 +387,7 @@ func pluginAttention(a *claude.Agent) (why, plugin string) {
 	}
 	for _, r := range plugins.Results(a.ID) {
 		if r.Out.Attention != "" {
-			return r.Out.Attention, r.Plugin.LabelOr()
+			return r.Out.Attention, r.Plugin.Name
 		}
 	}
 	return "", ""
@@ -420,7 +420,7 @@ func (m *model) pluginMenuKey(r *layout.Row) tea.Cmd {
 		p := res.Plugin
 		for _, act := range res.Out.Actions {
 			act := act
-			add(p.LabelOr()+" · "+act.Label, func(m *model, key string) tea.Cmd { return m.runPluginAction(a, p, act, key) })
+			add(p.Name+" · "+act.Label, func(m *model, key string) tea.Cmd { return m.runPluginAction(a, p, act, key) })
 		}
 	}
 	for _, res := range plugins.Results(a.ID) {
@@ -432,7 +432,7 @@ func (m *model) pluginMenuKey(r *layout.Row) tea.Cmd {
 			if label == "" {
 				label = res.Plugin.LabelOr()
 			}
-			add("open "+label+"  "+u, func(m *model, _ string) tea.Cmd { return openURLCmd(u) })
+			add("open "+res.Plugin.Name+" · "+label+"  "+u, func(m *model, _ string) tea.Cmd { return openURLCmd(u) })
 		}
 	}
 	if len(items) == 0 {
@@ -469,14 +469,14 @@ func (m *model) runPluginAction(a *claude.Agent, p *plugins.Manifest, act plugin
 	in, dir := m.pluginInput(a, p)(nil)
 	id := a.ID
 	run := func(m *model) tea.Cmd {
-		m.flash("%s: %s…", p.LabelOr(), act.Label)
+		m.flash("%s: %s…", p.Name, act.Label)
 		return func() tea.Msg {
 			out, err := plugins.RunAction(p, id, act.ID, in, dir)
-			return pluginActionMsg{plugin: p.LabelOr(), label: act.Label, out: out, err: err}
+			return pluginActionMsg{plugin: p.Name, label: act.Label, out: out, err: err}
 		}
 	}
 	if act.Confirm {
-		m.confirm(key, fmt.Sprintf("%s: %s for %q?", p.LabelOr(), act.Label, m.titleOf(id)), run)
+		m.confirm(key, fmt.Sprintf("%s: %s for %q?", p.Name, act.Label, m.titleOf(id)), run)
 		return nil
 	}
 	return run(m)

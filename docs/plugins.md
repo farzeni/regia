@@ -89,7 +89,7 @@ and directories whose names start with `.`, are ignored.
 | key | default | meaning |
 |---|---|---|
 | `command` | required | The program and its arguments, as an argv array (not run through a shell). The command runs in the agent's directory, so paths are resolved for you: the program, if it contains a `/`, is relative to the plugin directory, and a bare name is looked up in the plugin directory first, then on `PATH`. An argument that names a file in the plugin directory (`check.py`, `lib/run.py`) becomes its absolute path; other arguments pass unchanged. So `["./check.sh"]`, `["python3", "check.py"]` and `["/usr/local/bin/x"]` all work. |
-| `label` | the directory name | The label for fields that don't set their own. |
+| `label` | the directory name | The label for fields that don't set their own. The tab, the `!` menu and the inbox always use the directory name. |
 | `dirs` | every agent | Run only for agents whose working directory is one of these or inside one. `~` is expanded. Glob characters are allowed and are matched against the directory and each of its parents, so `"/srv/*/repo"` works. A trailing `/**` means the same as the directory itself. Use this to keep work plugins off personal projects. |
 | `states` | every state | Run only for agents in these states: `blocked` (waiting on you), `busy`, `idle`, `done`, `failed`, `ready`. `ready` and `done` match each other: `ready` is regia's name for a finished agent you haven't looked at yet. |
 | `interactive` | `false` | Also run for interactive sessions, i.e. `claude` running in a terminal rather than as a background job. They have no job state, so `branch`, `intent` and `links` are mostly empty for them. |
@@ -260,7 +260,7 @@ the list. Omit it when everything is normal.
 
 A short reason (one line) to list the agent in the inbox's "needs a look"
 group, even though it isn't waiting on the user. The inbox shows it as
-`⚠ <label>: <attention>`. It's the strongest thing a plugin can do: set it
+`⚠ <plugin>: <attention>` (the directory name, as on the tab). It's the strongest thing a plugin can do: set it
 only when the user should act, and clear it (omit the key) as soon as they
 don't need to. For an agent that is already waiting on the user (`blocked`),
 the inbox shows its question rather than your reason.
@@ -297,7 +297,7 @@ An action's output may contain:
 
 | key | effect |
 |---|---|
-| `message` | Shown in the status line, e.g. `"PROJ-482 → In Review"`. Without it, regia shows `<label> done`. |
+| `message` | Shown in the status line, e.g. `"PROJ-482 → In Review"`. Without it, regia shows `<action label> done`. |
 | `copy` | Put on the clipboard (with `copied` added to the message). Use it for anything the user will paste into the agent: a failing job's log excerpt, review comments, a ticket's acceptance criteria. |
 | `open` | A URL to open in the browser. |
 | `fields`, `badge`, `attention`, `actions` | If any are present, they replace the tab's result for this agent right away. |
@@ -306,7 +306,7 @@ If the output has none of the display keys, the plugin is refreshed at the
 next tick, so the tab shows the new state. You don't need to return a
 refresh from the action.
 
-A non-zero exit shows `<label>: <action> failed: <last stderr line>` in the
+A non-zero exit shows `<plugin>: <action> failed: <last stderr line>` in the
 status line. Actions should be idempotent where possible: the user might run
 one twice.
 
