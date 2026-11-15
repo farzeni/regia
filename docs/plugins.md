@@ -75,7 +75,7 @@ and directories whose names start with `.`, are ignored.
 
 | key | default | meaning |
 |---|---|---|
-| `command` | required | The program and its arguments, as an argv array (not run through a shell). A path containing a `/` is relative to the plugin directory. A bare name is looked up in the plugin directory first, then on `PATH`. So `["./check.sh"]`, `["python3", "check.py"]` and `["/usr/local/bin/x"]` all work. |
+| `command` | required | The program and its arguments, as an argv array (not run through a shell). The command runs in the agent's directory, so paths are resolved for you: the program, if it contains a `/`, is relative to the plugin directory, and a bare name is looked up in the plugin directory first, then on `PATH`. An argument that names a file in the plugin directory (`check.py`, `lib/run.py`) becomes its absolute path; other arguments pass unchanged. So `["./check.sh"]`, `["python3", "check.py"]` and `["/usr/local/bin/x"]` all work. |
 | `label` | the directory name | The label for fields that don't set their own. |
 | `dirs` | every agent | Run only for agents whose working directory is one of these or inside one. `~` is expanded. Glob characters are allowed and are matched against the directory and each of its parents, so `"/srv/*/repo"` works. A trailing `/**` means the same as the directory itself. Use this to keep work plugins off personal projects. |
 | `states` | every state | Run only for agents in these states: `blocked` (waiting on you), `busy`, `idle`, `done`, `failed`, `ready`. `ready` and `done` match each other: `ready` is regia's name for a finished agent you haven't looked at yet. |

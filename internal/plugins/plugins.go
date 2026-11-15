@@ -46,7 +46,7 @@ type Manifest struct {
 	Name string `json:"-"` // the directory's name
 	Dir  string `json:"-"` // the directory
 
-	Command     []string `json:"command"`     // what to run; a relative path with a slash is relative to Dir
+	Command     []string `json:"command"`     // what to run; the program and arguments naming files in Dir are resolved against Dir (see resolve, resolveArg)
 	Label       string   `json:"label"`       // default label for fields; the name when empty
 	Dirs        []string `json:"dirs"`        // only agents whose cwd is under one of these (globs allowed); empty: every agent
 	States      []string `json:"states"`      // only agents in these states; empty: every state
@@ -424,7 +424,10 @@ func Run(ctx context.Context, m *Manifest, in Input, dir string) (out Output, st
 	ctx, cancel := context.WithTimeout(ctx, m.timeout())
 	defer cancel()
 	b, _ := json.Marshal(in)
-	argv := append([]string{m.resolve(m.Command[0])}, m.Command[1:]...)
+	argv := []string{m.resolve(m.Command[0])}
+	for _, a := range m.Command[1:] {
+		argv = append(argv, m.resolveArg(a))
+	}
 	c := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	if dir == "" {
 		dir = m.Dir
@@ -475,6 +478,19 @@ func (m *Manifest) resolve(cmd string) string {
 		return p
 	}
 	return cmd // on PATH
+}
+
+// resolveArg: an argument naming a file in the plugin directory ("check.py",
+// "lib/x.py", "./conf.json") becomes its absolute path, since the command
+// runs in the agent's directory; anything else is passed as written.
+func (m *Manifest) resolveArg(arg string) string {
+	if arg == "" || filepath.IsAbs(arg) || strings.HasPrefix(arg, "-") {
+		return arg
+	}
+	if p := filepath.Join(m.Dir, arg); isFile(p) {
+		return p
+	}
+	return arg
 }
 
 func isFile(p string) bool {

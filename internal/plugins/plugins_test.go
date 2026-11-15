@@ -132,6 +132,14 @@ printf '{"fields":[{"text":"%s %s %s %s"}]}' "$b" "$REGIA_EVENT" "$1" "$(pwd)"
 		t.Fatalf("agent dir gone: runs in the plugin's, got %q", out.Fields[0].Text)
 	}
 
+	// an interpreter with the script as argument: the script is found in the plugin dir, flags and words pass through
+	py := writePlugin(t, root, "py", `{"command":["sh","check.sh","-x","word"]}`, `printf '{"fields":[{"text":"%s %s"}]}' "$1" "$2"`)
+	p, _ = LoadOne(py)
+	out, _, err = Run(context.Background(), p, in, work)
+	if err != nil || out.Fields[0].Text != "-x word" {
+		t.Fatalf("interpreter + script arg: %+v %v", out, err)
+	}
+
 	fail := writePlugin(t, root, "fail", `{"command":["./check.sh"]}`, "echo 'jira: not logged in' >&2; exit 3")
 	p, _ = LoadOne(fail)
 	if _, se, err := Run(context.Background(), p, in, ""); err == nil || !strings.Contains(err.Error(), "not logged in") || se == "" {
