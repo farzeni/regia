@@ -317,6 +317,9 @@ func (m *model) inboxSubline(r layout.Row, w int) string {
 		indent += strings.Repeat("  ", r.Depth)
 	}
 	what := stripNL(a.Needs)
+	if a.State == "busy" && a.Unhealthy != "" {
+		what = stuckGlyph + " " + a.Unhealthy
+	}
 	if what == "" {
 		what = stripNL(a.Detail)
 	}
@@ -373,6 +376,7 @@ type rowKey struct {
 	glyph                              string
 	color                              lipgloss.Color
 	cut, pin, yourTurn, faded, snoozed bool
+	unhealthy                          bool
 }
 
 var rowCache = map[rowKey]string{}
@@ -389,6 +393,7 @@ func (m *model) rowLine(r layout.Row, w int) string {
 		k.cut = slices.Contains(m.cut, r.ID)
 		k.pin = m.layout.Pins[r.ID]
 		k.yourTurn, k.faded, k.snoozed = a.YourTurn(), faded(a, time.Now()), a.Snoozed
+		k.unhealthy = a.Unhealthy != ""
 	}
 	if l, ok := rowCache[k]; ok {
 		return l
@@ -450,7 +455,11 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 		if m.layout.Pins[r.ID] {
 			pin = stAccent.Render(pinGlyph) + " "
 		}
-		titleW := w - len(indent) - 6 - len(age) - len(cutMark) - lipgloss.Width(mark) - lipgloss.Width(pin)
+		warn := ""
+		if a.Unhealthy != "" && !r.Archived {
+			warn = " " + stDim.Render(stuckGlyph)
+		}
+		titleW := w - len(indent) - 6 - len(age) - len(cutMark) - lipgloss.Width(mark) - lipgloss.Width(pin) - lipgloss.Width(warn)
 		title := trunc(r.Title+stripNL(extra), titleW)
 		ts := lipgloss.NewStyle()
 		if a.YourTurn() {
@@ -462,7 +471,7 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 		if r.Archived {
 			ts, gs = lipgloss.NewStyle().Foreground(cDim).Italic(true), stDim
 		}
-		line = indent + stDim.Render(fold) + mark + gs.Render(g) + " " + cutMark + pin + ts.Render(title)
+		line = indent + stDim.Render(fold) + mark + gs.Render(g) + " " + cutMark + pin + ts.Render(title) + warn
 		line = pad(line, w-len(age)-1) + stDim.Render(age)
 	}
 	return line // the selection bar is drawn by View, across the margins

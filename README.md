@@ -95,8 +95,8 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   `gh` in the background: open PRs at most once a minute, merged and closed
   ones never again; without `gh`, or not logged in, the line is simply not
   there.
-- **inbox** — what is waiting for you today: questions first, then results
-  to read; most recent first in each. Each item takes two lines: the agent,
+- **inbox** — what is waiting for you today: questions first, then agents
+  that look stuck (see below), then results to read; most recent first in each. Each item takes two lines: the agent,
   then the group (and coordinator) it sits under and what it is asking. A
   finished agent (ready or done, even already seen) whose open PR has failing
   CI or changes requested is listed too, with the reason in red
@@ -131,6 +131,15 @@ for 2 seconds or attaching to it. Then it's plain *done*, hidden unless you
 press `a` (the one you're reading stays until you move away). A question from
 before today (4am) is **stale** (grey ●): still listed, but not counted in
 "need you"; done and failed sessions from before today go grey the same way. What you've seen is remembered in `layout.json`.
+
+A busy agent that **looks stuck** gets a dim ⚠ after its name, a `stuck?`
+line on its card saying why, and an inbox item after the questions (not
+counted in "need you"). Two guesses, checked every second for busy agents
+only: nothing was written for 10 minutes (job state, timeline, transcript or
+a subagent's transcript: `no activity for 23m`), or the last 3 or more tool
+results were the same error from the same tool (`same Bash error 5×: …`).
+It's a guess: a long build is quiet too. It only stats files and reads what
+was appended to the transcript since the last check.
 
 To keep a session in sight whatever its state, **pin** it with `f` (⚑ before
 its name): a pinned session stays in the tree after it's done and seen, until
@@ -340,6 +349,7 @@ coordinator (its agents get nothing, and it isn't listed to others).
 | question, suggested reply, now-doing, tokens, PRs | `~/.claude/jobs/<id>/state.json` and `timeline.jsonl`, read-only, every 1 s |
 | PR status (state, CI, review) | `gh pr view <PR link or branch> --json …` in the agent's directory, in the background: open PRs every 60 s at most, a branch without a PR every 10 min, merged/closed never again (the selected agent, plus finished agents from today or with a PR link, up to 4 new calls per second); skipped when `gh` is missing or not logged in |
 | group timeline (`T`) | the agents' `timeline.jsonl` (parsed again only when it changes), the notes, `git log` per directory and branch (background, cached 30 s) |
+| stuck (⚠) | mtimes of the job files, the transcript and its subagents' transcripts; the transcript's tail, read incrementally |
 | history | the session transcript (`~/.claude/projects/…/<session>.jsonl`), read-only |
 | attach / stop / start / output / remove | `claude attach`, `claude stop`, `claude --bg`, `claude logs`, `claude rm` |
 | your organization | `~/.config/regia/layout.json` |

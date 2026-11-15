@@ -26,7 +26,7 @@ func (m *model) inboxRows(now time.Time) []layout.Row {
 		// finished, but its PR fails CI or has changes requested: listed even
 		// when done-and-seen agents are hidden from the tree
 		pr := prNeedsLook(a) && !m.layout.IsArchived(a.ID) && (m.opts.Filter == "" || m.shown(a.ID))
-		if !pr && (!(a.State == "blocked" || a.State == "ready" || keep) || !m.shown(a.ID) || (a.Snoozed && !keep)) {
+		if !pr && (!(a.State == "blocked" || a.State == "ready" || stuck(a) || keep) || !m.shown(a.ID) || (a.Snoozed && !keep)) {
 			continue
 		}
 		if fromToday(a, now) {
@@ -62,7 +62,7 @@ func (m *model) inboxRows(now time.Time) []layout.Row {
 	return rows
 }
 
-// sortInbox: questions, then results to read, then stale; newest first in each.
+// sortInbox: questions, then agents that look stuck, then results to read, then stale; newest first in each.
 func sortInbox(as []*claude.Agent) {
 	sort.SliceStable(as, func(i, j int) bool {
 		if ri, rj := inboxRank(as[i]), inboxRank(as[j]); ri != rj {
@@ -85,12 +85,15 @@ func (m *model) inboxRow(a *claude.Agent, depth int) layout.Row {
 
 // earlierSummary says what the fold holds, e.g. "9 questions, 1 result · oldest 3d".
 func (m *model) earlierSummary() string {
-	var q, res int
+	var q, res, unh int
 	var oldest time.Time
 	for _, a := range m.earlier {
-		if a.State == "ready" {
+		switch {
+		case a.State == "ready":
 			res++
-		} else {
+		case stuck(a):
+			unh++
+		default:
 			q++
 		}
 		if t := waitedSince(a); oldest.IsZero() || t.Before(oldest) {
@@ -106,6 +109,12 @@ func (m *model) earlierSummary() string {
 			s += ", "
 		}
 		s += count(res, "result")
+	}
+	if unh > 0 {
+		if s != "" {
+			s += ", "
+		}
+		s += fmt.Sprintf("%d stuck", unh)
 	}
 	if !oldest.IsZero() {
 		s += " · oldest " + ago(oldest)
