@@ -201,21 +201,32 @@ func TestPanelDivider(t *testing.T) {
 		User: &claude.HEntry{At: at, Detail: "do it"}, Results: []claude.HEntry{{At: at, State: "done", Detail: "did it"}}, LastAt: at,
 	}}}, r.ID
 	ls := strings.Split(ansi.Strip(m.View()), "\n")
+	task, rule1, did, rule2, state, meta := -1, -1, -1, -1, -1, -1
 	for i, l := range ls {
-		if strings.Contains(l, "aaaa1111") { // the meta line, the card's last
-			if !strings.Contains(strings.Join(ls[:i], "\n"), "the task") {
-				t.Fatal("the context should be above the state and meta lines")
-			}
-			if !strings.Contains(ls[i+1], "─────") {
-				t.Fatalf("want a rule between the card and the history:\n%s", strings.Join(ls[i:i+2], "\n"))
-			}
-			if !strings.Contains(strings.Join(ls[i+2:], "\n"), "did it") {
-				t.Fatal("history should be under the card")
-			}
-			return
+		switch {
+		case task < 0 && strings.Contains(l, "the task"):
+			task = i
+		case task >= 0 && rule1 < 0 && strings.Contains(l, "─────"):
+			rule1 = i
+		case rule1 >= 0 && did < 0 && strings.Contains(l, "did it"):
+			did = i
+		case did >= 0 && rule2 < 0 && strings.Contains(l, "─────"):
+			rule2 = i
+		case rule2 >= 0 && state < 0 && strings.Contains(l, "alpha"):
+			state = i
+		case state >= 0 && strings.Contains(l, "aaaa1111"):
+			meta = i
 		}
 	}
-	t.Fatal("card not shown")
+	// card (context), rule, history, rule, foot (state, meta)
+	if meta < 0 || state != rule2+1 || meta != state+1 {
+		t.Fatalf("want card, rule, history, rule, state and meta at the bottom (%d %d %d %d %d %d):\n%s",
+			task, rule1, did, rule2, state, meta, strings.Join(ls, "\n"))
+	}
+	// the foot is pinned at the panel's bottom: only the input box below it
+	if !strings.Contains(strings.Join(ls[meta+1:], "\n"), "╭") {
+		t.Fatalf("foot should sit right above the input:\n%s", strings.Join(ls[meta:], "\n"))
+	}
 }
 
 func TestYourMessagesTinted(t *testing.T) {
@@ -230,7 +241,7 @@ func TestYourMessagesTinted(t *testing.T) {
 	m.hist, m.histFor = claude.History{Turns: []claude.Turn{{
 		User: &claude.HEntry{At: at, Detail: "my message"}, Results: []claude.HEntry{{At: at, State: "done", Detail: "agent reply"}}, LastAt: at,
 	}}}, r.ID
-	hist, _, _ := m.agentDetail(r, 60)
+	hist, _, _, _ := m.agentDetail(r, 60)
 	fg := "\x1b[38;5;183m"
 	for _, l := range hist {
 		if strings.Contains(l, "\x1b[48;") {

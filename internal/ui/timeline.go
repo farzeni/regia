@@ -293,8 +293,8 @@ func (m *model) timelineView(r *layout.Row, w int) panel {
 		card = []string{stBold.Render(r.Title),
 			stDim.Render(fmt.Sprintf("%d agents · %d your turn · %d busy", r.Count, r.Blocked, r.Busy)), "", head}
 	} else {
-		_, c, _ := m.agentDetail(r, w)
-		card = append(c, "", head)
+		_, c, foot, _ := m.agentDetail(r, w)
+		card = append(append(c, foot...), "", head)
 	}
 	return panel{hist: m.timelinePanel(r.ID, w), card: card, bottomUp: true}
 }

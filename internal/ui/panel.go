@@ -13,13 +13,13 @@ import (
 )
 
 // agentDetail renders the right panel for one agent: a card pinned at the top
-// (context, what it asks, then state and meta) and below it the history (oldest to
-// newest, grouped by your messages), which scrolls with its newest line right
-// above the input, like a chat.
+// (context, what it asks), below it the history (oldest to newest, grouped by
+// your messages), which scrolls, and a foot pinned at the bottom, under the
+// latest activity: state and meta.
 //
 // top is where the latest reply starts in hist (0 if none): the panel opens
 // there when the history doesn't fit.
-func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int) {
+func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string, top int) {
 	a := r.Agent
 	var h claude.History
 	if m.histFor == r.ID {
@@ -137,16 +137,13 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int)
 		out = append(out, "")
 		bar(cBusy, clip(wrap(a.Detail, max(10, w-2)), 3, w-2))
 	}
-	// the state and meta lines close the card, right above the history
+	// the state and meta lines go in the foot, under the latest activity
 	card = out
-	if len(card) > 0 {
-		card = append(card, "")
-	}
-	card = append(card, head, meta)
+	foot = []string{head, meta}
 
 	// ── the agent's git diff (D) replaces the history
 	if dl, ok := m.diffHist(a, r.ID, w); ok {
-		return dl, card, 0
+		return dl, card, foot, 0
 	}
 
 	// ── terminal output (o) replaces the history
@@ -155,17 +152,17 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int)
 		for _, l := range strings.Split(strings.TrimRight(m.logs, "\n"), "\n") {
 			hist = append(hist, trunc(l, w))
 		}
-		return hist, card, 0
+		return hist, card, foot, 0
 	}
 
 	// ── the whole conversation (t) replaces the history
 	if m.fullHist {
 		hist, top = conversationLines(a, w)
-		return hist, card, top
+		return hist, card, foot, top
 	}
 
 	hist, top = historyLines(a, h, w)
-	return hist, card, top
+	return hist, card, foot, top
 }
 
 // histKey is everything the compact history's lines depend on: they're the
