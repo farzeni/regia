@@ -43,8 +43,8 @@ func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 			m.dragging = true
 			return nil
 		}
-		if onList && e.Y >= listTop && e.Y < listTop+m.vis {
-			if i := m.offset + e.Y - listTop; i < len(m.rows) {
+		if rh := m.rowHeight(); onList && e.Y >= listTop && e.Y < listTop+m.vis*rh {
+			if i := m.offset + (e.Y-listTop)/rh; i < len(m.rows) {
 				m.moveCursor(i - m.cursor)
 			}
 		}

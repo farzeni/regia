@@ -197,7 +197,7 @@ func (m *model) rebuild() {
 			if al := m.layout.Alias[a.ID]; al != "" {
 				t = al
 			}
-			m.rows = append(m.rows, layout.Row{ID: a.ID, Agent: a, Title: t})
+			m.rows = append(m.rows, layout.Row{ID: a.ID, Agent: a, Title: t, Where: m.layout.Trail(a.ID, m.agents)})
 		}
 	} else {
 		m.rows = m.layout.Flatten(m.agents, m.opts)

@@ -44,6 +44,36 @@ func TestInboxNewestFirst(t *testing.T) {
 	}
 }
 
+// The inbox shows each item on two lines: the agent, then its group and what
+// it asks. Clicks on either line select it; the list scrolls by items.
+func TestInboxTwoLineRows(t *testing.T) {
+	m := manyAgents(t, 20)
+	for _, a := range m.agents {
+		a.Needs = "approve " + a.Name
+	}
+	m.Update(tkey("tab"))
+	lines := strings.Split(ansi.Strip(m.View()), "\n")
+	if first := lines[listTop]; !strings.Contains(first, "agent 19") || strings.Contains(first, "approve") {
+		t.Fatalf("first line should hold the title only: %q", first)
+	}
+	if second := lines[listTop+1]; !strings.Contains(second, "many · approve agent 19") {
+		t.Fatalf("second line should say group and question: %q", second)
+	}
+	if m.vis*2 > m.bodyHeight() {
+		t.Fatalf("%d items of two lines don't fit %d lines", m.vis, m.bodyHeight())
+	}
+	m.Update(tea.MouseMsg{X: 5, Y: listTop + 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	if m.cursor != 1 {
+		t.Fatalf("click on the second item's subline: cursor %d", m.cursor)
+	}
+	for range 15 {
+		m.Update(tkey("j"))
+	}
+	if out := ansi.Strip(m.View()); !strings.Contains(out, m.rows[m.cursor].Title) || !strings.Contains(out, "more") {
+		t.Fatalf("selection scrolled out of view or no overflow line:\n%s", out)
+	}
+}
+
 func TestSidebarWidth(t *testing.T) {
 	m := manyAgents(t, 3)
 	m.View()

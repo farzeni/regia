@@ -78,7 +78,9 @@ The screen has two views, switched with `tab`:
   bottom, above them the task and git status, and above those its history
   grouped by your messages, newest last (`pgup`/`pgdn` scroll back).
 - **inbox** — only the agents whose turn it is yours: questions first, then
-  results to read, then stale questions; most recent first in each.
+  results to read, then stale questions; most recent first in each. Each item
+  takes two lines: the agent, then the group (and coordinator) it sits under
+  and what it is asking.
 
 What the states mean. Claude Code marks a session *done* whenever a turn ends
 with a result, which for a conversation is after every reply, not when the

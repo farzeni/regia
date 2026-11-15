@@ -179,6 +179,17 @@ func TestPlaceUsesSpawnLinks(t *testing.T) {
 	}
 }
 
+func TestTrail(t *testing.T) {
+	l, agents := fixture(t)
+	l.Alias["coord"] = "Coordinator"
+	if got := strings.Join(l.Trail("fork", agents), " › "); got != "alpha › Coordinator" {
+		t.Fatalf("trail of a fork: %q", got)
+	}
+	if got := l.Trail("p:alpha", agents); len(got) != 0 {
+		t.Fatalf("a top group has no trail: %q", got)
+	}
+}
+
 func TestOrphansLiftWhenCoordinatorRemoved(t *testing.T) {
 	l, agents := fixture(t)
 	delete(agents, "coord") // claude rm

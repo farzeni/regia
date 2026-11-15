@@ -56,6 +56,7 @@ type Row struct {
 	Count     int // visible agents below
 	Blocked   int // blocked agents below
 	Busy      int
+	Where     []string // inbox only: the ancestors' titles, outermost first (see Trail)
 }
 
 func Path() string {
@@ -556,6 +557,23 @@ func (l *Layout) DeleteGroup(gid string, agents map[string]*claude.Agent) {
 	delete(l.Parent, gid)
 	delete(l.Collapsed, gid)
 	delete(l.Dirs, gid)
+}
+
+// Trail is where id sits in the tree: its ancestors' titles, outermost first
+// (groups by title, coordinators by alias or name).
+func (l *Layout) Trail(id string, agents map[string]*claude.Agent) []string {
+	var t []string
+	for p, n := l.effParent(id, agents), 0; p != "" && n < 32; p, n = l.effParent(p, agents), n+1 {
+		title := l.Groups[p]
+		if a := agents[p]; a != nil {
+			title = a.Name
+			if al := l.Alias[p]; al != "" {
+				title = al
+			}
+		}
+		t = append([]string{title}, t...)
+	}
+	return t
 }
 
 // spawnParent resolves a child's spawner to a listed agent id, if any.

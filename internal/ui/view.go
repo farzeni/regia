@@ -116,10 +116,12 @@ func (m *model) View() string {
 
 	// scroll, keeping a few rows of context around the selection; when the
 	// list overflows, its last line says what's hidden
-	vis := bh
-	if len(m.rows) > bh && bh > 2 {
-		vis = bh - 1
+	rh := m.rowHeight()
+	vis := bh / rh // in rows
+	if len(m.rows) > vis && bh > 2 {
+		vis = (bh - 1) / rh
 	}
+	vis = max(1, vis)
 	so := min(scrollOff, max(0, (vis-1)/2))
 	if m.cursor < m.offset+so {
 		m.offset = m.cursor - so
@@ -131,11 +133,16 @@ func (m *model) View() string {
 	m.vis = vis
 
 	left := make([]string, 0, bh)
-	for i := m.offset; i < len(m.rows) && len(left) < vis; i++ {
-		left = append(left, m.renderRow(m.rows[i], lw))
+	sel := -1 // the selected row's first line
+	end := m.offset
+	for ; end < len(m.rows) && end < m.offset+vis; end++ {
+		if end == m.cursor {
+			sel = len(left)
+		}
+		left = append(left, m.renderRow(m.rows[end], lw)...)
 	}
-	if vis < bh {
-		left = append(left, hiddenLine(m.rows[:m.offset], m.rows[m.offset+len(left):]))
+	if len(m.rows) > vis {
+		left = append(left, hiddenLine(m.rows[:m.offset], m.rows[end:]))
 	}
 	if len(m.rows) == 0 {
 		msg := "no agents"
@@ -162,7 +169,7 @@ func (m *model) View() string {
 	b.WriteString("\n\n")
 	for i := 0; i < bh; i++ {
 		row := margin + pad(left[i], lw)
-		if i < vis && m.offset+i == m.cursor && len(m.rows) > 0 {
+		if sel >= 0 && i >= sel && i < sel+rh {
 			row = selBar(row+" ", padX+lw+1) // the whole row, margins too
 			if dw > 20 {
 				b.WriteString(row + sep[1:])
@@ -264,7 +271,61 @@ func (m *model) footer() string {
 	return status + "\n" + m.inputBox()
 }
 
-func (m *model) renderRow(r layout.Row, w int) string {
+// rowHeight is how many lines a list row takes: two in the inbox (the agent,
+// then where it sits and what it asks), one in the tree.
+func (m *model) rowHeight() int {
+	if m.view == viewInbox {
+		return 2
+	}
+	return 1
+}
+
+// renderRow draws a row as rowHeight lines.
+func (m *model) renderRow(r layout.Row, w int) []string {
+	line := m.rowLine(r, w)
+	if m.rowHeight() == 1 {
+		return []string{line}
+	}
+	return []string{line, m.inboxSubline(r, w)}
+}
+
+// inboxSubline is an inbox item's second line, under its title: the group
+// and coordinator it sits under, then what it is waiting on.
+func (m *model) inboxSubline(r layout.Row, w int) string {
+	a := r.Agent
+	if a == nil {
+		return ""
+	}
+	indent := "    " // under the title, past fold and glyph
+	what := stripNL(a.Needs)
+	if what == "" {
+		what = stripNL(a.Detail)
+	}
+	room := w - len(indent) - 1
+	place := ""
+	if n := len(r.Where); n > 0 { // the outermost group, and the nearest coordinator if it fits
+		limit := max(8, room*2/5)
+		place = r.Where[0]
+		if n > 1 {
+			if both := place + " › " + r.Where[n-1]; runewidth.StringWidth(both) <= limit {
+				place = both
+			}
+		}
+		place = trunc(place, limit)
+		if what != "" {
+			place += " · "
+		}
+	}
+	what = trunc(what, room-runewidth.StringWidth(place))
+	st, wst := stDim, lipgloss.NewStyle().Foreground(cDim)
+	if a.YourTurn() && !r.Archived {
+		st = lipgloss.NewStyle().Foreground(cAccent)
+		wst = lipgloss.NewStyle()
+	}
+	return indent + st.Render(place) + wst.Render(what)
+}
+
+func (m *model) rowLine(r layout.Row, w int) string {
 	indent := strings.Repeat("  ", r.Depth)
 	fold := "  "
 	if r.HasKids || r.Group {
@@ -299,9 +360,7 @@ func (m *model) renderRow(r layout.Row, w int) string {
 			cutMark = "✂ "
 		}
 		extra := ""
-		if m.view == viewInbox {
-			extra = "  " + a.Needs
-		} else if r.Collapsed && r.Blocked > 0 {
+		if r.Collapsed && r.Blocked > 0 && m.view != viewInbox {
 			extra = fmt.Sprintf("  (+%d your turn)", r.Blocked)
 		}
 		if m.layout.Muted[r.ID] {
