@@ -77,6 +77,7 @@ type model struct {
 	fullHist    bool   // t: the panel shows the whole conversation, not the compact history
 	panelScroll int    // lines the panel's history is scrolled back (pgup/pgdn)
 	panelFor    string // the row panelScroll belongs to
+	timeline    bool   // T: a group's or coordinator's panel shows its timeline instead of the blackboard
 
 	// the always-on input at the bottom: typing goes there, command keys
 	// (j/k, J/K, s, y…) work after esc

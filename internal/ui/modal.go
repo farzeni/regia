@@ -35,6 +35,7 @@ var helpSections = []helpSection{
 		{"m, then P", "the other way round"},
 		{"n  r  d", "new / rename / remove group"},
 		{"N  M", "group notes / mute"},
+		{"T", "group timeline / blackboard"},
 		{"w", "group's dir for new agents"},
 	}},
 	{"navigate", [][2]string{

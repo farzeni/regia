@@ -33,6 +33,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd = tea.Batch(cmd, p)
 		}
 	}
+	if !pulse {
+		if c := m.timelineCmd(); c != nil { // the shown timeline's git logs
+			cmd = tea.Batch(cmd, c)
+		}
+	}
 	return mm, cmd
 }
 
@@ -521,6 +526,8 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		return m.notesKey(r)
 	case "M":
 		return m.muteKey(r)
+	case "T":
+		return m.timelineKey(r)
 	case "w":
 		m.groupDirKey(r)
 	case "i":
