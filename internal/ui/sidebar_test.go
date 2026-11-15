@@ -202,7 +202,10 @@ func TestPanelDivider(t *testing.T) {
 	}}}, r.ID
 	ls := strings.Split(ansi.Strip(m.View()), "\n")
 	for i, l := range ls {
-		if strings.Contains(l, "task") && strings.Contains(l, "the task") {
+		if strings.Contains(l, "aaaa1111") { // the meta line, the card's last
+			if !strings.Contains(strings.Join(ls[:i], "\n"), "the task") {
+				t.Fatal("the context should be above the state and meta lines")
+			}
 			if !strings.Contains(ls[i+1], "─────") {
 				t.Fatalf("want a rule between the card and the history:\n%s", strings.Join(ls[i:i+2], "\n"))
 			}

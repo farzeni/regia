@@ -493,8 +493,8 @@ func (m *model) placePanel(p panel, h, w int) []string {
 	if len(p.hist) > 0 { // a rule between the card and the history
 		card = append(card, stDim.Render(strings.Repeat("─", w)))
 	}
-	if len(card) > h { // keep the state line, the top one
-		card = card[:h]
+	if len(card) > h { // keep the state line, at the card's bottom
+		card = card[len(card)-h:]
 	}
 	room := h - len(card)
 	if fresh && p.top > 0 {
@@ -554,9 +554,9 @@ func (m *model) detailLines(w int) panel {
 		return panel{card: out}
 	}
 	hist, card, top := m.agentDetail(r, w)
-	if r.HasKids { // a coordinator: its agents' shared notes at the end of its card
+	if r.HasKids { // a coordinator: its agents' shared notes atop its card
 		if ns := m.notesSection(r.ID, w, 5); len(ns) > 0 {
-			card = append(append(card, ""), ns[1:]...)
+			card = append(append(ns[1:], ""), card...)
 		}
 	}
 	return panel{hist: hist, card: card, bottomUp: true, top: top}

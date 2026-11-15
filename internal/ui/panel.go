@@ -13,7 +13,7 @@ import (
 )
 
 // agentDetail renders the right panel for one agent: a card pinned at the top
-// (state, meta, context, what it asks) and below it the history (oldest to
+// (context, what it asks, then state and meta) and below it the history (oldest to
 // newest, grouped by your messages), which scrolls with its newest line right
 // above the input, like a chat.
 //
@@ -131,10 +131,12 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int)
 		out = append(out, "")
 		bar(cBusy, clip(wrap(a.Detail, max(10, w-2)), 3, w-2))
 	}
-	card = []string{head, meta}
-	if len(out) > 0 {
-		card = append(append(card, ""), out...)
+	// the state and meta lines close the card, right above the history
+	card = out
+	if len(card) > 0 {
+		card = append(card, "")
 	}
+	card = append(card, head, meta)
 
 	// ── terminal output (o) replaces the history
 	if m.logsFor == r.ID && m.logs != "" {
