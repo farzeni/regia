@@ -4,7 +4,6 @@ package ui
 
 import (
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
@@ -56,6 +55,9 @@ type model struct {
 	filterBefore string
 
 	cut []string // nodes picked up with m, put with p / P
+
+	earlierOpen bool            // the inbox's "earlier days" fold is open (folded each time regia opens)
+	earlier     []*claude.Agent // what that fold holds, as last built
 
 	selectID string // just started: select it as soon as it's listed
 
@@ -179,26 +181,7 @@ func (m *model) refresh() {
 func (m *model) rebuild() {
 	m.opts.Keep = m.cursorID
 	if m.view == viewInbox {
-		var bl []*claude.Agent
-		for _, a := range m.agents {
-			if (a.State == "blocked" || a.State == "ready" || a.ID == m.opts.Keep) && m.shown(a.ID) {
-				bl = append(bl, a)
-			}
-		}
-		sort.SliceStable(bl, func(i, j int) bool { // waiting, ready, stale; newest first in each
-			if ri, rj := inboxRank(bl[i]), inboxRank(bl[j]); ri != rj {
-				return ri < rj
-			}
-			return waitedSince(bl[i]).After(waitedSince(bl[j]))
-		})
-		m.rows = m.rows[:0]
-		for _, a := range bl {
-			t := a.Name
-			if al := m.layout.Alias[a.ID]; al != "" {
-				t = al
-			}
-			m.rows = append(m.rows, layout.Row{ID: a.ID, Agent: a, Title: t, Where: m.layout.Trail(a.ID, m.agents)})
-		}
+		m.rows = m.inboxRows(time.Now())
 	} else {
 		m.rows = m.layout.Flatten(m.agents, m.opts)
 	}
@@ -286,6 +269,14 @@ func (m *model) saveLayout() {
 		m.flash("save failed: %v", err)
 	}
 	m.rebuild()
+}
+
+// saveLayoutQuiet saves without rebuilding the rows (for use while they're
+// being rebuilt).
+func (m *model) saveLayoutQuiet() {
+	if err := m.layout.Save(); err != nil {
+		m.flash("save failed: %v", err)
+	}
 }
 
 func (m *model) prompt(p, initial string, do func(m *model, s string) tea.Cmd) {

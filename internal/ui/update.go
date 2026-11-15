@@ -218,6 +218,9 @@ func (m *model) updateInput(k tea.KeyMsg) tea.Cmd {
 func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 	r := m.selected()
 	page := max(1, m.bodyHeight()/2)
+	if r != nil && r.ID == earlierID && m.earlierKey(k.String()) {
+		return nil
+	}
 	switch k.String() {
 	case "ctrl+c":
 		return tea.Quit
@@ -247,6 +250,10 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 			}
 		}
 	case "z":
+		if m.view == viewInbox {
+			m.earlierKey("z")
+			return nil
+		}
 		m.foldAll()
 	case "-", "+", "=": // narrower / wider list
 		d := 4
@@ -258,6 +265,8 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		return m.archiveSelection()
 	case "f":
 		return m.pinKey(r)
+	case "Z":
+		m.snoozeKey(r)
 	case "A":
 		m.opts.ShowArchived = !m.opts.ShowArchived
 		if m.opts.ShowArchived {
@@ -335,6 +344,9 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		if (r.HasKids || r.Group) && !r.Collapsed {
 			m.layout.Collapsed[r.ID] = true
 			m.saveLayout()
+		} else if m.view == viewInbox && r.Depth > 0 { // inside "earlier days": up to its row
+			m.cursorID = earlierID
+			m.rebuild()
 		} else if p := m.layout.Parent[r.ID]; p != "" && m.view == viewTree {
 			m.cursorID = p
 			m.rebuild()

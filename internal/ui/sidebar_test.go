@@ -15,16 +15,17 @@ import (
 	"github.com/farzeni/regia/internal/layout"
 )
 
-// manyAgents: n waiting agents in one project, agent i started i minutes
-// after the first (so the last one is the most recent).
+// manyAgents: n waiting agents in one project, started in the last n seconds,
+// agent i a second after agent i-1 (so the last one is the most recent).
 func manyAgents(t *testing.T, n int) *model {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	dir := t.TempDir() + "/Projects/many"
+	first := time.Now().Add(-time.Duration(n) * time.Second).UnixMilli()
 	var js []string
 	for i := range n {
 		js = append(js, fmt.Sprintf(`{"id":"c%07d","cwd":"%s","kind":"background","name":"agent %02d","status":"idle","state":"blocked","startedAt":%d}`,
-			i, dir, i, 1794645285576+int64(i)*60000))
+			i, dir, i, first+int64(i)*1000))
 	}
 	m := newModel()
 	m.w, m.h = 140, 30

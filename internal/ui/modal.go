@@ -44,6 +44,7 @@ var helpSections = []helpSection{
 		{"pgup / pgdn", "scroll the panel"},
 		{"b", "next agent waiting for you"},
 		{"tab", "tree ⇄ inbox"},
+		{"Z", "snooze a question"},
 		{"/", "filter (esc clears)"},
 		{"h/l  space  z", "fold / unfold / all"},
 		{"- / +", "list narrower / wider"},

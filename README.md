@@ -77,10 +77,15 @@ The screen has two views, switched with `tab`:
   and reads bottom-up, like a chat: its state and what it is asking sit at the
   bottom, above them the task and git status, and above those its history
   grouped by your messages, newest last (`pgup`/`pgdn` scroll back).
-- **inbox** — only the agents whose turn it is yours: questions first, then
-  results to read, then stale questions; most recent first in each. Each item
-  takes two lines: the agent, then the group (and coordinator) it sits under
-  and what it is asking.
+- **inbox** — what is waiting for you today: questions first, then results
+  to read; most recent first in each. Each item takes two lines: the agent,
+  then the group (and coordinator) it sits under and what it is asking.
+  Whatever has waited since before today (the day starts at 4am) folds into
+  one row at the bottom, **earlier days**, with how many and how old; `space`
+  opens it (a `/` filter searches inside it too). It starts folded each time
+  regia opens. `Z` snoozes a question: it leaves the inbox and the "need you"
+  count until the agent does something new (`Z` again brings it back; on a
+  result to read, `Z` just marks it read).
 
 What the states mean. Claude Code marks a session *done* whenever a turn ends
 with a result, which for a conversation is after every reply, not when the
@@ -88,9 +93,9 @@ work is over. So regia shows a session that finished a turn you haven't
 looked at yet as **✓ ready** (bright green): it stays in the tree and the
 inbox and counts in the header until you look at it, by keeping it selected
 for 2 seconds or attaching to it. Then it's plain *done*, hidden unless you
-press `a` (the one you're reading stays until you move away). A question left
-unanswered for over a day is **stale** (grey ●): still listed, but not
-counted in "need you". What you've seen is remembered in `layout.json`.
+press `a` (the one you're reading stays until you move away). A question from
+before today (4am) is **stale** (grey ●): still listed, but not counted in
+"need you"; done and failed sessions from before today go grey the same way. What you've seen is remembered in `layout.json`.
 
 To keep a session in sight whatever its state, **pin** it with `f` (⚑ before
 its name): a pinned session stays in the tree after it's done and seen, until

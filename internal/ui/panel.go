@@ -36,6 +36,9 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string) {
 	if a.Stale {
 		label = "WAITING ON YOU · STALE"
 	}
+	if a.Snoozed {
+		label = "WAITING ON YOU · SNOOZED"
+	}
 	if label == "" {
 		label = strings.ToUpper(a.State)
 	}
