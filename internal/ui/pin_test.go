@@ -21,7 +21,7 @@ func TestPinnedStaysWhenDone(t *testing.T) {
 	if !m.layout.Pins["busy0001"] || !layout.Load().Pins["busy0001"] {
 		t.Fatal("f doesn't pin, or the pin isn't saved")
 	}
-	if !strings.Contains(ansi.Strip(m.renderRow(*m.selected(), 60)), pinGlyph) {
+	if !strings.Contains(ansi.Strip(m.rowLine(*m.selected(), 60)), pinGlyph) {
 		t.Fatal("pinned row shows no pin")
 	}
 	// it finishes, you look at it, you move away: still there
