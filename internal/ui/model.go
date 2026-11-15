@@ -88,6 +88,9 @@ type model struct {
 	status   string
 	statusAt time.Time
 
+	dwellID string // agent selected since dwellAt (to notice you looked at it)
+	dwellAt time.Time
+
 	updateNote string // set once a background update ran; shown in the header
 
 	hist    claude.History
@@ -107,7 +110,10 @@ type agentsMsg struct {
 	err error
 }
 type tickMsg time.Time
-type attachDoneMsg struct{ err error }
+type attachDoneMsg struct {
+	id  string
+	err error
+}
 type logsMsg struct{ id, out string }
 type spawnedMsg struct {
 	out           string
@@ -161,6 +167,7 @@ func (m *model) refresh() {
 	for _, a := range m.agents {
 		claude.Enrich(a)
 	}
+	m.classify(time.Now())
 	m.layout.Spawns = spawns.Cached()
 	placed := m.layout.Place(m.agents)
 	if m.layout.Revive(m.agents) || placed { // archived but working again: back in the tree
@@ -170,14 +177,20 @@ func (m *model) refresh() {
 }
 
 func (m *model) rebuild() {
+	m.opts.Keep = m.cursorID
 	if m.view == viewInbox {
 		var bl []*claude.Agent
 		for _, a := range m.agents {
-			if a.State == "blocked" && m.shown(a.ID) {
+			if (a.State == "blocked" || a.State == "ready" || a.ID == m.opts.Keep) && m.shown(a.ID) {
 				bl = append(bl, a)
 			}
 		}
-		sort.SliceStable(bl, func(i, j int) bool { return waitedSince(bl[i]).After(waitedSince(bl[j])) }) // newest first
+		sort.SliceStable(bl, func(i, j int) bool { // waiting, ready, stale; newest first in each
+			if ri, rj := inboxRank(bl[i]), inboxRank(bl[j]); ri != rj {
+				return ri < rj
+			}
+			return waitedSince(bl[i]).After(waitedSince(bl[j]))
+		})
 		m.rows = m.rows[:0]
 		for _, a := range bl {
 			t := a.Name

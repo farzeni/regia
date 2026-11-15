@@ -26,17 +26,17 @@ func hiddenLine(above, below []layout.Row) string {
 			if r.Agent == nil {
 				continue
 			}
-			switch r.Agent.State {
-			case "busy":
+			switch {
+			case r.Agent.State == "busy":
 				busy++
-			case "blocked":
+			case r.Agent.YourTurn():
 				blocked++
 			}
 		}
 	}
 	var st []string
 	if blocked > 0 {
-		st = append(st, lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("%d waiting", blocked)))
+		st = append(st, lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("%d your turn", blocked)))
 	}
 	if busy > 0 {
 		st = append(st, lipgloss.NewStyle().Foreground(cBusy).Render(fmt.Sprintf("%d busy", busy)))

@@ -72,12 +72,23 @@ regia uninstall  # remove the plugin and the binary
 The screen has two views, switched with `tab`:
 
 - **tree** — every agent, organized. Each row shows state (● waiting for you,
-  ◆ busy, ✓ done, ✗ failed), name and age; folded groups show how many agents
-  are inside and how many need you. The right panel shows the selected agent
+  ✓ ready, ◆ busy, ✗ failed; see below), name and age; folded groups show how
+  many agents are inside and how many are your turn. The right panel shows the selected agent
   and reads bottom-up, like a chat: its state and what it is asking sit at the
   bottom, above them the task and git status, and above those its history
   grouped by your messages, newest last (`pgup`/`pgdn` scroll back).
-- **inbox** — only the agents waiting for you, most recent first.
+- **inbox** — only the agents whose turn it is yours: questions first, then
+  results to read, then stale questions; most recent first in each.
+
+What the states mean. Claude Code marks a session *done* whenever a turn ends
+with a result, which for a conversation is after every reply, not when the
+work is over. So regia shows a session that finished a turn you haven't
+looked at yet as **✓ ready** (bright green): it stays in the tree and the
+inbox and counts in the header until you look at it, by keeping it selected
+for 2 seconds or attaching to it. Then it's plain *done*, hidden unless you
+press `a` (the one you're reading stays until you move away). A question left
+unanswered for over a day is **stale** (grey ●): still listed, but not
+counted in "need you". What you've seen is remembered in `layout.json`.
 
 At the bottom is an always-on input (`i` focuses it): type a task and press `enter` to start a
 new background agent next to the selected one (inside it if it's a group, or
@@ -128,7 +139,7 @@ so a second `enter` attaches to it.
 | `tab` | tree ⇄ inbox |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's history back / forward |
-| `b` | jump to the next agent waiting for you |
+| `b` | jump to the next agent whose turn is yours (waiting or ready) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `o` | show the session's terminal output |
 | `i` / `c` / `C` | type a new task; `C` starts it inside the selection |
@@ -143,7 +154,7 @@ so a second `enter` attaches to it.
 | `z` | fold everything / unfold everything |
 | `-` / `+` | list narrower / wider (or drag the divider; remembered) |
 | `/`, `esc` | filter by name, question, path or branch / clear |
-| `a` | show finished sessions |
+| `a` | show finished sessions you've already seen |
 | `e` | archive the agent, or everything in a group except busy agents (asks first); on an archived agent, bring it back |
 | `A` | show / hide archived agents (dim) |
 | `v` | select mode: `space` marks a row (a group: all of it), `*` marks everything, then `e` archives or `x` removes them all, `m` picks them all up to move (`p` puts them down), `n` makes a new group of them; `esc` leaves |

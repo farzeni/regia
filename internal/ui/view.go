@@ -20,6 +20,7 @@ var (
 	cBusy    = lipgloss.Color("42")
 	cIdle    = lipgloss.Color("245")
 	cDone    = lipgloss.Color("65")
+	cReady   = lipgloss.Color("78") // done, not seen yet: a brighter green
 	cFailed  = lipgloss.Color("196")
 	cInter   = lipgloss.Color("75")
 	cDim     = lipgloss.Color("241")
@@ -39,7 +40,12 @@ func glyph(a *claude.Agent) (string, lipgloss.Color) {
 	}
 	switch a.State {
 	case "blocked":
+		if a.Stale {
+			return "●", cIdle
+		}
 		return "●", cBlocked
+	case "ready":
+		return "✓", cReady
 	case "busy":
 		return "◆", cBusy
 	case "done":
@@ -183,7 +189,7 @@ func (m *model) View() string {
 }
 
 func (m *model) header() string {
-	var nb, nbusy, n, narch int
+	var nb, nready, nbusy, n, narch int
 	for _, a := range m.agents {
 		if m.layout.IsArchived(a.ID) {
 			narch++
@@ -193,10 +199,12 @@ func (m *model) header() string {
 			continue
 		}
 		n++
-		switch a.State {
-		case "blocked":
+		switch {
+		case a.State == "blocked" && !a.Stale:
 			nb++
-		case "busy":
+		case a.State == "ready":
+			nready++
+		case a.State == "busy":
 			nbusy++
 		}
 	}
@@ -210,6 +218,7 @@ func (m *model) header() string {
 	}
 	s := stBold.Render("regia") + "  " + strings.Join(tabs, "") + "   " +
 		lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("● %d need you", nb)) + "  " +
+		lipgloss.NewStyle().Foreground(cReady).Render(fmt.Sprintf("✓ %d ready", nready)) + "  " +
 		lipgloss.NewStyle().Foreground(cBusy).Render(fmt.Sprintf("◆ %d busy", nbusy)) + "  " +
 		stDim.Render(fmt.Sprintf("%d live", n))
 	if narch > 0 {
@@ -293,7 +302,7 @@ func (m *model) renderRow(r layout.Row, w int) string {
 		if m.view == viewInbox {
 			extra = "  " + a.Needs
 		} else if r.Collapsed && r.Blocked > 0 {
-			extra = fmt.Sprintf("  (+%d waiting)", r.Blocked)
+			extra = fmt.Sprintf("  (+%d your turn)", r.Blocked)
 		}
 		if m.layout.Muted[r.ID] {
 			extra += "  (muted)"
@@ -302,9 +311,9 @@ func (m *model) renderRow(r layout.Row, w int) string {
 		titleW := w - len(indent) - 6 - len(age) - len(cutMark) - lipgloss.Width(mark)
 		title := trunc(r.Title+stripNL(extra), titleW)
 		ts := lipgloss.NewStyle()
-		if a.State == "blocked" {
+		if a.YourTurn() {
 			ts = ts.Bold(true)
-		} else if a.State == "done" {
+		} else if a.State == "done" || a.Stale {
 			ts = ts.Foreground(cDim)
 		}
 		gs := lipgloss.NewStyle().Foreground(c)
@@ -414,13 +423,18 @@ func (m *model) detailLines(w int) panel {
 	var out []string
 	sec := func(t string) { out = append(out, "", stHead.Render(t)) }
 	if r.Group {
-		out = append(out, stBold.Render(r.Title), stDim.Render(fmt.Sprintf("%d agents · %d need you · %d busy", r.Count, r.Blocked, r.Busy)),
+		out = append(out, stBold.Render(r.Title), stDim.Render(fmt.Sprintf("%d agents · %d your turn · %d busy", r.Count, r.Blocked, r.Busy)),
 			trunc(m.groupDirLine(r.ID), w))
-		sec("waiting for you")
+		sec("your turn")
 		n := 0
 		for _, rr := range m.layout.Flatten(m.agents, layout.ViewOpts{ShowDone: false}) {
-			if rr.Agent != nil && rr.Agent.State == "blocked" && m.layout.IsDescendant(rr.ID, r.ID) {
-				out = append(out, lipgloss.NewStyle().Foreground(cBlocked).Render("● ")+trunc(rr.Title+" — "+stripNL(rr.Agent.Needs), w-2))
+			if a := rr.Agent; a != nil && a.YourTurn() && m.layout.IsDescendant(rr.ID, r.ID) {
+				g, c := glyph(a)
+				what := a.Needs
+				if a.State == "ready" {
+					what = "finished: " + a.Detail
+				}
+				out = append(out, lipgloss.NewStyle().Foreground(c).Render(g+" ")+trunc(rr.Title+" — "+stripNL(what), w-2))
 				n++
 			}
 		}
