@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
 	"github.com/farzeni/regia/internal/attach"
@@ -353,7 +354,11 @@ func (m *model) searchRowLine(r layout.Row, w int) string {
 		if h.Msg.Role == claude.RoleTool {
 			base = stDim
 		}
-		return pre + highlight(snippet(h.Msg.Text, q, room), q, base)
+		text := h.Msg.Text
+		if h.Msg.Role == claude.RoleAgent {
+			text = mdPlain(text)
+		}
+		return pre + highlight(snippet(text, q, room), q, base)
 	}
 	a := r.Agent
 	g, c := m.agentGlyph(a)
@@ -476,20 +481,33 @@ func (m *model) searchPanel(w, h int) panel {
 			body = append(body, "")
 		}
 		body = append(body, head)
-		lines := wrap(strings.TrimRight(msg.Text, "\n"), max(10, w-2))
-		base := lipgloss.NewStyle()
+		// the agent writes markdown: render it; your messages and tool output
+		// are plain text, where every line break counts
+		md := msg.Role == claude.RoleAgent
+		var lines []string
+		if md {
+			lines = renderMarkdown(msg.Text, max(10, w-2))
+		} else {
+			lines = wrap(strings.TrimRight(msg.Text, "\n"), max(10, w-2))
+		}
 		if !mine {
-			base = stDim
 			if len(lines) > 4 { // neighbours: a glimpse
-				lines = append(lines[:4], "…")
+				lines = append(lines[:4:4], "…")
 			}
+			for _, l := range lines { // dim, in their shape but without colors
+				body = append(body, "  "+stDim.Render(strings.TrimRight(ansi.Strip(l), " ")))
+			}
+			continue
 		}
 		for _, l := range lines {
-			l = strings.TrimRight(l, " ")
-			if mine && focus == 0 && len(q.Spans(l)) > 0 {
+			if focus == 0 && len(q.Spans(ansi.Strip(l))) > 0 {
 				focus = len(body)
 			}
-			body = append(body, "  "+highlight(l, q, base))
+			if md {
+				body = append(body, "  "+highlightStyled(l, q))
+			} else {
+				body = append(body, "  "+highlight(strings.TrimRight(l, " "), q, lipgloss.NewStyle()))
+			}
 		}
 	}
 	// scroll: the first match a third down the room, then pgup/pgdn

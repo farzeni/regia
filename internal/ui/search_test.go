@@ -199,6 +199,9 @@ func TestSearchRealScreen(t *testing.T) {
 		_ = os.WriteFile(filepath.Join(cfg, "regia", "layout.json"), b, 0o644)
 	}
 	t.Setenv("XDG_CONFIG_HOME", cfg)
+	if os.Getenv("REGIA_SCREEN_OUT") != "" {
+		withColors(t)
+	}
 	b, err := claude.FetchAgents()
 	if err != nil {
 		t.Fatal(err)
@@ -210,6 +213,9 @@ func TestSearchRealScreen(t *testing.T) {
 	typeQuery(m, q)
 	for range 3 {
 		m.Update(tkey("down"))
+	}
+	if out := os.Getenv("REGIA_SCREEN_OUT"); out != "" { // the colored screen, to look at
+		_ = os.WriteFile(out, []byte(m.View()), 0o644)
 	}
 	t.Log("\n" + ansi.Strip(m.View()))
 }
