@@ -335,11 +335,19 @@ func (m *model) inboxSubline(r layout.Row, w int) string {
 			place += " · "
 		}
 	}
+	prWhy := ""
+	if a.State != "blocked" && prNeedsLook(a) {
+		prWhy = "⚠ " + prFor(a).Reason()
+		what = prWhy
+	}
 	what = trunc(what, room-runewidth.StringWidth(place))
 	st, wst := stDim, lipgloss.NewStyle().Foreground(cDim)
-	if a.YourTurn() && !r.Archived {
+	if (a.YourTurn() || prWhy != "") && !r.Archived {
 		st = lipgloss.NewStyle().Foreground(cAccent)
 		wst = lipgloss.NewStyle()
+	}
+	if prWhy != "" && !r.Archived {
+		wst = lipgloss.NewStyle().Foreground(cFailed)
 	}
 	return indent + st.Render(place) + wst.Render(what)
 }

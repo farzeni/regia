@@ -97,7 +97,9 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int)
 		field("git", l1, st, 1)
 		field("", l2, stDim, 1)
 	}
-	if len(a.PRs) > 0 {
+	if l, st := prLine(prFor(a)); l != "" {
+		field("pr", l, st, 1)
+	} else if len(a.PRs) > 0 {
 		var ids []string
 		for _, p := range a.PRs {
 			ids = append(ids, p.Kind+" #"+p.ID)

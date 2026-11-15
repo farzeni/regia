@@ -20,6 +20,8 @@ func TestSpawnedIDs(t *testing.T) {
 		{`claude --bg --name "x" "$(cat brief.md)" 2>&1 | tail -5`, bgOut, "a12f674f"},
 		// first line cut by tail: falls back to the attach hint
 		{`claude --bg -p "do it" | tail -3`, "  claude attach 92d454d4    open\n  claude logs 92d454d4", "92d454d4"},
+		// `| tail -2` keeps only the logs and stop hints
+		{`for t in 4 8; do claude --bg --name "f-$t" "$(cat t$t.txt)" 2>&1 | tail -2; done`, "  claude logs a5156a41      show recent output\n  claude stop a5156a41      stop this session\n  claude logs 46b9564c      show recent output\n  claude stop 46b9564c      stop this session", "a5156a41,46b9564c"},
 		// several spawns in one command
 		{"cd x && claude --bg a\nclaude --bg b", "backgrounded · 11111111 · a\nbackgrounded · 22222222 · b", "11111111,22222222"},
 		// not a spawn: the output merely mentions ids
