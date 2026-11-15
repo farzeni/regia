@@ -162,7 +162,7 @@ so a second `enter` attaches to it.
 | `z` | fold everything / unfold everything |
 | `-` / `+` | list narrower / wider (or drag the divider; remembered) |
 | `/`, `esc` | filter by name, question, path or branch / clear |
-| `a` | show finished sessions you've already seen |
+| `a` | hide or show finished sessions you've already seen (shown by default) |
 | `f` | pin / unpin the agent (a group: all its agents): pinned ones stay listed when done |
 | `e` | archive the agent, or everything in a group except busy agents (asks first); on an archived agent, bring it back |
 | `A` | show / hide archived agents (dim) |

@@ -126,7 +126,7 @@ type stoppedMsg struct {
 }
 
 func newModel() *model {
-	m := &model{agents: map[string]*claude.Agent{}, layout: layout.Load(), ta: newDraftInput()} // focus on the list; i types
+	m := &model{agents: map[string]*claude.Agent{}, layout: layout.Load(), ta: newDraftInput(), opts: layout.ViewOpts{ShowDone: true}} // focus on the list; i types
 	if b := claude.CachedAgents(); b != nil {
 		m.setAgents(b)
 	}
