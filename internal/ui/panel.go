@@ -200,7 +200,7 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int)
 	// ── the latest reply in full, right above the card: what you'd attach to read
 	if msg := latestReply(a); msg != nil {
 		top = len(out)
-		out = append(out, replyLines(msg, w)...)
+		out = append(out, replyLines(msg, w, len(out) > 0)...)
 	}
 	return out, card, top
 }

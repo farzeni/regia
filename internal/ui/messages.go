@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 
+	"github.com/mattn/go-runewidth"
+
 	"github.com/farzeni/regia/internal/claude"
 )
 
@@ -50,9 +52,18 @@ func latestReply(a *claude.Agent) *claude.Msg {
 	return nil
 }
 
-// replyLines is the latest reply in full, for under the compact history.
-func replyLines(msg *claude.Msg, w int) []string {
-	out := []string{"", messageHead(*msg, true) + stDim.Render("   latest reply · t: whole conversation")}
+// replyLines is the latest reply in full, for under the compact history:
+// below a divider when there's history above it (after), else just its head.
+func replyLines(msg *claude.Msg, w int, after bool) []string {
+	const label = "latest reply · t: whole conversation"
+	var out []string
+	if after {
+		rule := "── " + label + " "
+		rule += strings.Repeat("─", max(0, w-runewidth.StringWidth(rule)))
+		out = []string{"", stDim.Render(trunc(rule, w)), messageHead(*msg, true)}
+	} else {
+		out = []string{"", messageHead(*msg, true) + stDim.Render("   "+label)}
+	}
 	lines, _ := messageLines(*msg, max(10, w-2))
 	for _, l := range lines {
 		out = append(out, "  "+l)
