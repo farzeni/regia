@@ -43,6 +43,15 @@ func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 			m.dragging = true
 			return nil
 		}
+		if e.Y == listTop+m.tabRow && !onList && !m.dv.on { // a tab on the agent box's top line
+			x := e.X - (padX + m.lw + gap)
+			for _, t := range m.tabHits {
+				if x >= t.x0 && x < t.x1 {
+					m.panelTab = t.name
+					return nil
+				}
+			}
+		}
 		if rh := m.rowHeight(); onList && e.Y >= listTop && e.Y < listTop+m.vis*rh {
 			if i := m.offset + (e.Y-listTop)/rh; i < len(m.rows) {
 				m.moveCursor(i - m.cursor)

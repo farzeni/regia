@@ -637,10 +637,12 @@ func (m *model) detailLines(w int) panel {
 		}
 		return panel{card: out}
 	}
+	m.tabHits, m.tabRow = m.tabHits[:0], 0 // agentDetail draws them again if it has tabs
 	hist, card, foot, top := m.agentDetail(r, w)
 	if r.HasKids { // a coordinator: its agents' shared notes atop its card
 		if ns := m.notesSection(r.ID, w, 5); len(ns) > 0 {
 			card = append(append(ns[1:], ""), card...)
+			m.tabRow = len(ns) // the tab bar moved down by the notes
 		}
 	}
 	return panel{hist: hist, card: card, foot: foot, bottomUp: true, top: top}

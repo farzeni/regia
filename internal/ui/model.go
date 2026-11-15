@@ -60,6 +60,10 @@ type model struct {
 	menu         []menuItem // the ! menu's items while modeMenu
 	menuTitle    string
 
+	panelTab string   // the agent box's tab (, and .): "" or "agent", or a plugin's name; kept across agents
+	tabHits  []tabHit // where the tabs were drawn, for clicks
+	tabRow   int      // the panel line they are on
+
 	cut []string // nodes picked up with m, put with p / P
 
 	earlierOpen bool            // the inbox's "earlier days" fold is open (folded each time regia opens)

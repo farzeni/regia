@@ -429,6 +429,12 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 			_ = copyClipboard(r.Agent.SessionID)
 			m.flash("copied session id %s", r.Agent.SessionID)
 		}
+	case ",", ".": // the agent box's tabs: agent, then one per plugin
+		d := 1
+		if k.String() == "," {
+			d = -1
+		}
+		m.cycleTab(d)
 	case "!": // plugin actions and links for the selected agent
 		return m.pluginMenuKey(r)
 	case "D": // the panel shows the agent's git diff / back

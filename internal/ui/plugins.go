@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/gitinfo"
@@ -139,28 +140,136 @@ func statusStyle(s string) lipgloss.Style {
 	return lipgloss.NewStyle()
 }
 
-// pluginCards renders what the plugins have for a: one bordered card per
-// plugin, titled with its name (colored by its worst field), "! actions" on
-// the right when it offers some, its fields inside with their own label
-// column, and why its last run failed at the bottom.
+// The agent's box on the panel is tabbed: "agent" (regia's own context:
+// task, status, git, pr) first, then one tab per plugin that has something
+// to show for the agent. , and . (or a click on a tab) switch; the tab you
+// pick stays as you move between agents (back to "agent" where that plugin
+// has nothing). Tabs not shown take their worst field's color and their
+// badge, so a failing plugin is visible from any tab.
 //
-//	╭─ gh-pr ──────────────────────── ! actions ─╮
-//	│ ci       ▰▰▰▰▰▰▰▰▰▰ 3/3 · 1 failed: flaky   │
-//	│ reviews  no reviews yet                    │
-//	╰────────────────────────────────────────────╯
-func pluginCards(a *claude.Agent, w int) []string {
-	var out []string
-	for _, r := range plugins.Results(a.ID) {
-		if len(r.Out.Fields) == 0 && r.Err == "" {
-			continue // nothing to say for this agent: no empty box
-		}
-		out = append(out, "")
-		out = append(out, pluginCard(r, w)...)
-	}
-	return out
+//	╭─ agent │ gh-pr ✗ │ jira ──────────── ! actions ─╮
+//	│ ci       ▰▰▰▰▰▰▰▰▰▰ 3/3 · 1 failed: flaky         │
+//	╰─────────────────────────────────────────────────╯
+
+const agentTab = "agent"
+
+type panelTab struct {
+	name    string
+	body    []string
+	status  string // the worst field's: "", ok, warn, error
+	badge   *plugins.Badge
+	actions bool
 }
 
-func pluginCard(r plugins.Result, w int) []string {
+// tabHit is where a tab's name sits on the box's top line, in columns from
+// the panel's left edge (for clicks).
+type tabHit struct {
+	x0, x1 int
+	name   string
+}
+
+// pluginTabs: one per plugin with something to show for a, in plugin order.
+func pluginTabs(a *claude.Agent, w int) []panelTab {
+	var tabs []panelTab
+	for _, r := range plugins.Results(a.ID) {
+		if len(r.Out.Fields) == 0 && r.Err == "" {
+			continue // nothing to say for this agent: no tab
+		}
+		body, worst := pluginBody(r, w)
+		tabs = append(tabs, panelTab{name: r.Plugin.Name, body: body, status: worst, badge: r.Out.Badge, actions: len(r.Out.Actions) > 0})
+	}
+	return tabs
+}
+
+// tabNames: the tabs a's box has, "agent" first.
+func tabNames(a *claude.Agent) []string {
+	names := []string{agentTab}
+	for _, r := range plugins.Results(a.ID) {
+		if len(r.Out.Fields) > 0 || r.Err != "" {
+			names = append(names, r.Plugin.Name)
+		}
+	}
+	return names
+}
+
+// cycleTab moves to the next (d=1) or previous (d=-1) tab of the selected agent's box.
+func (m *model) cycleTab(d int) {
+	r := m.selected()
+	if r == nil || r.Agent == nil {
+		return
+	}
+	names := tabNames(r.Agent)
+	if len(names) < 2 {
+		m.flash(", and . switch between plugin tabs: no plugin has anything for this agent")
+		return
+	}
+	i := 0
+	for k, n := range names {
+		if n == m.panelTab {
+			i = k
+		}
+	}
+	m.panelTab = names[((i+d)%len(names)+len(names))%len(names)]
+}
+
+// tabbedBox draws tabs[0] ("agent") and the plugin tabs as one box showing
+// the selected tab, as tall as the tallest so switching doesn't move what's
+// below. It records where the tabs are for clicks.
+func (m *model) tabbedBox(tabs []panelTab, w int) []string {
+	sel := 0
+	for i, t := range tabs {
+		if t.name == m.panelTab {
+			sel = i
+		}
+	}
+	h := 0
+	actions := false
+	for _, t := range tabs {
+		h = max(h, len(t.body))
+		actions = actions || t.actions
+	}
+	var parts []string
+	m.tabHits = m.tabHits[:0]
+	x := 3 // after "╭─ "
+	for i, t := range tabs {
+		label := t.name
+		if t.badge != nil {
+			label += " " + t.badge.Text
+		}
+		alarm := t.status == "error" || t.status == "warn"
+		st := stDim
+		if alarm {
+			st = statusStyle(t.status)
+		}
+		if i == sel {
+			st = lipgloss.NewStyle().Bold(true).Underline(true)
+			if alarm {
+				st = statusStyle(t.status).Bold(true).Underline(true)
+			}
+		}
+		parts = append(parts, st.Render(label))
+		lw := lipgloss.Width(label)
+		m.tabHits = append(m.tabHits, tabHit{x, x + lw, t.name})
+		x += lw + 3 // " │ "
+	}
+	right := ""
+	if actions {
+		right = "! actions"
+	}
+	body := append([]string{}, tabs[sel].body...)
+	if len(body) == 0 {
+		body = append(body, stDim.Render("nothing yet"))
+	}
+	for len(body) < h {
+		body = append(body, "")
+	}
+	return box(strings.Join(parts, stDim.Render(" │ ")), right, body, w)
+}
+
+// pluginBody is a plugin's fields as lines inside a box w wide (a label
+// column sized to its own labels), and why its last run failed at the
+// bottom; worst is its worst field's status.
+func pluginBody(r plugins.Result, w int) (body []string, worst string) {
 	const maxLabel = 10
 	inner := boxInner(w)
 
@@ -181,9 +290,7 @@ func pluginCard(r plugins.Result, w int) []string {
 		lw += 2
 	}
 
-	worst := ""
 	rank := map[string]int{"error": 3, "warn": 2, "ok": 1}
-	var body []string
 	for i, f := range r.Out.Fields {
 		if rank[f.Status] > rank[worst] {
 			worst = f.Status
@@ -206,29 +313,20 @@ func pluginCard(r plugins.Result, w int) []string {
 			body = append(body, stDim.Render(l))
 		}
 	}
-
-	tst := stBold
-	if worst == "error" || worst == "warn" {
-		tst = statusStyle(worst).Bold(true)
-	}
-	right := ""
-	if len(r.Out.Actions) > 0 {
-		right = "! actions"
-	}
-	return box(r.Plugin.Name, tst, right, body, w)
+	return body, worst
 }
 
 // boxInner is the room inside a box w wide: "│ " … " │".
 func boxInner(w int) int { return max(24, w) - 4 }
 
 // box draws body (lines at most boxInner(w) wide) in a rounded border w
-// wide, with title (in tst) top-left and right (accent) top-right; either
-// may be empty:
+// wide, with head (already styled: a title, or the tab bar) top-left and
+// right (accent) top-right; either may be empty:
 //
-//	╭─ title ──────── right ─╮
+//	╭─ head ───────── right ─╮
 //	│ body                   │
 //	╰────────────────────────╯
-func box(title string, tst lipgloss.Style, right string, body []string, w int) []string {
+func box(head string, right string, body []string, w int) []string {
 	w = max(24, w)
 	inner := boxInner(w)
 	bst := lipgloss.NewStyle().Foreground(cDim)
@@ -236,9 +334,9 @@ func box(title string, tst lipgloss.Style, right string, body []string, w int) [
 	if right != "" {
 		tail = stAccent.Render(" "+right+" ") + bst.Render("─╮")
 	}
-	if title != "" {
-		title = trunc(title, max(4, w-6-lipgloss.Width(tail)))
-		lead = bst.Render("╭─ ") + tst.Render(title) + bst.Render(" ")
+	if head != "" {
+		head = ansi.Truncate(head, max(4, w-6-lipgloss.Width(tail)), "…")
+		lead = bst.Render("╭─ ") + head + bst.Render(" ")
 	}
 	fill := max(1, w-lipgloss.Width(lead)-lipgloss.Width(tail))
 	lines := []string{lead + bst.Render(strings.Repeat("─", fill)) + tail}

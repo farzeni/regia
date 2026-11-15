@@ -202,6 +202,7 @@ so a second `enter` attaches to it.
 | `y` / `Y` | copy the suggested reply / the session id |
 | `o` | show the session's terminal output |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |
+| `,` / `.` | previous / next tab of the agent box: `agent`, then one per plugin |
 | `D` | the panel shows the agent's git diff against the default branch (uncommitted changes too) / back (`esc` too) |
 | `i` / `c` / `C` | type a new task; `C` starts it inside the selection |
 | `s` | stop the session (conversation kept) |

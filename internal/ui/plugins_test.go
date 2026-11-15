@@ -7,44 +7,86 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/farzeni/regia/internal/plugins"
 	"github.com/farzeni/regia/internal/prinfo"
 )
 
-// The context (task, status, git…) sits in a box as wide as the panel,
-// above the plugins' cards.
-func TestContextInABox(t *testing.T) {
+// The agent's box is tabbed: "agent" (the context) first, then one tab per
+// plugin with something to say; , and . switch, the choice is kept across
+// agents, the box keeps its height, and a click on a tab picks it.
+func TestTabbedBox(t *testing.T) {
 	f := newReady(t)
 	m := f.m
+	m.w, m.h = 160, 40
 	m.opts.ShowDone = true
 	m.cursorID = "done0001"
 	m.rebuild()
 	p := &plugins.Manifest{Name: "gh-pr", Command: []string{"x"}}
 	plugins.SetForTest([]*plugins.Manifest{p})
 	defer plugins.SetForTest(nil)
-	plugins.Seed(p, "done0001", plugins.Output{Fields: []plugins.Field{{Label: "ci", Text: "3/3"}}})
-	r := m.selected()
-	r.Agent.Unhealthy = "no output for 20m" // a context line (the fixture has no task, git or status)
-	_, card, _, _ := m.agentDetail(r, 70)
-	var ctxTop, plugTop = -1, -1
-	for i, l := range card {
-		s := ansi.Strip(l)
-		if strings.HasPrefix(s, "╭──") && ctxTop < 0 {
-			ctxTop = i
-		}
-		if strings.HasPrefix(s, "╭─ gh-pr") {
-			plugTop = i
-		}
-		if strings.HasPrefix(s, "╭") || strings.HasPrefix(s, "│") || strings.HasPrefix(s, "╰") {
-			if ansi.StringWidth(l) != 70 {
-				t.Fatalf("line %d is %d wide: %q", i, ansi.StringWidth(l), s)
+	plugins.Seed(p, "done0001", plugins.Output{Fields: []plugins.Field{{Label: "ci", Text: "3/3 · 1 failed", Status: "error"}},
+		Badge: &plugins.Badge{Text: "✗", Status: "error"}})
+	m.agents["done0001"].Unhealthy = "no output for 20m" // a context line (the fixture has no task, git or status)
+
+	boxOf := func() []string {
+		_, card, _, _ := m.agentDetail(m.selected(), 70)
+		var b []string
+		for _, l := range card {
+			if s := ansi.Strip(l); strings.HasPrefix(s, "╭") || strings.HasPrefix(s, "│") || strings.HasPrefix(s, "╰") {
+				if ansi.StringWidth(l) != 70 {
+					t.Fatalf("box line %d wide, want 70: %q", ansi.StringWidth(l), s)
+				}
+				b = append(b, s)
 			}
 		}
+		return b
 	}
-	if ctxTop < 0 || plugTop < 0 || ctxTop > plugTop {
-		t.Fatalf("context box %d, plugin card %d:\n%s", ctxTop, plugTop, ansi.Strip(strings.Join(card, "\n")))
+	b := boxOf()
+	if !strings.HasPrefix(b[0], "╭─ agent │ gh-pr ✗ ─") || !strings.Contains(strings.Join(b, "\n"), "stuck?") {
+		t.Fatalf("agent tab first:\n%s", strings.Join(b, "\n"))
+	}
+	h := len(b)
+	m.Update(tkey("."))
+	b = boxOf()
+	if m.panelTab != "gh-pr" || !strings.Contains(strings.Join(b, "\n"), "│ ci  3/3 · 1 failed") || strings.Contains(strings.Join(b, "\n"), "stuck?") {
+		t.Fatalf(". shows the plugin tab:\n%s", strings.Join(b, "\n"))
+	}
+	if len(b) != h {
+		t.Fatalf("switching tabs changed the box's height %d → %d", h, len(b))
+	}
+	m.Update(tkey("."))
+	if m.panelTab != "agent" {
+		t.Fatalf(". wraps around to agent, got %q", m.panelTab)
+	}
+	m.Update(tkey(","))
+	if m.panelTab != "gh-pr" {
+		t.Fatalf(", goes back, got %q", m.panelTab)
+	}
+
+	// kept when moving to another agent; one without that plugin shows "agent"
+	m.cursorID = "busy0001"
+	m.rebuild()
+	if b := boxOf(); len(b) > 0 && strings.Contains(b[0], "gh-pr") {
+		t.Fatalf("busy0001 has no gh-pr tab: %q", b[0])
+	}
+	if m.panelTab != "gh-pr" {
+		t.Fatal("the choice stays for the next agent that has the tab")
+	}
+
+	// a click on "agent" in the tab bar picks it
+	m.cursorID = "done0001"
+	m.rebuild()
+	m.View()
+	if len(m.tabHits) != 2 {
+		t.Fatalf("tab hits %+v", m.tabHits)
+	}
+	x := padX + m.lw + gap + m.tabHits[0].x0
+	m.Update(tea.MouseMsg{X: x, Y: listTop + m.tabRow, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	if m.panelTab != "agent" {
+		t.Fatalf("click on the agent tab: %q", m.panelTab)
 	}
 }
 
@@ -124,15 +166,16 @@ func TestPluginResultsInUI(t *testing.T) {
 		t.Fatalf("row %q has no badge", l)
 	}
 	card := ansi.Strip(strings.Join(m.detailLines(100).lines(), "\n"))
-	for _, want := range []string{"╭─ jira ", "! actions ─╮", "│ jira  PROJ-7 · In Progress", "https://jira/PROJ-7", "╰──"} {
+	for _, want := range []string{"╭─ agent │ jira J ", "! actions ─╮"} {
 		if !strings.Contains(card, want) {
 			t.Fatalf("card lacks %q:\n%s", want, card)
 		}
 	}
-	// every line of the box is exactly as wide as the panel
-	for _, l := range pluginCards(m.agents["done0001"], 60) {
-		if l != "" && ansi.StringWidth(l) != 60 {
-			t.Fatalf("box line %d wide, want 60: %q", ansi.StringWidth(l), ansi.Strip(l))
+	m.Update(tkey("."))
+	card = ansi.Strip(strings.Join(m.detailLines(100).lines(), "\n"))
+	for _, want := range []string{"│ jira  PROJ-7 · In Progress", "https://jira/PROJ-7", "╰──"} {
+		if !strings.Contains(card, want) {
+			t.Fatalf("jira tab lacks %q:\n%s", want, card)
 		}
 	}
 
@@ -190,14 +233,14 @@ func TestPluginErrorOnCard(t *testing.T) {
 	for _, f := range m.pluginRefreshers(a) {
 		f()
 	}
-	card := ansi.Strip(strings.Join(pluginCards(a, 70), "\n"))
-	if !strings.Contains(card, "╭─ "+p.Name) || !strings.Contains(card, "│ ⚠ exit status 1: gh: not logged in") {
-		t.Fatalf("%s", card)
+	tabs := pluginTabs(a, 70)
+	if len(tabs) != 1 || tabs[0].name != p.Name || !strings.Contains(ansi.Strip(strings.Join(tabs[0].body, "\n")), "⚠ exit status 1: gh: not logged in") {
+		t.Fatalf("%+v", tabs)
 	}
 
-	// a plugin with nothing to say gets no box
+	// a plugin with nothing to say gets no tab
 	plugins.Seed(p, "busy0001", plugins.Output{})
-	if c := pluginCards(a, 70); len(c) != 0 {
-		t.Fatalf("empty result drew %q", c)
+	if tabs := pluginTabs(a, 70); len(tabs) != 0 {
+		t.Fatalf("empty result made a tab: %+v", tabs)
 	}
 }
