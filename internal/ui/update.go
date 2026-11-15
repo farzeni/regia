@@ -147,6 +147,13 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, fetchCmd
 
 	case removedBatchMsg:
+		for _, id := range msg.removed {
+			m.removalDone(id)
+		}
+		for _, id := range msg.refusedIDs {
+			m.showRemoved(id)
+		}
+		m.refresh()
 		s := fmt.Sprintf("removed %s (conversations kept)", count(len(msg.removed), "session"))
 		if len(msg.refused) > 0 {
 			s += fmt.Sprintf(" · %d refused: %s", len(msg.refused), strings.Join(msg.refused, "; "))
@@ -158,9 +165,12 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case removedMsg:
 		if msg.err != nil {
 			// claude rm explains why (e.g. unpushed commits in the worktree)
+			m.showRemoved(msg.id)
+			m.refresh()
 			m.flash("not removed: %s", oneLine(msg.out, msg.err))
 			return m, nil
 		}
+		m.removalDone(msg.id)
 		m.flash("removed %s (conversation kept: claude --resume)", msg.id)
 		m.fetching = true
 		return m, fetchCmd
@@ -426,6 +436,8 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		if r != nil && r.Agent != nil && !r.Agent.Interactive {
 			id, name := r.ID, r.Title
 			m.confirm("x", fmt.Sprintf("remove %q (%s) from the list? its worktree is deleted if safe; conversation kept", name, id), func(m *model) tea.Cmd {
+				m.hideRemoved(id)
+				m.flash("removing %s…", name)
 				return func() tea.Msg {
 					out, err := removeAgent(id)
 					return removedMsg{id, out, err}

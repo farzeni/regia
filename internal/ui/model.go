@@ -67,6 +67,8 @@ type model struct {
 	selecting bool            // select mode (v): space marks rows for e / x
 	marked    map[string]bool // agent ids marked in select mode
 
+	removing map[string]*pendingRemoval // taken off the list while claude rm runs
+
 	notesFor string // the blackboard open with N (a group or coordinator id)
 	noteSel  int    // the note picked on it, oldest first
 
@@ -198,6 +200,7 @@ func (m *model) setAgents(b []byte) {
 	for _, a := range list {
 		next[a.ID] = a
 	}
+	m.dropRemoving(next)
 	m.agents = next
 	m.refresh()
 }

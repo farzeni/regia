@@ -4,7 +4,43 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/farzeni/regia/internal/claude"
 )
+
+// a listing fetched while claude rm runs (or just after) still has the agent:
+// it stays hidden, and is forgotten once a listing drops it
+func TestRemovingHiddenFromStaleListings(t *testing.T) {
+	m := testModel(t)
+	a := m.agents["aaaa1111"]
+	m.hideRemoved("aaaa1111")
+	if m.agents["aaaa1111"] != nil || m.visRow["aaaa1111"] {
+		t.Fatal("not hidden at once")
+	}
+	stale := map[string]*claude.Agent{"aaaa1111": a}
+	m.dropRemoving(stale)
+	if stale["aaaa1111"] != nil || m.removing["aaaa1111"] == nil {
+		t.Fatal("stale listing brought it back")
+	}
+	m.removalDone("aaaa1111")
+	stale = map[string]*claude.Agent{"aaaa1111": a}
+	m.dropRemoving(stale)
+	if stale["aaaa1111"] != nil {
+		t.Fatal("listing from before claude rm finished brought it back")
+	}
+	m.dropRemoving(map[string]*claude.Agent{})
+	if len(m.removing) != 0 {
+		t.Fatal("not forgotten once the listing dropped it")
+	}
+
+	// refused: back in the list
+	m.hideRemoved("bbbb2222")
+	m.showRemoved("bbbb2222")
+	m.refresh()
+	if m.agents["bbbb2222"] == nil || len(m.removing) != 0 {
+		t.Fatal("refused removal not restored")
+	}
+}
 
 func TestRemoveAgent(t *testing.T) {
 	m := testModel(t)

@@ -169,13 +169,24 @@ func TestSelectModeRemove(t *testing.T) {
 		t.Fatal("x should ask before removing anything")
 	}
 	_, cmd = m.Update(tkey("x"))
-	msg := cmd()
+	// optimistic: gone from the list before claude rm returns
+	for _, id := range []string{"aaaa0001", "aaaa0002", "bbbb0001"} {
+		if m.agents[id] != nil || m.visRow[id] {
+			t.Fatalf("%s still listed while removing", id)
+		}
+	}
+	msg := runCmd(cmd)
 	if len(ran) != 3 {
 		t.Fatalf("claude rm ran for %v", ran)
 	}
 	m.Update(msg)
 	if !strings.Contains(m.status, "removed 2 sessions") || !strings.Contains(m.status, "1 refused") || !strings.Contains(m.status, "unpushed") {
 		t.Fatalf("status %q", m.status)
+	}
+	// the refused one is back; the removed ones stay hidden even in a listing
+	// fetched before claude rm finished
+	if m.agents["aaaa0002"] == nil || m.agents["aaaa0001"] != nil {
+		t.Fatalf("after: refused back? %v, removed hidden? %v", m.agents["aaaa0002"] != nil, m.agents["aaaa0001"] == nil)
 	}
 	_ = tea.Quit
 }
