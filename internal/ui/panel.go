@@ -97,7 +97,10 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string, to
 		field("git", l1, st, 1)
 		field("", l2, stDim, 1)
 	}
-	if l, st := prLine(prFor(a)); l != "" {
+	pr := prFor(a)
+	if pluginShowsPR(a, pr.URL) {
+		// a plugin's card already shows this PR, with more detail
+	} else if l, st := prLine(pr); l != "" {
 		field("pr", l, st, 1)
 	} else if len(a.PRs) > 0 {
 		var ids []string
@@ -107,7 +110,7 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string, to
 		field("links", strings.Join(ids, "  ")+"   "+a.PRs[len(a.PRs)-1].Href, stDim, 1)
 	}
 
-	pluginFields(a, field)
+	out = append(out, pluginCards(a, w)...)
 
 	if a.Unhealthy != "" {
 		field("stuck?", stuckGlyph+" "+a.Unhealthy, lipgloss.NewStyle().Foreground(cDim), 1)

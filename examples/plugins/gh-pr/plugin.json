@@ -1,0 +1,6 @@
+{
+  "command": ["python3", "check.py"],
+  "label": "pr",
+  "every": "1m",
+  "timeout": "20s"
+}
