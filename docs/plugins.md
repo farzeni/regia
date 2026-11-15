@@ -4,10 +4,11 @@ A regia plugin is a script that regia runs for each agent. The script gets
 the agent's details as JSON on stdin and prints JSON on stdout. regia shows
 what it prints in four places:
 
-- **fields**: lines in the plugin's own bordered card on the agent's panel:
+- **fields**: lines in the plugin's own tab of the agent's box on the panel
+  (`,` and `.` switch tabs; `agent` is regia's own context):
 
   ```
-  ╭─ jira ─────────────────────────────── ! actions ─╮
+  ╭─ agent │ gh-pr ✗ │ jira ──────────── ! actions ─╮
   │ ticket   PROJ-482 · In Review                     │
   │ sprint   Sprint 42 · 3 days left                  │
   ╰───────────────────────────────────────────────────╯
@@ -115,7 +116,7 @@ running between runs. Results are cached in memory per plugin and agent, so a
 restart of regia runs everything again.
 
 **Failures:** a non-zero exit, a timeout, or stdout that isn't JSON. The
-plugin's card then shows a dim line at its bottom with the last line of
+plugin's tab then shows a dim line at its bottom with the last line of
 stderr, e.g. `⚠ exit status 1: not logged in`, and keeps showing the last
 good fields above it. A plugin that keeps failing is retried less and less often,
 doubling the interval each time up to 30 minutes, so a broken plugin doesn't
@@ -230,19 +231,23 @@ output means "nothing to show for this agent", which is valid and common.
 
 ### fields
 
-Lines in the plugin's card, in the order you give them. At most 8 per plugin;
-the rest are dropped. Each plugin gets its own bordered card below regia's
-git and PR lines, titled with the plugin's directory name. The title turns
-amber or red when a field is `warn` or `error`, and shows `! actions` on the
-right when the plugin offers actions. A plugin with no fields for an agent
-draws no card.
+Lines in the plugin's tab, in the order you give them. At most 8 per plugin;
+the rest are dropped. The agent's box on the panel has one tab per plugin,
+after `agent` (regia's task, status, git and PR lines), named after the
+plugin's directory. The user switches with `,` and `.` or a click, and the
+tab they pick stays as they move between agents. Your tab's name turns
+amber or red when a field is `warn` or `error`, and shows your badge, so
+problems are visible while another tab is open. `! actions` shows on the
+box's top-right when any plugin offers actions. A plugin with no fields for
+an agent gets no tab. The box is as tall as its tallest tab, so a long tab
+pushes the history down for every tab: keep the field count small.
 
 | key | meaning |
 |---|---|
 | `text` | The line. Wrapped to at most 2 lines, then cut. Keep it short: lead with what matters, put details after ` · `. |
-| `label` | The dim label on the left. Cut to 10 characters; the label column is as wide as the card's longest label. Defaults to the manifest's `label`. |
+| `label` | The dim label on the left. Cut to 10 characters; the label column is as wide as the tab's longest label. Defaults to the manifest's `label`. |
 | `status` | Color: `ok` (green), `warn` (amber), `error` (red), `dim` (gray), or omitted (plain). Use `error` only for things that need action. |
-| `url` | Shown after the text, and offered as "open …" in the `!` menu (opens in the browser). If it is the agent's PR URL, regia hides its own `pr` line on the card, since your card already covers the PR. |
+| `url` | Shown after the text, and offered as "open …" in the `!` menu (opens in the browser). If it is the agent's PR URL, regia hides its own `pr` line on the `agent` tab, since your tab already covers the PR. |
 
 ### badge
 
@@ -295,10 +300,10 @@ An action's output may contain:
 | `message` | Shown in the status line, e.g. `"PROJ-482 → In Review"`. Without it, regia shows `<label> done`. |
 | `copy` | Put on the clipboard (with `copied` added to the message). Use it for anything the user will paste into the agent: a failing job's log excerpt, review comments, a ticket's acceptance criteria. |
 | `open` | A URL to open in the browser. |
-| `fields`, `badge`, `attention`, `actions` | If any are present, they replace the card's result for this agent right away. |
+| `fields`, `badge`, `attention`, `actions` | If any are present, they replace the tab's result for this agent right away. |
 
 If the output has none of the display keys, the plugin is refreshed at the
-next tick, so the card shows the new state. You don't need to return a
+next tick, so the tab shows the new state. You don't need to return a
 refresh from the action.
 
 A non-zero exit shows `<label>: <action> failed: <last stderr line>` in the
@@ -328,7 +333,7 @@ one twice.
    `git.branch` and `agent.intent` instead of asking `gh` or `git` again.
 7. **Handle partial input.** `git`, `pr` and `last` can be `null`, and any
    string can be empty. Interactive sessions have most job fields empty.
-8. **Keep text terse.** The panel is often 60–90 columns wide; the card's
+8. **Keep text terse.** The panel is often 60–90 columns wide; the box's
    border and your label column take about 15 of them. Short labels (`ci`,
    `ticket`) leave more room. Use fragments, not sentences.
 9. **Use `attention` sparingly.** If everything is attention, the inbox is
@@ -406,4 +411,4 @@ dependencies.
       for each test agent, and `--action <id>` works for each action.
 - [ ] Runs in under ~2 s (`time regia plugin run …`).
 - [ ] `regia plugin list` shows it with ✓. Then open regia, select an agent,
-      and check the card, the badge, the inbox and the `!` menu.
+      and check the tab, the badge, the inbox and the `!` menu.

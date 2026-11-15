@@ -5,10 +5,10 @@ follow is in [docs/plugins.md](../../docs/plugins.md).
 
 ## gh-pr
 
-The agent's GitHub PR in its own card, from `gh`:
+The agent's GitHub PR in its own tab of the agent's box, from `gh`:
 
 ```
-╭─ gh-pr ──────────────────────────────────────────── ! actions ─╮
+╭─ agent │ gh-pr ✗ ──────────────────────────────────── ! actions ─╮
 │ pr       #1 draft · +18 −0  https://github.com/you/repo/pull/1 │
 │ ci       ▰▰▰▰▰▰▰▱▱▱ 2/3 · 1 running · 1 failed: flaky           │
 │ reviews  approved by ana · waiting on bob                      │
