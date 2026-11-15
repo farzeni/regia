@@ -112,16 +112,16 @@ func TestPanelBottomUpAndScroll(t *testing.T) {
 
 	screen := func() string { return ansi.Strip(m.View()) }
 	s := screen()
-	// newest right above the card, oldest scrolled off above
+	// newest at the bottom, oldest scrolled off above
 	if !strings.Contains(s, "answer 39") || strings.Contains(s, "ask 00") || !strings.Contains(s, "earlier · pgup") {
 		t.Fatalf("panel should show the newest turns:\n%s", s)
 	}
 	if strings.Index(s, "ask 38") > strings.Index(s, "ask 39") {
 		t.Fatal("history should run oldest to newest, top to bottom")
 	}
-	// the card is below the history, its state line last
-	if strings.Index(s, "answer 39") > strings.Index(s, "the task") {
-		t.Fatal("card should be under the history")
+	// the card is above the history
+	if strings.Index(s, "the task") > strings.Index(s, "answer 38") {
+		t.Fatal("card should be above the history")
 	}
 	for range 10 {
 		m.Update(tkey("pgup"))

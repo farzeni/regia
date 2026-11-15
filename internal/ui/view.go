@@ -464,8 +464,9 @@ func wrap(s string, w int) []string {
 	return strings.Split(lipgloss.NewStyle().Width(w).Render(s), "\n")
 }
 
-// panel is what the right side shows: for an agent, a history that scrolls
-// above a card pinned at the bottom (bottomUp); for a group, plain lines.
+// panel is what the right side shows: for an agent, a card pinned at the top
+// and below it a history that scrolls, stuck to the bottom (bottomUp); for a
+// group, plain lines.
 type panel struct {
 	hist, card []string
 	bottomUp   bool
@@ -475,11 +476,11 @@ type panel struct {
 	top int
 }
 
-func (p panel) lines() []string { return append(append([]string{}, p.hist...), p.card...) }
+func (p panel) lines() []string { return append(append([]string{}, p.card...), p.hist...) }
 
-// placePanel fits the panel into h rows. Bottom-up panels stick to the
-// bottom; the history scrolls by panelScroll lines (pgup/pgdn), which goes
-// back to 0 when another row is selected.
+// placePanel fits the panel into h rows. Bottom-up panels pin the card at the
+// top and stick the history to the bottom; the history scrolls by panelScroll
+// lines (pgup/pgdn), which goes back to 0 when another row is selected.
 func (m *model) placePanel(p panel, h, w int) []string {
 	if !p.bottomUp {
 		return p.card[:min(h, len(p.card))]
@@ -488,12 +489,12 @@ func (m *model) placePanel(p panel, h, w int) []string {
 	if fresh {
 		m.panelFor, m.panelScroll = m.cursorID, 0
 	}
-	card := p.card
-	if len(p.hist) > 0 { // a rule between the history and the card
-		card = append([]string{stDim.Render(strings.Repeat("─", w))}, card...)
+	card := append([]string{}, p.card...)
+	if len(p.hist) > 0 { // a rule between the card and the history
+		card = append(card, stDim.Render(strings.Repeat("─", w)))
 	}
-	if len(card) > h { // keep the state line, the bottom one
-		card = card[len(card)-h:]
+	if len(card) > h { // keep the state line, the top one
+		card = card[:h]
 	}
 	room := h - len(card)
 	if fresh && p.top > 0 {
@@ -511,11 +512,11 @@ func (m *model) placePanel(p panel, h, w int) []string {
 			view[len(view)-1] = stDim.Render(fmt.Sprintf("↓ %d newer · pgdn", m.panelScroll))
 		}
 	}
-	out := make([]string, 0, h)
-	for len(out)+len(view) < room {
+	out := append(make([]string, 0, h), card...)
+	for len(out)+len(view) < h {
 		out = append(out, "")
 	}
-	return append(append(out, view...), card...)
+	return append(out, view...)
 }
 
 func (m *model) detailLines(w int) panel {
@@ -553,9 +554,9 @@ func (m *model) detailLines(w int) panel {
 		return panel{card: out}
 	}
 	hist, card, top := m.agentDetail(r, w)
-	if r.HasKids { // a coordinator: its agents' shared notes above its card
+	if r.HasKids { // a coordinator: its agents' shared notes at the end of its card
 		if ns := m.notesSection(r.ID, w, 5); len(ns) > 0 {
-			card = append(ns[1:], append([]string{""}, card...)...)
+			card = append(append(card, ""), ns[1:]...)
 		}
 	}
 	return panel{hist: hist, card: card, bottomUp: true, top: top}

@@ -202,14 +202,17 @@ func TestPanelDivider(t *testing.T) {
 	}}}, r.ID
 	ls := strings.Split(ansi.Strip(m.View()), "\n")
 	for i, l := range ls {
-		if strings.Contains(l, "did it") {
-			if !strings.Contains(ls[i+1], "─────") || !strings.Contains(ls[i+2], "task") {
-				t.Fatalf("want a rule between the history and the card:\n%s", strings.Join(ls[i:i+3], "\n"))
+		if strings.Contains(l, "task") && strings.Contains(l, "the task") {
+			if !strings.Contains(ls[i+1], "─────") {
+				t.Fatalf("want a rule between the card and the history:\n%s", strings.Join(ls[i:i+2], "\n"))
+			}
+			if !strings.Contains(strings.Join(ls[i+2:], "\n"), "did it") {
+				t.Fatal("history should be under the card")
 			}
 			return
 		}
 	}
-	t.Fatal("history not shown")
+	t.Fatal("card not shown")
 }
 
 func TestYourMessagesTinted(t *testing.T) {

@@ -12,10 +12,10 @@ import (
 	"github.com/farzeni/regia/internal/layout"
 )
 
-// agentDetail renders the right panel for one agent, read bottom-up like a
-// chat: the history (oldest to newest, grouped by your messages) scrolls above
-// a card pinned at the bottom whose last line is the agent's state, right
-// above the input. Reading up from there: state, what it asks, context, past.
+// agentDetail renders the right panel for one agent: a card pinned at the top
+// (state, meta, context, what it asks) and below it the history (oldest to
+// newest, grouped by your messages), which scrolls with its newest line right
+// above the input, like a chat.
 //
 // top is where the latest reply starts in hist (0 if none): the panel opens
 // there when the history doesn't fit.
@@ -131,7 +131,10 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int)
 		out = append(out, "")
 		bar(cBusy, clip(wrap(a.Detail, max(10, w-2)), 3, w-2))
 	}
-	card = append(out, "", meta, head)
+	card = []string{head, meta}
+	if len(out) > 0 {
+		card = append(append(card, ""), out...)
+	}
 
 	// ── terminal output (o) replaces the history
 	if m.logsFor == r.ID && m.logs != "" {
