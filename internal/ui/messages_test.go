@@ -33,9 +33,9 @@ func TestPanelLatestReply(t *testing.T) {
 	if strings.Contains(v, "**Done") {
 		t.Errorf("markdown not rendered:\n%s", v)
 	}
-	// it sits at the bottom of the compact history, under the card
-	if strings.Index(v, "latest reply") < strings.Index(v, "DONE") {
-		t.Errorf("latest reply should be under the card:\n%s", v)
+	// it sits at the bottom of the compact history, above the foot
+	if strings.Index(v, "latest reply") > strings.Index(v, "DONE") {
+		t.Errorf("latest reply should be above the foot:\n%s", v)
 	}
 
 	// a reply longer than the panel: it opens on the reply's start

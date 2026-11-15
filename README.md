@@ -74,10 +74,11 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
 - **tree** — every agent, organized. Each row shows state (● waiting for you,
   ✓ ready, ◆ busy, ✗ failed; see below), name and age; folded groups show how
   many agents are inside and how many are your turn. The right panel shows the selected agent
-  and reads bottom-up, like a chat: its state and what it is asking sit at the
-  bottom, above them the task and git status, and above those its history
-  grouped by your messages, newest last (`pgup`/`pgdn` scroll back). Under
-  that history, right above the card, the agent's latest reply is shown in
+  in three parts: a card pinned at the top (task, git status, what it is
+  asking), its history in the middle, grouped by your messages, newest last
+  (`pgup`/`pgdn` scroll back), and a foot pinned at the bottom with its state,
+  name, directory and tokens, which never scrolls. At the end of the history,
+  right above the foot, the agent's latest reply is shown in
   full, its markdown rendered; when it's longer than the panel, the panel opens
   at its start (`pgdn` reads on). `t` swaps the history for the whole
   conversation: your messages and the agent's replies in full, tool calls
