@@ -162,9 +162,7 @@ func pluginCards(a *claude.Agent, w int) []string {
 
 func pluginCard(r plugins.Result, w int) []string {
 	const maxLabel = 10
-	w = max(24, w)
-	inner := w - 4 // "│ " … " │"
-	bst := lipgloss.NewStyle().Foreground(cDim)
+	inner := boxInner(w)
 
 	lw := 0
 	labels := make([]string, len(r.Out.Fields))
@@ -209,20 +207,41 @@ func pluginCard(r plugins.Result, w int) []string {
 		}
 	}
 
-	title := r.Plugin.Name
 	tst := stBold
 	if worst == "error" || worst == "warn" {
 		tst = statusStyle(worst).Bold(true)
 	}
-	right, end := "", "╮" // "╭─ title ───╮" or "╭─ title ─── ! actions ─╮"
+	right := ""
 	if len(r.Out.Actions) > 0 {
-		right, end = " ! actions ", "─╮"
+		right = "! actions"
 	}
-	title = trunc(title, max(4, w-6-lipgloss.Width(right)))
-	fill := max(1, w-4-lipgloss.Width(title)-lipgloss.Width(right)-lipgloss.Width(end))
-	top := bst.Render("╭─ ") + tst.Render(title) + bst.Render(" "+strings.Repeat("─", fill)) +
-		stAccent.Render(right) + bst.Render(end)
-	lines := []string{top}
+	return box(r.Plugin.Name, tst, right, body, w)
+}
+
+// boxInner is the room inside a box w wide: "│ " … " │".
+func boxInner(w int) int { return max(24, w) - 4 }
+
+// box draws body (lines at most boxInner(w) wide) in a rounded border w
+// wide, with title (in tst) top-left and right (accent) top-right; either
+// may be empty:
+//
+//	╭─ title ──────── right ─╮
+//	│ body                   │
+//	╰────────────────────────╯
+func box(title string, tst lipgloss.Style, right string, body []string, w int) []string {
+	w = max(24, w)
+	inner := boxInner(w)
+	bst := lipgloss.NewStyle().Foreground(cDim)
+	lead, tail := bst.Render("╭"), bst.Render("╮")
+	if right != "" {
+		tail = stAccent.Render(" "+right+" ") + bst.Render("─╮")
+	}
+	if title != "" {
+		title = trunc(title, max(4, w-6-lipgloss.Width(tail)))
+		lead = bst.Render("╭─ ") + tst.Render(title) + bst.Render(" ")
+	}
+	fill := max(1, w-lipgloss.Width(lead)-lipgloss.Width(tail))
+	lines := []string{lead + bst.Render(strings.Repeat("─", fill)) + tail}
 	for _, l := range body {
 		lines = append(lines, bst.Render("│ ")+pad(l, inner)+bst.Render(" │"))
 	}
