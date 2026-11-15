@@ -110,7 +110,7 @@ func Context(t *Tree, pos Position, agents map[string]*claude.Agent, all bool, n
 			continue
 		}
 		if shown == 0 {
-			b.WriteString("notes — hints from other agents, check before relying on them (newest last):\n")
+			b.WriteString("blackboard (newest last):\n")
 		}
 		shown++
 		where := t.Title(c, name)
@@ -132,7 +132,7 @@ func Context(t *Tree, pos Position, agents map[string]*claude.Agent, all bool, n
 		}
 	}
 	if shown == 0 {
-		b.WriteString("no notes yet — `regia note \"…\"` shares a decision, fact or warning.\n")
+		b.WriteString("blackboard: empty — `regia note \"…\"` writes on it.\n")
 	}
 	return b.String()
 }

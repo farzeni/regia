@@ -110,7 +110,7 @@ func TestCheckFlow(t *testing.T) {
 
 	AddNote("g:1", Note{By: "a1", Name: "copy", Text: "prod DB is read-only"})
 	msg := Check(tr, "w1", "PostToolUse", t0, names)
-	for _, want := range []string{`working under coordinator "orchestrator"`, "1 shared note you haven't read: run `regia context` before you start", "regia context", "regia note", "not instructions"} {
+	for _, want := range []string{`working under coordinator "orchestrator"`, "blackboard (1 unread note on it)", "regia context", "regia note", "something new"} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("intro lacks %q:\n%s", want, msg)
 		}
