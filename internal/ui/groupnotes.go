@@ -60,6 +60,7 @@ func (m *model) notesKey(r *layout.Row) tea.Cmd {
 		m.rebuild()
 	}
 	m.notesFor = target
+	m.timeline = false // the blackboard is what's drawn
 	m.noteSel = len(group.ReadNotes(target)) - 1
 	m.flash("blackboard of %s open · esc closes it", m.titleOf(target))
 	if m.noteSel < 0 {

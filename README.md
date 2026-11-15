@@ -181,6 +181,7 @@ so a second `enter` attaches to it.
 | `>` / `<` | nest under the agent above (it becomes the coordinator) / un-nest |
 | `m`, then `p` / `P` | move: `p` puts it into the group under the cursor (at the top), or right after the agent; `P` puts it after the group, or under the agent (as its coordinator) |
 | `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up) |
+| `T` | a group's or coordinator's panel shows its timeline instead of the blackboard / back (on an agent: its group's); see [Group awareness](#group-awareness) |
 | `w` | set the directory new agents in the group start in (on an agent: its group's); see [Where a new agent starts](#where-a-new-agent-starts) |
 | `←` `→` `space` | fold / unfold |
 | `z` | fold everything / unfold everything |
@@ -287,6 +288,20 @@ an agent's), `x x` deletes it, `esc` closes. An edit reaches the agents like a
 new note does. Outside regia, `regia context <id>` prints what an agent would
 see (`--all` for every note).
 
+**Timeline** (`T`, "what happened while I was away"): the panel of a group or
+coordinator swaps its blackboard for one feed of everything its agents did,
+oldest first and the newest at the bottom, a rule per day, one line each: the
+time, who, and what. It lists the agents' state changes (▶ started, ● waiting
+with its question, ◆ back to work, ✓ done, ✗ failed, from
+`~/.claude/jobs/<id>/timeline.jsonl`), the blackboard notes (✎), the commits
+on their branches since they started (⎇, `git log` of each distinct directory
+and branch, read in the background and cached for 30 s; a commit goes to the
+last agent on that branch started before it) and the PRs they opened (⇡, from
+`state.json`, dated when the agent first mentioned the link). `pgup`/`pgdn`
+scroll it, `T` goes back to the blackboard, and `T` on an agent opens its
+group's timeline. Whatever can't be read is left out. Agents working in the
+main checkout share its branch, so commits made there by others show too.
+
 It is built to stay out of the agents' way. The plugin's hook does nothing for
 agents outside a group. A grouped agent gets a short introduction once (what
 the two commands are for: a shared blackboard, with no advice on how to use it), then
@@ -305,6 +320,7 @@ coordinator (its agents get nothing, and it isn't listed to others).
 |---|---|
 | list of sessions | `claude agents --json --all` (run again when a job or session file changes, at most every 2 s and at least every 10 s; the last result is cached so the first frame is instant) |
 | question, suggested reply, now-doing, tokens, PRs | `~/.claude/jobs/<id>/state.json` and `timeline.jsonl`, read-only, every 1 s |
+| group timeline (`T`) | the agents' `timeline.jsonl` (parsed again only when it changes), the notes, `git log` per directory and branch (background, cached 30 s) |
 | history | the session transcript (`~/.claude/projects/…/<session>.jsonl`), read-only |
 | attach / stop / start / output / remove | `claude attach`, `claude stop`, `claude --bg`, `claude logs`, `claude rm` |
 | your organization | `~/.config/regia/layout.json` |

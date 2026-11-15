@@ -568,6 +568,9 @@ func (m *model) detailLines(w int) panel {
 	}
 	var out []string
 	sec := func(t string) { out = append(out, "", stHead.Render(t)) }
+	if c := m.timelineTarget(r); c != "" {
+		return m.timelineView(r, w)
+	}
 	if r.Group {
 		// nothing in it pulses: drawn again only when something else happened
 		if c := &m.groupPanel; c.id == r.ID && c.w == w && c.gen == m.gen {

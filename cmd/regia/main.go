@@ -75,6 +75,11 @@ func dispatch(args []string) error {
 			return fmt.Errorf("usage: regia --panel <id>")
 		}
 		return ui.DumpPanel(os.Stdout, args[1])
+	case "--timeline": // hidden: print a group's or coordinator's timeline as plain text
+		if len(args) < 2 {
+			return fmt.Errorf("usage: regia --timeline <id>")
+		}
+		return ui.DumpTimeline(os.Stdout, args[1])
 	case "--attach-test": // hidden: run any command through the attach logic
 		t0 := time.Now()
 		err := attach.Command(args[1:]...).Run()
