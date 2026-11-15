@@ -10,8 +10,9 @@ import (
 )
 
 // Working agents' icons pulse: their green breathes up and down about once a
-// second. The animation only ticks while some agent is working, so an idle
-// regia doesn't redraw.
+// second. The animation only ticks while a working agent is on screen, so an
+// idle regia (or one whose working agents are folded or scrolled away)
+// doesn't redraw.
 
 type pulseMsg struct{}
 
@@ -27,9 +28,18 @@ func pulseTick() tea.Cmd {
 
 func working(a *claude.Agent) bool { return a != nil && !a.Interactive && a.State == "busy" }
 
+// anyWorking: a working agent's icon is on screen, in the list's visible
+// part (as of the last frame; all of it before the first) or in the panel.
 func (m *model) anyWorking() bool {
-	for _, a := range m.agents {
-		if working(a) {
+	if r := m.selected(); r != nil && working(r.Agent) {
+		return true
+	}
+	hi := len(m.rows)
+	if m.vis > 0 {
+		hi = min(hi, m.offset+m.vis)
+	}
+	for _, r := range m.rows[min(m.offset, hi):hi] {
+		if working(r.Agent) {
 			return true
 		}
 	}

@@ -339,20 +339,42 @@ func (m *model) inputBox() string {
 		}
 		lines[i] = l
 	}
-	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(border).
-		Padding(0, 1).Width(m.w - 2).Render(strings.Join(lines, "\n"))
+	return inputFrame(strings.Join(lines, "\n"), border, label, m.w)
+}
+
+type frameKey struct {
+	text, label string
+	border      lipgloss.Color
+	w           int
+}
+
+var frameCache struct {
+	key frameKey
+	box string
+}
+
+// inputFrame draws the input's rounded box, w wide, around text, with label
+// in its bottom border. The last one is kept: it's the same on most frames.
+func inputFrame(text string, border lipgloss.Color, label string, w int) (box string) {
+	k := frameKey{text, label, border, w}
+	if frameCache.box != "" && frameCache.key == k {
+		return frameCache.box
+	}
+	defer func() { frameCache.key, frameCache.box = k, box }()
+	box = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(border).
+		Padding(0, 1).Width(w - 2).Render(text)
 	if label == "" {
 		return box
 	}
 	// the directory sits in the bottom border: ╰──── ~/x · ctrl+o ─╯
 	rows := strings.Split(box, "\n")
-	w := ansi.StringWidth(rows[len(rows)-1])
+	bw := ansi.StringWidth(rows[len(rows)-1])
 	lw := lipgloss.Width(label)
-	if w < lw+6 {
+	if bw < lw+6 {
 		return box
 	}
 	bs := lipgloss.NewStyle().Foreground(border)
-	rows[len(rows)-1] = bs.Render("╰"+strings.Repeat("─", w-lw-5)) + " " + label + " " + bs.Render("─╯")
+	rows[len(rows)-1] = bs.Render("╰"+strings.Repeat("─", bw-lw-5)) + " " + label + " " + bs.Render("─╯")
 	return strings.Join(rows, "\n")
 }
 

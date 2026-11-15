@@ -9,6 +9,7 @@ import (
 func TestWorkingIconPulses(t *testing.T) {
 	m := testModel(t) // alpha is working, beta is done
 	alpha, beta := m.agents["aaaa1111"], m.agents["bbbb2222"]
+	m.pulsing = false // testModel's first key already started it
 
 	cmd := m.startPulse()
 	if cmd == nil || !m.pulsing {
@@ -40,5 +41,17 @@ func TestWorkingIconPulses(t *testing.T) {
 	alpha.State = "busy"
 	if m.startPulse() == nil {
 		t.Fatal("pulse should restart")
+	}
+
+	// working, but not on screen: no animation to draw
+	m.opts.Filter = "beta"
+	m.rebuild()
+	if _, cmd := m.Update(pulseMsg{}); cmd != nil || m.pulsing {
+		t.Fatal("pulse should stop when no working agent is on screen")
+	}
+	m.opts.Filter = ""
+	m.rebuild()
+	if _, cmd := m.Update(tickMsg{}); cmd == nil || !m.pulsing {
+		t.Fatal("pulse should restart when a working agent is back on screen")
 	}
 }

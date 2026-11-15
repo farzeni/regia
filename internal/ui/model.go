@@ -104,11 +104,20 @@ type model struct {
 	logs    string
 	logsFor string
 
-	fetching bool
-	fetchErr error
-	ticks    int
-	pulsing  bool // the working-icon animation is ticking
-	pulseN   int  // its frame
+	fetching  bool
+	fetchErr  error
+	ticks     int
+	listStamp uint64 // claude.ListingStamp when the listing was last asked for
+	fetchedAt int    // the tick it was asked at
+	pulsing   bool   // the working-icon animation is ticking
+	pulseN    int    // its frame
+
+	gen        int // counts messages other than pulses: what's drawn from state is good while it stays
+	groupPanel struct {
+		id     string
+		w, gen int
+		lines  []string
+	}
 }
 
 type agentsMsg struct {
@@ -142,6 +151,31 @@ func newModel() *model {
 func fetchCmd() tea.Msg {
 	b, err := claude.FetchAgents()
 	return agentsMsg{b, err}
+}
+
+// Listing poll: `claude agents` runs when something it reports may have
+// changed (see claude.ListingStamp), at most every listMin ticks, and at
+// least every listMax (a session that dies writes nothing; `regia context`
+// trusts the cached listing for 20 s).
+const (
+	listMin = 2
+	listMax = 10
+)
+
+func (m *model) pollListing() tea.Cmd {
+	if m.fetching {
+		return nil
+	}
+	since := m.ticks - m.fetchedAt
+	if since < listMin {
+		return nil
+	}
+	st := claude.ListingStamp(m.agents)
+	if st == m.listStamp && since < listMax {
+		return nil
+	}
+	m.fetching, m.listStamp, m.fetchedAt = true, st, m.ticks
+	return fetchCmd
 }
 
 func tick() tea.Cmd {

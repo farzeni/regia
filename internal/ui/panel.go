@@ -153,8 +153,40 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int)
 		return hist, card, top
 	}
 
-	// ── history: oldest to newest (the newest right above the card), day separators
-	out = nil
+	hist, top = historyLines(a, h, w)
+	return hist, card, top
+}
+
+// histKey is everything the compact history's lines depend on: they're the
+// bulk of a frame, and frames come 8 a second while an agent works.
+type histKey struct {
+	id, state, detail, day string
+	interactive            bool
+	w                      int
+	turns                  *claude.Turn // claude.ReadHistory returns the same slice until the files change
+	nTurns                 int
+	reply                  *claude.Msg
+}
+
+var histCache struct {
+	key   histKey
+	lines []string
+	top   int
+}
+
+// historyLines is the compact history, oldest to newest (the newest right
+// above the card), with day separators, then the latest reply in full.
+func historyLines(a *claude.Agent, h claude.History, w int) (out []string, top int) {
+	reply := latestReply(a)
+	k := histKey{id: a.ID, state: a.State, detail: a.Detail, day: time.Now().Format(time.DateOnly),
+		interactive: a.Interactive, w: w, nTurns: len(h.Turns), reply: reply}
+	if len(h.Turns) > 0 {
+		k.turns = &h.Turns[0]
+	}
+	if histCache.lines != nil && histCache.key == k {
+		return histCache.lines, histCache.top
+	}
+	defer func() { histCache.key, histCache.lines, histCache.top = k, out, top }()
 	lastDay := ""
 	for i := max(0, len(h.Turns)-maxTurns); i < len(h.Turns); i++ {
 		t := h.Turns[i]
@@ -203,11 +235,14 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int)
 		out = append(out, stDim.Render("no history yet"))
 	}
 	// ── the latest reply in full, right above the card: what you'd attach to read
-	if msg := latestReply(a); msg != nil {
+	if reply != nil {
 		top = len(out)
-		out = append(out, replyLines(msg, w, len(out) > 0)...)
+		out = append(out, replyLines(reply, w, len(out) > 0)...)
 	}
-	return out, card, top
+	if out == nil {
+		out = []string{}
+	}
+	return out, top
 }
 
 // maxTurns caps how far back the panel scrolls (the transcript has them all).

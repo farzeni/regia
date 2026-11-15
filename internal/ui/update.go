@@ -14,9 +14,17 @@ import (
 )
 
 // Update wraps update so the selected agent's git info is refreshed in the
-// background whenever it's stale (cursor moved, or every tick).
+// background whenever it's stale (cursor moved, or every tick), and the pulse
+// starts when a working agent comes on screen.
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	_, pulse := msg.(pulseMsg)
+	if !pulse {
+		m.gen++ // anything may change; a pulse only moves the working color
+	}
 	mm, cmd := m.update(msg)
+	if !pulse {
+		cmd = tea.Batch(cmd, m.startPulse()) // a working agent came on screen
+	}
 	if r := m.selected(); r != nil && r.Agent != nil {
 		if g := gitCmd(r.Agent.Cwd); g != nil {
 			cmd = tea.Batch(cmd, g)
@@ -63,9 +71,8 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.dwell(time.Time(msg))
 		var cmds []tea.Cmd
 		cmds = append(cmds, tick())
-		if m.ticks%2 == 0 && !m.fetching {
-			m.fetching = true
-			cmds = append(cmds, fetchCmd)
+		if c := m.pollListing(); c != nil {
+			cmds = append(cmds, c)
 		}
 		if m.view == viewSearch && m.ticks%5 == 0 && !m.srch.running && m.srch.ranQ != "" && m.srch.ranQ == m.srch.query {
 			cmds = append(cmds, m.runSearch()) // new messages since (only what was appended is read)

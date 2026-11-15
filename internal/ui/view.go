@@ -354,7 +354,46 @@ func faded(a *claude.Agent, now time.Time) bool {
 	return (a.State == "done" || a.State == "failed") && !fromToday(a, now)
 }
 
+// rowKey is everything a list row's line depends on (see drawRowLine):
+// drawing it with lipgloss is most of a frame, and between frames rows rarely
+// change but for the pulsing icon's color, which is part of the key.
+type rowKey struct {
+	id, title, mark, age               string
+	depth, count, blocked, busy, w     int
+	group, kids, collapsed, archived   bool
+	muted, inbox                       bool
+	glyph                              string
+	color                              lipgloss.Color
+	cut, pin, yourTurn, faded, snoozed bool
+}
+
+var rowCache = map[rowKey]string{}
+
+const rowCacheMax = 4096
+
 func (m *model) rowLine(r layout.Row, w int) string {
+	k := rowKey{id: r.ID, title: r.Title, mark: m.markFor(r.ID), depth: r.Depth, count: r.Count, blocked: r.Blocked,
+		busy: r.Busy, w: w, group: r.Group, kids: r.HasKids, collapsed: r.Collapsed, archived: r.Archived,
+		muted: m.layout.Muted[r.ID], inbox: m.view == viewInbox}
+	if a := r.Agent; !r.Group && a != nil {
+		k.glyph, k.color = m.agentGlyph(a)
+		k.age = ago(waitedSince(a))
+		k.cut = slices.Contains(m.cut, r.ID)
+		k.pin = m.layout.Pins[r.ID]
+		k.yourTurn, k.faded, k.snoozed = a.YourTurn(), faded(a, time.Now()), a.Snoozed
+	}
+	if l, ok := rowCache[k]; ok {
+		return l
+	}
+	if len(rowCache) >= rowCacheMax {
+		clear(rowCache)
+	}
+	l := m.drawRowLine(r, w)
+	rowCache[k] = l
+	return l
+}
+
+func (m *model) drawRowLine(r layout.Row, w int) string {
 	indent := strings.Repeat("  ", r.Depth)
 	fold := "  "
 	if r.HasKids || r.Group {
@@ -530,6 +569,11 @@ func (m *model) detailLines(w int) panel {
 	var out []string
 	sec := func(t string) { out = append(out, "", stHead.Render(t)) }
 	if r.Group {
+		// nothing in it pulses: drawn again only when something else happened
+		if c := &m.groupPanel; c.id == r.ID && c.w == w && c.gen == m.gen {
+			return panel{card: c.lines}
+		}
+		defer func() { m.groupPanel.id, m.groupPanel.w, m.groupPanel.gen, m.groupPanel.lines = r.ID, w, m.gen, out }()
 		out = append(out, stBold.Render(r.Title), stDim.Render(fmt.Sprintf("%d agents · %d your turn · %d busy", r.Count, r.Blocked, r.Busy)),
 			trunc(m.groupDirLine(r.ID), w))
 		sec("your turn")

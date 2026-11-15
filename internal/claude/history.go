@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 // Timeline entries carry no speaker field. Observed shape (claude 2.1.32x):
@@ -56,12 +57,30 @@ func norm(s string) string {
 	return strings.ToLower(strings.TrimSpace(wsRe.ReplaceAllString(s, " ")))
 }
 
+// key is norm(s) cut to 48 runes (long enough to get past a
+// "<pasted_content id=…>" prefix). It runs for every timeline and transcript
+// line, so it stops reading s once it has them, without a regexp.
 func key(s string) string {
-	n := []rune(norm(s))
-	if len(n) > 48 { // long enough to get past a "<pasted_content id=…>" prefix
-		n = n[:48]
+	var b strings.Builder
+	n, space := 0, false
+	for _, r := range s {
+		if unicode.IsSpace(r) {
+			space = n > 0
+			continue
+		}
+		if space {
+			if n++; n > 48 {
+				break
+			}
+			b.WriteByte(' ')
+			space = false
+		}
+		if n++; n > 48 {
+			break
+		}
+		b.WriteRune(unicode.ToLower(r))
 	}
-	return string(n)
+	return b.String()
 }
 
 // --- your messages from the transcript (tail only, cached by size) ---------
@@ -141,19 +160,67 @@ func userMessages(path string) map[string]bool {
 	return keys
 }
 
+// userMessagesAt is how much of the transcript the cached messages cover.
+func userMessagesAt(path string) int64 {
+	ucMu.Lock()
+	defer ucMu.Unlock()
+	return ucMap[path].size
+}
+
 // --- history ---------------------------------------------------------------
 
+// histCache keeps each job's last History: it's read on every tick and
+// cursor move, and its files rarely changed since.
+type histEntry struct {
+	tlSize  int64
+	tlMod   time.Time
+	path    string // the transcript the users came from
+	usersAt int64  // how much of it they cover
+	h       History
+}
+
+var (
+	hcMu  sync.Mutex
+	hcMap = map[string]histEntry{}
+)
+
+// ReadHistory is the agent's history from its timeline, cached until the
+// timeline or the transcript changes. The result is shared: don't modify it.
 func ReadHistory(a *Agent) History {
-	var h History
 	if a == nil || a.Interactive {
-		return h
+		return History{}
 	}
-	f, err := os.Open(filepath.Join(Dir(), "jobs", a.ID, "timeline.jsonl"))
+	tl := filepath.Join(Dir(), "jobs", a.ID, "timeline.jsonl")
+	fi, err := os.Stat(tl)
+	if err != nil {
+		return History{}
+	}
+	path := TranscriptPath(a) // the job file's path goes stale once the session enters a worktree
+	users := userMessages(path)
+	usersAt := userMessagesAt(path)
+	hcMu.Lock()
+	e, ok := hcMap[tl]
+	hcMu.Unlock()
+	if !ok || e.tlSize != fi.Size() || !e.tlMod.Equal(fi.ModTime()) || e.path != path || e.usersAt != usersAt {
+		e = histEntry{tlSize: fi.Size(), tlMod: fi.ModTime(), path: path, usersAt: usersAt, h: readHistory(tl, users)}
+		hcMu.Lock()
+		hcMap[tl] = e
+		hcMu.Unlock()
+	}
+	h := e.h
+	if h.Task == "" {
+		h.Task = a.Intent
+	}
+	return h
+}
+
+func readHistory(tl string, users map[string]bool) History {
+	var h History
+	f, err := os.Open(tl)
 	if err != nil {
 		return h
 	}
 	defer f.Close()
-	users := userMessages(TranscriptPath(a)) // the job file's path goes stale once the session enters a worktree
 
 	var cur *Turn
 	sc := bufio.NewScanner(f)
@@ -228,9 +295,6 @@ func ReadHistory(a *Agent) History {
 		if len(last) == 0 || last[len(last)-1].State != "blocked" || t.User.At.Sub(p.LastAt) > taskGap {
 			break
 		}
-	}
-	if h.Task == "" {
-		h.Task = a.Intent
 	}
 	return h
 }

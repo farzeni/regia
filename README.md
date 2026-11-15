@@ -303,7 +303,7 @@ coordinator (its agents get nothing, and it isn't listed to others).
 
 | What | Source |
 |---|---|
-| list of sessions | `claude agents --json --all` (refreshed every 2 s; the last result is cached so the first frame is instant) |
+| list of sessions | `claude agents --json --all` (run again when a job or session file changes, at most every 2 s and at least every 10 s; the last result is cached so the first frame is instant) |
 | question, suggested reply, now-doing, tokens, PRs | `~/.claude/jobs/<id>/state.json` and `timeline.jsonl`, read-only, every 1 s |
 | history | the session transcript (`~/.claude/projects/…/<session>.jsonl`), read-only |
 | attach / stop / start / output / remove | `claude attach`, `claude stop`, `claude --bg`, `claude logs`, `claude rm` |

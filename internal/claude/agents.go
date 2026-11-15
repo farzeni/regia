@@ -6,11 +6,13 @@ package claude
 
 import (
 	"encoding/json"
+	"hash/fnv"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -38,6 +40,7 @@ type Agent struct {
 	PRs        []Link
 	ForkParent string // short id
 	Transcript string // session transcript (jsonl)
+	JobState   string // the job file's own state, raw (see ListingStamp)
 
 	Stale   bool // set by the UI: waiting on you since before today
 	Snoozed bool // set by the UI: a question you put off (Z) until the agent does something new
@@ -101,8 +104,43 @@ func FetchAgents() ([]byte, error) {
 		return nil, err
 	}
 	_ = os.MkdirAll(filepath.Dir(cacheFile()), 0o755)
-	_ = os.WriteFile(cacheFile(), out, 0o644)
+	_ = os.WriteFile(cacheFile(), out, 0o644) // its mtime also tells `regia context` how fresh it is
 	return out, nil
+}
+
+// ListingStamp changes whenever what `claude agents` reports may have: a
+// job started or went away, a job's own state moved, a session's status file
+// was written. The listing is a whole process (~0.1 s of CPU, 150 MB), so
+// regia runs it when the stamp moves rather than on a timer alone.
+func ListingStamp(agents map[string]*Agent) uint64 {
+	var sum uint64
+	add := func(parts ...string) {
+		h := fnv.New64a()
+		for _, p := range parts {
+			h.Write([]byte(p))
+			h.Write([]byte{0})
+		}
+		sum += h.Sum64() // a sum: map order doesn't matter
+	}
+	for _, d := range []string{"jobs", "sessions"} {
+		if fi, err := os.Stat(filepath.Join(Dir(), d)); err == nil {
+			add(d, fi.ModTime().String())
+		}
+	}
+	if es, err := os.ReadDir(filepath.Join(Dir(), "sessions")); err == nil {
+		for _, e := range es {
+			if !strings.HasSuffix(e.Name(), ".json") {
+				continue
+			}
+			if fi, err := e.Info(); err == nil {
+				add(e.Name(), fi.ModTime().String())
+			}
+		}
+	}
+	for id, a := range agents {
+		add(id, a.JobState)
+	}
+	return sum
 }
 
 // CachedAge is how old the last listing is (a long time when there is none).
@@ -171,17 +209,51 @@ func short(s string) string {
 	return s
 }
 
-// Enrich merges the job state file. Cheap (small JSON), done every tick.
+type jobEntry struct {
+	size int64
+	mod  time.Time
+	job  *rawJob // nil: not valid JSON
+}
+
+var (
+	jcMu  sync.Mutex
+	jcMap = map[string]jobEntry{}
+)
+
+// readJob reads a job state file, parsed again only when it changed.
+func readJob(path string) *rawJob {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return nil
+	}
+	jcMu.Lock()
+	e, ok := jcMap[path]
+	jcMu.Unlock()
+	if ok && e.size == fi.Size() && e.mod.Equal(fi.ModTime()) {
+		return e.job
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	e = jobEntry{size: fi.Size(), mod: fi.ModTime()}
+	if j := new(rawJob); json.Unmarshal(b, j) == nil {
+		e.job = j
+	}
+	jcMu.Lock()
+	jcMap[path] = e
+	jcMu.Unlock()
+	return e.job
+}
+
+// Enrich merges the job state file. Done every tick: it's parsed only when
+// it changed.
 func Enrich(a *Agent) {
 	if a.Interactive {
 		return
 	}
-	b, err := os.ReadFile(filepath.Join(Dir(), "jobs", a.ID, "state.json"))
-	if err != nil {
-		return
-	}
-	var j rawJob
-	if json.Unmarshal(b, &j) != nil {
+	j := readJob(filepath.Join(Dir(), "jobs", a.ID, "state.json"))
+	if j == nil {
 		return
 	}
 	a.Detail = j.Detail
@@ -193,6 +265,7 @@ func Enrich(a *Agent) {
 	a.PRs = j.Children
 	a.ForkParent = short(j.ForkParent)
 	a.Transcript = j.Transcript
+	a.JobState = j.State
 	if t, err := time.Parse(time.RFC3339Nano, j.UpdatedAt); err == nil {
 		a.UpdatedAt = t
 	}

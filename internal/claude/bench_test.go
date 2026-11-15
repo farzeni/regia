@@ -3,6 +3,7 @@ package claude
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -24,6 +25,9 @@ func BenchmarkHistoryCold(b *testing.B) {
 		ucMu.Lock()
 		ucMap = map[string]userCache{}
 		ucMu.Unlock()
+		hcMu.Lock()
+		hcMap = map[string]histEntry{}
+		hcMu.Unlock()
 		ReadHistory(a)
 	}
 }
@@ -39,6 +43,24 @@ func BenchmarkHistoryTick(b *testing.B) {
 		ucMap[a.Transcript] = c
 		ucMu.Unlock()
 		ReadHistory(a)
+	}
+}
+
+// key must normalize like the regexp version it replaced: whitespace runs
+// collapsed, trimmed, lowercased, cut to 48 runes.
+func TestKeyMatchesNorm(t *testing.T) {
+	ref := func(s string) string {
+		n := []rune(norm(s))
+		if len(n) > 48 {
+			n = n[:48]
+		}
+		return string(n)
+	}
+	for _, s := range []string{"", "  ", "Hello  World", "\tA\n\nb  ", "<pasted_content id=\"x\">  Some LONG text that goes past forty-eight runes easily, yes",
+		strings.Repeat("ab ", 30), strings.Repeat("é", 60), "x" + strings.Repeat(" ", 47) + "y", strings.Repeat("a", 47) + "   bcd"} {
+		if got, want := key(s), ref(s); got != want {
+			t.Errorf("key(%q) = %q, want %q", s, got, want)
+		}
 	}
 }
 
