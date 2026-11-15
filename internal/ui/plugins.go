@@ -139,32 +139,94 @@ func statusStyle(s string) lipgloss.Style {
 	return lipgloss.NewStyle()
 }
 
-// pluginFields calls field for each line the plugins have for a on the card.
-func pluginFields(a *claude.Agent, field func(name, text string, st lipgloss.Style, maxLines int)) {
-	actions := false
+// pluginCards renders what the plugins have for a: one bordered card per
+// plugin, titled with its name (colored by its worst field), "! actions" on
+// the right when it offers some, its fields inside with their own label
+// column, and why its last run failed at the bottom.
+//
+//	╭─ gh-pr ──────────────────────── ! actions ─╮
+//	│ ci       ▰▰▰▰▰▰▰▰▰▰ 3/3 · 1 failed: flaky   │
+//	│ reviews  no reviews yet                    │
+//	╰────────────────────────────────────────────╯
+func pluginCards(a *claude.Agent, w int) []string {
+	var out []string
 	for _, r := range plugins.Results(a.ID) {
-		for _, f := range r.Out.Fields {
-			label := f.Label
-			if label == "" {
-				label = r.Plugin.LabelOr()
-			}
-			if l := []rune(label); len(l) > 7 { // the card's label column
-				label = string(l[:7])
-			}
-			text := f.Text
-			if f.URL != "" {
-				text += "  " + f.URL
-			}
-			field(label, text, statusStyle(f.Status), 2)
+		if len(r.Out.Fields) == 0 && r.Err == "" {
+			continue // nothing to say for this agent: no empty box
 		}
-		if r.Err != "" {
-			field(r.Plugin.LabelOr(), "⚠ "+r.Plugin.Name+": "+r.Err, stDim, 1)
+		out = append(out, "")
+		out = append(out, pluginCard(r, w)...)
+	}
+	return out
+}
+
+func pluginCard(r plugins.Result, w int) []string {
+	const maxLabel = 10
+	w = max(24, w)
+	inner := w - 4 // "│ " … " │"
+	bst := lipgloss.NewStyle().Foreground(cDim)
+
+	lw := 0
+	labels := make([]string, len(r.Out.Fields))
+	for i, f := range r.Out.Fields {
+		l := f.Label
+		if l == "" {
+			l = r.Plugin.LabelOr()
 		}
-		actions = actions || len(r.Out.Actions) > 0
+		if rs := []rune(l); len(rs) > maxLabel {
+			l = string(rs[:maxLabel])
+		}
+		labels[i] = l
+		lw = max(lw, lipgloss.Width(l))
 	}
-	if actions {
-		field("", "! plugin actions", stDim, 1)
+	if lw > 0 {
+		lw += 2
 	}
+
+	worst := ""
+	rank := map[string]int{"error": 3, "warn": 2, "ok": 1}
+	var body []string
+	for i, f := range r.Out.Fields {
+		if rank[f.Status] > rank[worst] {
+			worst = f.Status
+		}
+		text := f.Text
+		if f.URL != "" {
+			text += "  " + stDim.Render(f.URL)
+		}
+		tw := max(10, inner-lw)
+		for j, l := range clip(wrap(text, tw), 2, tw) {
+			lab := strings.Repeat(" ", lw)
+			if j == 0 {
+				lab = stDim.Render(fmt.Sprintf("%-*s", lw, labels[i]))
+			}
+			body = append(body, lab+statusStyle(f.Status).Render(l))
+		}
+	}
+	if r.Err != "" {
+		for _, l := range clip(wrap("⚠ "+r.Err, inner), 2, inner) {
+			body = append(body, stDim.Render(l))
+		}
+	}
+
+	title := r.Plugin.Name
+	tst := stBold
+	if worst == "error" || worst == "warn" {
+		tst = statusStyle(worst).Bold(true)
+	}
+	right, end := "", "╮" // "╭─ title ───╮" or "╭─ title ─── ! actions ─╮"
+	if len(r.Out.Actions) > 0 {
+		right, end = " ! actions ", "─╮"
+	}
+	title = trunc(title, max(4, w-6-lipgloss.Width(right)))
+	fill := max(1, w-4-lipgloss.Width(title)-lipgloss.Width(right)-lipgloss.Width(end))
+	top := bst.Render("╭─ ") + tst.Render(title) + bst.Render(" "+strings.Repeat("─", fill)) +
+		stAccent.Render(right) + bst.Render(end)
+	lines := []string{top}
+	for _, l := range body {
+		lines = append(lines, bst.Render("│ ")+pad(l, inner)+bst.Render(" │"))
+	}
+	return append(lines, bst.Render("╰"+strings.Repeat("─", w-2)+"╯"))
 }
 
 // pluginBadges is the badges a's row shows, rendered ("" when none).

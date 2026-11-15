@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/farzeni/regia/internal/plugins"
@@ -60,9 +59,15 @@ func TestPluginResultsInUI(t *testing.T) {
 		t.Fatalf("row %q has no badge", l)
 	}
 	card := ansi.Strip(strings.Join(m.detailLines(100).lines(), "\n"))
-	for _, want := range []string{"jira", "PROJ-7 · In Progress", "https://jira/PROJ-7", "! plugin actions"} {
+	for _, want := range []string{"╭─ jira ", "! actions ─╮", "│ jira  PROJ-7 · In Progress", "https://jira/PROJ-7", "╰──"} {
 		if !strings.Contains(card, want) {
 			t.Fatalf("card lacks %q:\n%s", want, card)
+		}
+	}
+	// every line of the box is exactly as wide as the panel
+	for _, l := range pluginCards(m.agents["done0001"], 60) {
+		if l != "" && ansi.StringWidth(l) != 60 {
+			t.Fatalf("box line %d wide, want 60: %q", ansi.StringWidth(l), ansi.Strip(l))
 		}
 	}
 
@@ -120,9 +125,14 @@ func TestPluginErrorOnCard(t *testing.T) {
 	for _, f := range m.pluginRefreshers(a) {
 		f()
 	}
-	var lines []string
-	pluginFields(a, func(name, text string, _ lipgloss.Style, _ int) { lines = append(lines, name+"|"+text) })
-	if len(lines) != 1 || !strings.Contains(lines[0], "ci|⚠") || !strings.Contains(lines[0], "not logged in") {
-		t.Fatalf("%q", lines)
+	card := ansi.Strip(strings.Join(pluginCards(a, 70), "\n"))
+	if !strings.Contains(card, "╭─ "+p.Name) || !strings.Contains(card, "│ ⚠ exit status 1: gh: not logged in") {
+		t.Fatalf("%s", card)
+	}
+
+	// a plugin with nothing to say gets no box
+	plugins.Seed(p, "busy0001", plugins.Output{})
+	if c := pluginCards(a, 70); len(c) != 0 {
+		t.Fatalf("empty result drew %q", c)
 	}
 }
