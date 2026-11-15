@@ -4,14 +4,18 @@ package attach
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/creack/pty"
 	"github.com/muesli/cancelreader"
 	"golang.org/x/term"
@@ -67,7 +71,8 @@ func (c *Cmd) Run() error {
 		return err
 	}
 	exited := make(chan struct{})
-	go func() { _ = cmd.Wait(); close(exited) }()
+	var waitErr error
+	go func() { waitErr = cmd.Wait(); close(exited) }()
 
 	oldState, err := term.MakeRaw(fd)
 	if err == nil {
@@ -102,6 +107,7 @@ func (c *Cmd) Run() error {
 	left := make(chan struct{}, 1) // child left the alternate screen
 	back := make(chan struct{}, 1) // child re-entered it
 	outDone := make(chan struct{})
+	tail := &tailBuf{}
 	go func() {
 		defer close(outDone)
 		f := &altFilter{onLeave: func() { notify(left) }, onEnter: func() { notify(back) }}
@@ -109,6 +115,7 @@ func (c *Cmd) Run() error {
 		for {
 			n, err := ptmx.Read(buf)
 			if n > 0 {
+				tail.Write(buf[:n])
 				_, _ = out.Write(f.Filter(buf[:n]))
 			}
 			if err != nil {
@@ -118,12 +125,19 @@ func (c *Cmd) Run() error {
 	}()
 
 	var quiet <-chan time.Time
+	failed := false
 wait:
 	for {
 		select {
 		case <-exited:
+			failed = waitErr != nil
 			break wait
-		case <-outDone:
+		case <-outDone: // its pty closed: it's exiting, see how
+			select {
+			case <-exited:
+				failed = waitErr != nil
+			case <-time.After(300 * time.Millisecond):
+			}
 			break wait
 		case <-left:
 			quiet = time.After(leaveQuiet)
@@ -134,10 +148,61 @@ wait:
 		}
 	}
 
+	if failed { // let the last of its output arrive: it says why
+		select {
+		case <-outDone:
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
 	cr.Cancel()
 	wg.Wait()
 	_ = ptmx.Close() // child (if still exiting) gets SIGHUP on its own pty
+	if failed {
+		return exitError(argv, waitErr, tail.String())
+	}
 	return nil
+}
+
+// exitError says why the child quit on its own with an error: its exit
+// status and the last line it printed (gone from the screen by now).
+func exitError(argv []string, err error, output string) error {
+	name := strings.Join(argv[:min(2, len(argv))], " ")
+	msg := fmt.Sprintf("%s: %v", name, err)
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		msg = fmt.Sprintf("%s exited %d", name, ee.ExitCode())
+	}
+	lines := strings.Split(strings.ReplaceAll(ansi.Strip(output), "\r", "\n"), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if l := strings.TrimSpace(lines[i]); l != "" {
+			if r := []rune(l); len(r) > 200 {
+				l = string(r[:200]) + "…"
+			}
+			return errors.New(msg + ": " + l)
+		}
+	}
+	return errors.New(msg)
+}
+
+// tailBuf keeps the last few KB written to it.
+type tailBuf struct {
+	mu sync.Mutex
+	b  []byte
+}
+
+func (t *tailBuf) Write(p []byte) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.b = append(t.b, p...)
+	if over := len(t.b) - 4096; over > 0 {
+		t.b = append([]byte{}, t.b[over:]...)
+	}
+}
+
+func (t *tailBuf) String() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return string(t.b)
 }
 
 func notify(ch chan struct{}) {

@@ -1,9 +1,21 @@
 package attach
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
+
+func TestExitError(t *testing.T) {
+	err := exitError([]string{"claude", "attach", "abc"}, errors.New("exit status 1"),
+		"\x1b[?1049h\x1b[2J\x1b[31mError: session abc is not running\x1b[0m\r\n\r\n")
+	if want := "claude attach: exit status 1: Error: session abc is not running"; err.Error() != want {
+		t.Fatalf("got %q want %q", err, want)
+	}
+	if err := exitError([]string{"claude", "attach"}, errors.New("boom"), "\x1b[2J"); err.Error() != "claude attach: boom" {
+		t.Fatalf("no output: %q", err)
+	}
+}
 
 func TestAltFilter(t *testing.T) {
 	var left, entered int
