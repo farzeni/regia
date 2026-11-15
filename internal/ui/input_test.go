@@ -157,6 +157,7 @@ func TestInputEscGivesCommandKeys(t *testing.T) {
 	}
 }
 
+// runCmd runs c, finding the action's result inside a batch.
 func runCmd(c tea.Cmd) tea.Msg {
 	msg := c()
 	if b, ok := msg.(tea.BatchMsg); ok {
@@ -164,7 +165,8 @@ func runCmd(c tea.Cmd) tea.Msg {
 			if c == nil {
 				continue
 			}
-			if m, ok := c().(spawnedMsg); ok {
+			switch m := c().(type) {
+			case spawnedMsg, removedMsg, removedBatchMsg:
 				return m
 			}
 		}

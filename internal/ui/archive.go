@@ -185,8 +185,9 @@ func (m *model) archiveMarked() tea.Cmd {
 }
 
 type removedBatchMsg struct {
-	removed []string
-	refused []string // "name: reason"
+	removed    []string
+	refused    []string // "name: reason"
+	refusedIDs []string
 }
 
 func (m *model) removeMarked() tea.Cmd {
@@ -204,12 +205,14 @@ func (m *model) removeMarked() tea.Cmd {
 	list := strings.Join(names, ", ")
 	m.confirm("x", fmt.Sprintf("remove %s with claude rm (%s)? worktrees deleted if safe; conversations kept", count(len(ids), "session"), trunc(list, 60)), func(m *model) tea.Cmd {
 		m.selecting, m.marked = false, nil
+		m.hideRemoved(ids...)
 		m.flash("removing %s…", count(len(ids), "session"))
 		return func() tea.Msg {
 			var res removedBatchMsg
 			for i, id := range ids {
 				if out, err := removeAgent(id); err != nil {
 					res.refused = append(res.refused, names[i]+": "+oneLine(out, err))
+					res.refusedIDs = append(res.refusedIDs, id)
 				} else {
 					res.removed = append(res.removed, id)
 				}
