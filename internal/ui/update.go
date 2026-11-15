@@ -44,6 +44,16 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.startPulse()
 
+	case searchTypedMsg:
+		if msg.typed == m.srch.typed && m.view == viewSearch {
+			return m, m.runSearch()
+		}
+		return m, nil
+
+	case searchDoneMsg:
+		m.searchDone(msg)
+		return m, nil
+
 	case pulseMsg:
 		return m, m.onPulse()
 
@@ -56,6 +66,9 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.ticks%2 == 0 && !m.fetching {
 			m.fetching = true
 			cmds = append(cmds, fetchCmd)
+		}
+		if m.view == viewSearch && m.ticks%5 == 0 && !m.srch.running && m.srch.ranQ != "" && m.srch.ranQ == m.srch.query {
+			cmds = append(cmds, m.runSearch()) // new messages since (only what was appended is read)
 		}
 		return m, tea.Batch(cmds...)
 
@@ -93,8 +106,8 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			// select it once `claude agents` lists it (it may not yet): enter attaches
 			m.selectID = id
-			if m.view == viewInbox {
-				m.view = viewTree
+			if m.view != viewTree {
+				m.setView(viewTree)
 			}
 			_ = m.layout.Save()
 			m.rebuild()
@@ -174,6 +187,9 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if c, ok := m.updateNotes(msg); ok {
 				return m, c
 			}
+		}
+		if m.view == viewSearch {
+			return m, m.updateSearch(msg)
 		}
 		if m.selecting {
 			if c, ok := m.updateSelect(msg); ok {
@@ -271,13 +287,10 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		m.moveCursor(-len(m.rows))
 	case "G", "end":
 		m.moveCursor(len(m.rows))
-	case "tab":
-		if m.view == viewTree {
-			m.view = viewInbox
-		} else {
-			m.view = viewTree
-		}
-		m.rebuild()
+	case "tab": // tree → inbox → search
+		return m.cycleView(1)
+	case "shift+tab":
+		return m.cycleView(-1)
 	case "b": // jump to next blocked agent
 		for i := 1; i <= len(m.rows); i++ {
 			j := (m.cursor + i) % len(m.rows)

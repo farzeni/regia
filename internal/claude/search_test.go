@@ -1,0 +1,159 @@
+package claude
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestParseQuery(t *testing.T) {
+	cases := map[string][]string{
+		"":                       nil,
+		"   ":                    nil,
+		"Hello":                  {"hello"},
+		"foo  Bar":               {"foo", "bar"},
+		`"exact phrase" x`:       {"exact phrase", "x"},
+		`a "unterminated phrase`: {"a", "unterminated phrase"},
+		`""`:                     nil,
+	}
+	for in, want := range cases {
+		got := ParseQuery(in).Terms
+		if strings.Join(got, "|") != strings.Join(want, "|") {
+			t.Errorf("ParseQuery(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestSpans(t *testing.T) {
+	q := ParseQuery("ab cd")
+	s := "xxAB cd abcd"
+	got := q.Spans(s)
+	// AB, cd, then "abcd" is two touching matches merged into one
+	want := [][2]int{{2, 4}, {5, 7}, {8, 12}}
+	if len(got) != len(want) {
+		t.Fatalf("Spans = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("Spans = %v, want %v", got, want)
+		}
+	}
+	// case folding that changes byte length must still point into the original
+	s = "Kelvin K and k" // KELVIN SIGN lowercases to a 1-byte k
+	for _, sp := range ParseQuery("k").Spans(s) {
+		if c := strings.ToLower(s[sp[0]:sp[1]]); c != "k" {
+			t.Errorf("span %v covers %q", sp, s[sp[0]:sp[1]])
+		}
+	}
+}
+
+func writeTranscript(t *testing.T, lines ...string) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), "s.jsonl")
+	if err := os.WriteFile(p, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestMessages(t *testing.T) {
+	p := writeTranscript(t,
+		`{"type":"user","timestamp":"2026-11-15T10:00:00Z","message":{"role":"user","content":"find the bug in search"}}`,
+		`{"type":"user","isMeta":true,"message":{"content":"meta stuff"}}`,
+		`{"type":"user","message":{"content":"<command-name>/clear</command-name>"}}`,
+		`{"type":"assistant","timestamp":"2026-11-15T10:00:05Z","message":{"content":[{"type":"thinking","thinking":"secret"},{"type":"text","text":"Looking at search.go"},{"type":"tool_use","name":"Bash","input":{"command":"grep -n search"}}]}}`,
+		`{"type":"user","message":{"content":[{"type":"tool_result","content":[{"type":"text","text":"search.go:1: package"}]}]}}`,
+		`{"type":"user","message":{"content":[{"type":"text","text":"<pasted_content>long paste</pasted_content> and more"}]}}`,
+		`{"type":"summary","summary":"user said search"}`,
+	)
+	ms := Messages(p)
+	type want struct {
+		r Role
+		s string
+	}
+	exp := []want{
+		{RoleYou, "find the bug in search"},
+		{RoleAgent, "Looking at search.go"},
+		{RoleTool, "Bash: grep -n search"},
+		{RoleTool, "search.go:1: package"},
+		{RoleYou, "<pasted_content>long paste</pasted_content> and more"},
+	}
+	if len(ms) != len(exp) {
+		t.Fatalf("got %d messages: %+v", len(ms), ms)
+	}
+	for i, e := range exp {
+		if ms[i].Role != e.r || ms[i].Text != e.s {
+			t.Errorf("msg %d = %v %q, want %v %q", i, ms[i].Role, ms[i].Text, e.r, e.s)
+		}
+	}
+	if ms[0].At.IsZero() {
+		t.Error("timestamp not parsed")
+	}
+
+	// appended lines are read incrementally; a half-written line waits
+	f, _ := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0)
+	_, _ = f.WriteString(`{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}` + "\n" + `{"type":"assistant","mess`)
+	f.Close()
+	ms = Messages(p)
+	if len(ms) != 6 || ms[5].Text != "done" {
+		t.Fatalf("after append: %d messages, last %q", len(ms), ms[len(ms)-1].Text)
+	}
+}
+
+func TestSearch(t *testing.T) {
+	a := writeTranscript(t,
+		`{"type":"user","timestamp":"2026-11-15T09:00:00Z","message":{"content":"deploy the server"}}`,
+		`{"type":"assistant","timestamp":"2026-11-15T09:01:00Z","message":{"content":[{"type":"text","text":"Server deployed"},{"type":"tool_use","name":"Bash","input":{"command":"ssh server deploy"}}]}}`,
+	)
+	b := writeTranscript(t,
+		`{"type":"user","timestamp":"2026-11-15T11:00:00Z","message":{"content":"is the SERVER up? deploy again"}}`,
+	)
+	srcs := []Source{{"a", a}, {"b", b}, {"c", ""}}
+
+	res := Search(srcs, ParseQuery("server deploy"), false, 10)
+	if len(res) != 2 || res[0].ID != "b" || res[1].ID != "a" {
+		t.Fatalf("order: %+v", res)
+	}
+	if res[1].Total != 2 || res[1].Hits[0].Msg.Role != RoleAgent { // newest first, tool call left out
+		t.Fatalf("session a: %+v", res[1])
+	}
+	if got := Search(srcs, ParseQuery("ssh"), false, 10); len(got) != 0 {
+		t.Fatalf("tool output searched without tools: %+v", got)
+	}
+	if got := Search(srcs, ParseQuery("ssh"), true, 10); len(got) != 1 || got[0].Hits[0].Msg.Role != RoleTool {
+		t.Fatalf("tools on: %+v", got)
+	}
+	if got := Search(srcs, ParseQuery("server"), false, 1); got[1].Total != 2 || len(got[1].Hits) != 1 {
+		t.Fatalf("limit: %+v", got[1])
+	}
+}
+
+// Real data: every listed session (skipped unless REGIA_REAL_SEARCH is set to a query).
+func TestSearchRealData(t *testing.T) {
+	qs := os.Getenv("REGIA_REAL_SEARCH")
+	if qs == "" {
+		t.Skip("set REGIA_REAL_SEARCH")
+	}
+	b, err := FetchAgents()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var srcs []Source
+	for _, a := range ParseAgents(b) {
+		Enrich(a)
+		srcs = append(srcs, Source{a.ID, TranscriptPath(a)})
+	}
+	for _, tools := range []bool{false, true} {
+		for round := range 2 {
+			t0 := time.Now()
+			res := Search(srcs, ParseQuery(qs), tools, 200)
+			n := 0
+			for _, r := range res {
+				n += r.Total
+			}
+			t.Logf("tools=%v round %d: %d sessions searched, %d hits in %d, %v", tools, round, len(srcs), n, len(res), time.Since(t0))
+		}
+	}
+}

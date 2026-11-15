@@ -72,7 +72,7 @@ func TestArchiveOne(t *testing.T) {
 			t.Fatal("archived agent in the inbox")
 		}
 	}
-	m.Update(tkey("tab"))
+	m.Update(tkey("shift+tab")) // back to the tree
 	m.Update(tkey("A"))
 	if !inTree(m, "aaaa0001") {
 		t.Fatal("A should show archived agents")

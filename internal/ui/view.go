@@ -152,6 +152,9 @@ func (m *model) View() string {
 		if m.opts.Filter != "" {
 			msg = "nothing matches /" + m.opts.Filter
 		}
+		if m.view == viewSearch {
+			msg = m.searchEmpty()
+		}
 		left = append(left, stDim.Render("  "+msg))
 	}
 	for len(left) < bh {
@@ -160,7 +163,11 @@ func (m *model) View() string {
 
 	var right []string
 	if dw > 20 {
-		right = m.placePanel(m.detailLines(dw), bh, dw)
+		if m.view == viewSearch {
+			right = m.placePanel(m.searchPanel(dw, bh), bh, dw)
+		} else {
+			right = m.placePanel(m.detailLines(dw), bh, dw)
+		}
 	}
 	margin := strings.Repeat(" ", padX)
 	sep := strings.Repeat(" ", gap/2) + stDim.Render("│") + strings.Repeat(" ", gap-gap/2-1)
@@ -215,7 +222,7 @@ func (m *model) header() string {
 			nbusy++
 		}
 	}
-	tabs := []string{"tree", "inbox"}
+	tabs := []string{"tree", "inbox", "search"}
 	for i, t := range tabs {
 		if viewKind(i) == m.view {
 			tabs[i] = stAccent.Render("[" + t + "]")
@@ -236,7 +243,7 @@ func (m *model) header() string {
 			s += "  " + stDim.Render(arch)
 		}
 	}
-	if m.opts.Filter != "" {
+	if m.opts.Filter != "" && m.view != viewSearch {
 		s += "  " + stAccent.Render("/"+m.opts.Filter)
 	}
 	if m.updateNote != "" {
@@ -263,6 +270,9 @@ func (m *model) footer() string {
 		}
 	}
 	status := pad(strings.Repeat(" ", padX)+trunc(line1, m.w-2*padX), m.w)
+	if m.mode == modeNormal && m.view == viewSearch {
+		status = pad(strings.Repeat(" ", padX)+m.searchLine(m.w-2*padX), m.w)
+	}
 	if m.dirPickRows() > 0 {
 		status += "\n" + m.dirPickView()
 	} else if pop := m.compView(); pop != "" {
@@ -282,6 +292,9 @@ func (m *model) rowHeight() int {
 
 // renderRow draws a row as rowHeight lines.
 func (m *model) renderRow(r layout.Row, w int) []string {
+	if m.view == viewSearch {
+		return []string{m.searchRowLine(r, w)}
+	}
 	line := m.rowLine(r, w)
 	if m.rowHeight() == 1 {
 		return []string{line}

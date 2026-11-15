@@ -18,6 +18,8 @@ func tkey(s string) tea.KeyMsg {
 		return tea.KeyMsg{Type: tea.KeyDown}
 	case "tab":
 		return tea.KeyMsg{Type: tea.KeyTab}
+	case "shift+tab":
+		return tea.KeyMsg{Type: tea.KeyShiftTab}
 	case "up":
 		return tea.KeyMsg{Type: tea.KeyUp}
 	case "alt+up":

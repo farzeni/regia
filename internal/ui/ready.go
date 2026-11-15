@@ -57,7 +57,7 @@ func (m *model) markSeen(id string, now time.Time) {
 // dwell marks the selected agent seen once it stayed selected seenAfter.
 func (m *model) dwell(now time.Time) {
 	r := m.selected()
-	if r == nil || r.Agent == nil {
+	if r == nil || r.Agent == nil || m.view == viewSearch { // a search hit is not the session's latest result
 		m.dwellID = ""
 		return
 	}

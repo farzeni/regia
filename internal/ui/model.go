@@ -1,5 +1,5 @@
 // Package ui is regia's terminal interface (bubbletea): the tree and inbox
-// views, the detail panel, the always-on input and the key handling.
+// and search views, the detail panel, the always-on input and the key handling.
 package ui
 
 import (
@@ -20,6 +20,8 @@ type viewKind int
 const (
 	viewTree viewKind = iota
 	viewInbox
+	viewSearch
+	viewCount // how many views tab cycles through
 )
 
 type mode int
@@ -44,6 +46,7 @@ type model struct {
 
 	view viewKind
 	opts layout.ViewOpts
+	srch searchState // the search view
 	help bool
 
 	mode         mode
@@ -199,6 +202,8 @@ func (m *model) rebuild() {
 			}
 			m.rows = append(m.rows, layout.Row{ID: a.ID, Agent: a, Title: t, Where: m.layout.Trail(a.ID, m.agents)})
 		}
+	} else if m.view == viewSearch {
+		m.searchRows()
 	} else {
 		m.rows = m.layout.Flatten(m.agents, m.opts)
 	}
@@ -245,7 +250,7 @@ func (m *model) selected() *layout.Row {
 
 func (m *model) loadDetail() {
 	r := m.selected()
-	if r == nil || r.Agent == nil || r.Agent.Interactive {
+	if r == nil || r.Agent == nil || r.Agent.Interactive || m.view == viewSearch { // search draws its own panel
 		m.hist, m.histFor = claude.History{}, ""
 		return
 	}

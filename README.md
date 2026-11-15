@@ -69,7 +69,7 @@ regia update     # update now; it also happens on its own once a day
 regia uninstall  # remove the plugin and the binary
 ```
 
-The screen has two views, switched with `tab`:
+The screen has three views: `tab` goes tree → inbox → search, `shift+tab` goes back.
 
 - **tree** — every agent, organized. Each row shows state (● waiting for you,
   ✓ ready, ◆ busy, ✗ failed; see below), name and age; folded groups show how
@@ -81,6 +81,19 @@ The screen has two views, switched with `tab`:
   results to read, then stale questions; most recent first in each. Each item
   takes two lines: the agent, then the group (and coordinator) it sits under
   and what it is asking.
+- **search** — looks inside every session's conversation, not just names:
+  what you type is matched against your messages and the agents' replies in
+  every listed session (archived and finished ones too). The list shows each
+  session with a match, newest first, followed by its matching messages (who
+  wrote it, when, and the line around the match, highlighted); the right
+  panel shows the selected message in context with the messages around it.
+  Several words must all appear in the same message, in any case; `"quoted
+  words"` match as a phrase. `ctrl+t` also searches tool calls and their
+  output. Keys type into the search, so: `↑/↓` move, `ctrl+↑/↓` jump between
+  sessions, `←/→` fold a session's matches, `enter` attaches, `pgup/pgdn`
+  scroll the panel, `esc` clears the search and, again, goes back to the tree
+  on that session. The transcripts are read once (a few hundred ms) and then
+  only what was appended, so searching is instant after that.
 
 What the states mean. Claude Code marks a session *done* whenever a turn ends
 with a result, which for a conversation is after every reply, not when the
@@ -144,7 +157,7 @@ so a second `enter` attaches to it.
 | Key | Action |
 |---|---|
 | `enter` | attach to the session (`←` inside it comes back) |
-| `tab` | tree ⇄ inbox |
+| `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's history back / forward |
 | `b` | jump to the next agent whose turn is yours (waiting or ready) |
