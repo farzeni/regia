@@ -74,6 +74,7 @@ type model struct {
 	lw, vis  int
 	dragging bool // dragging the divider to resize the list
 
+	fullHist    bool   // t: the panel shows the whole conversation, not the compact history
 	panelScroll int    // lines the panel's history is scrolled back (pgup/pgdn)
 	panelFor    string // the row panelScroll belongs to
 

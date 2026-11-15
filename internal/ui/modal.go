@@ -42,6 +42,7 @@ var helpSections = []helpSection{
 		{"g / G", "top / bottom"},
 		{"ctrl+d / u", "half page down / up"},
 		{"pgup / pgdn", "scroll the panel"},
+		{"t", "whole conversation / compact"},
 		{"b", "next agent waiting for you"},
 		{"tab / shift+tab", "tree → inbox → search"},
 		{"Z", "snooze a question"},

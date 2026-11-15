@@ -76,7 +76,12 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   many agents are inside and how many are your turn. The right panel shows the selected agent
   and reads bottom-up, like a chat: its state and what it is asking sit at the
   bottom, above them the task and git status, and above those its history
-  grouped by your messages, newest last (`pgup`/`pgdn` scroll back).
+  grouped by your messages, newest last (`pgup`/`pgdn` scroll back). Under
+  that history, right above the card, the agent's latest reply is shown in
+  full, its markdown rendered; when it's longer than the panel, the panel opens
+  at its start (`pgdn` reads on). `t` swaps the history for the whole
+  conversation: your messages and the agent's replies in full, tool calls
+  left out (`t` again goes back).
 - **inbox** — what is waiting for you today: questions first, then results
   to read; most recent first in each. Each item takes two lines: the agent,
   then the group (and coordinator) it sits under and what it is asking.
@@ -165,6 +170,7 @@ so a second `enter` attaches to it.
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's history back / forward |
+| `t` | the panel shows the whole conversation, rendered / back to the compact history |
 | `b` | jump to the next agent whose turn is yours (waiting or ready) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `o` | show the session's terminal output |

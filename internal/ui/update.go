@@ -265,6 +265,14 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 				break
 			}
 		}
+	case "t":
+		m.fullHist = !m.fullHist
+		m.panelFor = "" // open on the latest reply again
+		if m.fullHist {
+			m.flash("whole conversation · pgup/pgdn scroll · t: compact history")
+		} else {
+			m.flash("compact history · t: whole conversation")
+		}
 	case "z":
 		if m.view == viewInbox {
 			m.earlierKey("z")

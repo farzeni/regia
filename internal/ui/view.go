@@ -469,6 +469,10 @@ func wrap(s string, w int) []string {
 type panel struct {
 	hist, card []string
 	bottomUp   bool
+	// top is the line of hist to open on when the row is first shown and
+	// the history doesn't fit (the start of the latest reply, so it reads
+	// top-down); 0 = the bottom, as usual
+	top int
 }
 
 func (p panel) lines() []string { return append(append([]string{}, p.hist...), p.card...) }
@@ -480,7 +484,8 @@ func (m *model) placePanel(p panel, h, w int) []string {
 	if !p.bottomUp {
 		return p.card[:min(h, len(p.card))]
 	}
-	if m.panelFor != m.cursorID {
+	fresh := m.panelFor != m.cursorID
+	if fresh {
 		m.panelFor, m.panelScroll = m.cursorID, 0
 	}
 	card := p.card
@@ -491,6 +496,9 @@ func (m *model) placePanel(p panel, h, w int) []string {
 		card = card[len(card)-h:]
 	}
 	room := h - len(card)
+	if fresh && p.top > 0 {
+		m.panelScroll = max(0, len(p.hist)-p.top-room)
+	}
 	m.panelScroll = max(0, min(m.panelScroll, len(p.hist)-room))
 	end := len(p.hist) - m.panelScroll
 	start := max(0, end-room)
@@ -544,11 +552,11 @@ func (m *model) detailLines(w int) panel {
 		}
 		return panel{card: out}
 	}
-	hist, card := m.agentDetail(r, w)
+	hist, card, top := m.agentDetail(r, w)
 	if r.HasKids { // a coordinator: its agents' shared notes above its card
 		if ns := m.notesSection(r.ID, w, 5); len(ns) > 0 {
 			card = append(ns[1:], append([]string{""}, card...)...)
 		}
 	}
-	return panel{hist: hist, card: card, bottomUp: true}
+	return panel{hist: hist, card: card, bottomUp: true, top: top}
 }

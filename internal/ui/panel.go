@@ -16,7 +16,10 @@ import (
 // chat: the history (oldest to newest, grouped by your messages) scrolls above
 // a card pinned at the bottom whose last line is the agent's state, right
 // above the input. Reading up from there: state, what it asks, context, past.
-func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string) {
+//
+// top is where the latest reply starts in hist (0 if none): the panel opens
+// there when the history doesn't fit.
+func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int) {
 	a := r.Agent
 	var h claude.History
 	if m.histFor == r.ID {
@@ -136,7 +139,13 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string) {
 		for _, l := range strings.Split(strings.TrimRight(m.logs, "\n"), "\n") {
 			hist = append(hist, trunc(l, w))
 		}
-		return hist, card
+		return hist, card, 0
+	}
+
+	// ── the whole conversation (t) replaces the history
+	if m.fullHist {
+		hist, top = conversationLines(a, w)
+		return hist, card, top
 	}
 
 	// ── history: oldest to newest (the newest right above the card), day separators
@@ -188,7 +197,12 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string) {
 	if len(h.Turns) == 0 && !a.Interactive {
 		out = append(out, stDim.Render("no history yet"))
 	}
-	return out, card
+	// ── the latest reply in full, right above the card: what you'd attach to read
+	if msg := latestReply(a); msg != nil {
+		top = len(out)
+		out = append(out, replyLines(msg, w)...)
+	}
+	return out, card, top
 }
 
 // maxTurns caps how far back the panel scrolls (the transcript has them all).

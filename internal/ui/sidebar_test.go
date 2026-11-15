@@ -224,7 +224,7 @@ func TestYourMessagesTinted(t *testing.T) {
 	m.hist, m.histFor = claude.History{Turns: []claude.Turn{{
 		User: &claude.HEntry{At: at, Detail: "my message"}, Results: []claude.HEntry{{At: at, State: "done", Detail: "agent reply"}}, LastAt: at,
 	}}}, r.ID
-	hist, _ := m.agentDetail(r, 60)
+	hist, _, _ := m.agentDetail(r, 60)
 	fg := "\x1b[38;5;183m"
 	for _, l := range hist {
 		if strings.Contains(l, "\x1b[48;") {

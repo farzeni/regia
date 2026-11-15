@@ -476,20 +476,12 @@ func (m *model) searchPanel(w, h int) panel {
 	for _, i := range idx {
 		msg := msgs[i]
 		mine := i == hit.Index
-		head := roleStyle(msg.Role).Bold(mine).Render("▸ "+roleTag[msg.Role]) + " " + stDim.Render(clock(msg.At))
+		head := messageHead(msg, mine)
 		if len(body) > 0 {
 			body = append(body, "")
 		}
 		body = append(body, head)
-		// the agent writes markdown: render it; your messages and tool output
-		// are plain text, where every line break counts
-		md := msg.Role == claude.RoleAgent
-		var lines []string
-		if md {
-			lines = renderMarkdown(msg.Text, max(10, w-2))
-		} else {
-			lines = wrap(strings.TrimRight(msg.Text, "\n"), max(10, w-2))
-		}
+		lines, md := messageLines(msg, max(10, w-2))
 		if !mine {
 			if len(lines) > 4 { // neighbours: a glimpse
 				lines = append(lines[:4:4], "…")
