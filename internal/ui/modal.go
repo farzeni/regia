@@ -45,8 +45,9 @@ var helpSections = []helpSection{
 		{"s", "stop (conversation kept)"},
 		{"x", "remove from list (claude rm)"},
 		{"a", "show / hide finished"},
+		{"f", "pin (stays when done) / unpin"},
 		{"e  A", "archive (group: all) / show it"},
-		{"v", "select: space *, then e x m n"},
+		{"v", "select: space *, then e x m n f"},
 		{"esc  ctrl+c", "quit (with nothing to clear)"},
 	}},
 	{"organize  (~/.config/regia/layout.json)", [][2]string{

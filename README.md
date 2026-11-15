@@ -92,6 +92,12 @@ press `a` (the one you're reading stays until you move away). A question left
 unanswered for over a day is **stale** (grey ●): still listed, but not
 counted in "need you". What you've seen is remembered in `layout.json`.
 
+To keep a session in sight whatever its state, **pin** it with `f` (⚑ before
+its name): a pinned session stays in the tree after it's done and seen, until
+you press `f` again. `f` on a group pins all its agents (or unpins them, when
+they're all pinned already). The filter still applies to pinned sessions;
+archiving one drops its pin, and pinning an archived one brings it back.
+
 At the bottom is an always-on input (`i` focuses it): type a task and press `enter` to start a
 new background agent next to the selected one (inside it if it's a group, or
 with `C` to put it under a coordinator). `enter` on an empty input attaches to
@@ -157,9 +163,10 @@ so a second `enter` attaches to it.
 | `-` / `+` | list narrower / wider (or drag the divider; remembered) |
 | `/`, `esc` | filter by name, question, path or branch / clear |
 | `a` | show finished sessions you've already seen |
+| `f` | pin / unpin the agent (a group: all its agents): pinned ones stay listed when done |
 | `e` | archive the agent, or everything in a group except busy agents (asks first); on an archived agent, bring it back |
 | `A` | show / hide archived agents (dim) |
-| `v` | select mode: `space` marks a row (a group: all of it), `*` marks everything, then `e` archives or `x` removes them all, `m` picks them all up to move (`p` puts them down), `n` makes a new group of them; `esc` leaves |
+| `v` | select mode: `space` marks a row (a group: all of it), `*` marks everything, then `e` archives or `x` removes them all, `m` picks them all up to move (`p` puts them down), `n` makes a new group of them, `f` pins them (unpins, if all pinned); `esc` leaves |
 | `?` | help |
 
 The mouse works too: the wheel scrolls the list or the panel (whichever is

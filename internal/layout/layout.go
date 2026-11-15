@@ -31,6 +31,7 @@ type Layout struct {
 	Muted     map[string]bool      `json:"muted,omitempty"`    // group or coordinator -> left out of group awareness
 	Dirs      map[string]string    `json:"dirs,omitempty"`     // group -> directory new agents in it start in
 	Seen      map[string]time.Time `json:"seen,omitempty"`     // agent id -> when you last looked at it (nil: never recorded)
+	Pins      map[string]bool      `json:"pins,omitempty"`     // agent id -> pinned by you: shown even when done (Pinned above is placement)
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 
@@ -98,6 +99,9 @@ func Load() *Layout {
 	}
 	if l.Dirs == nil {
 		l.Dirs = map[string]string{}
+	}
+	if l.Pins == nil {
+		l.Pins = map[string]bool{}
 	}
 	return l
 }
@@ -234,13 +238,15 @@ type ViewOpts struct {
 	Keep         string // always shown (the selected agent, so it doesn't vanish while you read it)
 }
 
-func (o ViewOpts) Visible(a *claude.Agent, alias string) bool {
+// Visible reports whether an agent passes the filter and the done toggle. A
+// pinned agent stays even when done; the filter still applies to it.
+func (o ViewOpts) Visible(a *claude.Agent, alias string, pinned bool) bool {
 	if o.Filter != "" {
 		f := strings.ToLower(o.Filter)
 		hay := strings.ToLower(strings.Join([]string{a.Name, alias, a.ID, a.Cwd, a.Needs, a.Detail, a.Branch}, " "))
 		return strings.Contains(hay, f)
 	}
-	if !o.ShowDone && a.State == "done" && a.ID != o.Keep {
+	if !o.ShowDone && a.State == "done" && a.ID != o.Keep && !pinned {
 		return false
 	}
 	return true
@@ -274,7 +280,7 @@ func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 			}
 			row.Archived = l.IsArchived(id)
 			// archived: hidden unless shown (A) or searched for
-			selfVisible = o.Visible(a, l.Alias[id]) && (!row.Archived || o.ShowArchived || o.Filter != "")
+			selfVisible = o.Visible(a, l.Alias[id], l.Pins[id]) && (!row.Archived || o.ShowArchived || o.Filter != "")
 			if selfVisible {
 				count++
 				if a.YourTurn() {
@@ -312,11 +318,31 @@ func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 
 func (l *Layout) IsArchived(id string) bool { _, ok := l.Archived[id]; return ok }
 
-// Archive hides agents from regia's tree; Claude Code is not touched.
+// Archive hides agents from regia's tree; Claude Code is not touched. You
+// put them away, so they lose their pin.
 func (l *Layout) Archive(ids ...string) {
 	now := time.Now()
 	for _, id := range ids {
 		l.Archived[id] = now
+		delete(l.Pins, id)
+	}
+}
+
+// --- pins -------------------------------------------------------------------
+
+// SetPins pins (on) or unpins agents. A pinned agent stays in the tree when
+// it is done, like one still working; pinning an archived one brings it back.
+func (l *Layout) SetPins(on bool, ids ...string) {
+	if l.Pins == nil {
+		l.Pins = map[string]bool{}
+	}
+	for _, id := range ids {
+		if on {
+			l.Pins[id] = true
+			delete(l.Archived, id)
+		} else {
+			delete(l.Pins, id)
+		}
 	}
 }
 
