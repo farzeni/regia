@@ -81,7 +81,12 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   full, its markdown rendered; when it's longer than the panel, the panel opens
   at its start (`pgdn` reads on). `t` swaps the history for the whole
   conversation: your messages and the agent's replies in full, tool calls
-  left out (`t` again goes back).
+  left out (`t` again goes back). `D` swaps it for the agent's changes: the git
+  diff of its directory against where it branched off the repo's default
+  branch (main/master), uncommitted changes included, with the changed files
+  and their +/- counts on top; `pgup`/`pgdn` scroll, `D` or `esc` goes back.
+  It's computed in the background and kept until the agent commits or edits
+  something; diffs over 5000 lines are cut, with a note saying how much.
 - **inbox** — what is waiting for you today: questions first, then results
   to read; most recent first in each. Each item takes two lines: the agent,
   then the group (and coordinator) it sits under and what it is asking.
@@ -174,6 +179,7 @@ so a second `enter` attaches to it.
 | `b` | jump to the next agent whose turn is yours (waiting or ready) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `o` | show the session's terminal output |
+| `D` | the panel shows the agent's git diff against the default branch (uncommitted changes too) / back (`esc` too) |
 | `i` / `c` / `C` | type a new task; `C` starts it inside the selection |
 | `s` | stop the session (conversation kept) |
 | `x` | remove from the list (`claude rm`: worktree deleted if safe, conversation kept; refuses over unpushed commits) |

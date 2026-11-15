@@ -138,6 +138,11 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card []string, top int)
 	}
 	card = append(card, head, meta)
 
+	// ── the agent's git diff (D) replaces the history
+	if dl, ok := m.diffHist(a, r.ID, w); ok {
+		return dl, card, 0
+	}
+
 	// ── terminal output (o) replaces the history
 	if m.logsFor == r.ID && m.logs != "" {
 		hist = append(hist, stHead.Render("terminal  (o)"))

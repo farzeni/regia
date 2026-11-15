@@ -91,6 +91,10 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		return m, m.updateMouse(msg)
 
+	case diffMsg:
+		m.gotDiff(msg)
+		return m, nil
+
 	case logsMsg:
 		if msg.id == m.cursorID {
 			m.logs, m.logsFor = msg.out, msg.id
@@ -330,7 +334,11 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 	case "/":
 		m.filterBefore = m.opts.Filter
 		m.prompt("/", m.opts.Filter, func(m *model, s string) tea.Cmd { m.opts.Filter = s; m.rebuild(); return nil })
-	case "esc": // clear what's active (filter, a move); with nothing to clear, quit
+	case "esc": // clear what's active (diff view, filter, a move); with nothing to clear, quit
+		if m.dv.on {
+			m.closeDiff()
+			return nil
+		}
 		if m.opts.Filter == "" && m.cut == nil {
 			return tea.Quit
 		}
@@ -395,6 +403,8 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 			_ = copyClipboard(r.Agent.SessionID)
 			m.flash("copied session id %s", r.Agent.SessionID)
 		}
+	case "D": // the panel shows the agent's git diff / back
+		return m.diffKey(r)
 	case "o":
 		if r != nil && r.Agent != nil && !r.Agent.Interactive {
 			id := r.ID

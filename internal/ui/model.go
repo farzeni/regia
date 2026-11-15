@@ -103,6 +103,7 @@ type model struct {
 	histFor string
 	logs    string
 	logsFor string
+	dv      diffView // D: the panel shows the agent's git diff
 
 	fetching  bool
 	fetchErr  error
@@ -292,6 +293,9 @@ func (m *model) moveCursor(d int) {
 	m.panelScroll = 0
 	if m.logsFor != m.cursorID {
 		m.logs, m.logsFor = "", ""
+	}
+	if m.dv.on && m.dv.id != m.cursorID {
+		m.dv = diffView{}
 	}
 	m.loadDetail()
 }

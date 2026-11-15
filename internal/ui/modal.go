@@ -19,6 +19,7 @@ var helpSections = []helpSection{
 	{"sessions", [][2]string{
 		{"enter", "attach (detach to come back)"},
 		{"o", "terminal output (logs)"},
+		{"D", "git diff vs main / back"},
 		{"y / Y", "copy reply / session id"},
 		{"s", "stop (conversation kept)"},
 		{"x", "remove (claude rm)"},
