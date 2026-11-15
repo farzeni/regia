@@ -101,6 +101,9 @@ def refresh(inp, cwd):
         head += " · conflicts"
         st = "error"
     fields.append({"label": "pr", "text": head, "status": st, "url": pr["url"]})
+    if state in ("merged", "closed"):
+        # done: just the PR line, no CI badge, alarms or actions; it never changes
+        return {"fields": fields, "every": "never"}
 
     # ── CI progress
     passed, running, failed, run_ids, _, total = checks(pr["statusCheckRollup"])
@@ -165,10 +168,8 @@ def refresh(inp, cwd):
         why.append("changes requested by " + ", ".join(changes))
     if why:
         out["attention"] = " · ".join(why)
-    # poll faster while CI runs; a finished PR never changes
-    if state in ("merged", "closed"):
-        out["every"] = "never"
-    elif running:
+    # poll faster while CI runs
+    if running:
         out["every"] = "20s"
     return out
 
