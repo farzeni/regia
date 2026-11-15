@@ -25,7 +25,7 @@ func (m *model) inboxRows(now time.Time) []layout.Row {
 		keep := a.ID == m.opts.Keep // the one you're reading stays until you move away
 		// finished, but its PR fails CI or has changes requested: listed even
 		// when done-and-seen agents are hidden from the tree
-		pr := prNeedsLook(a) && !m.layout.IsArchived(a.ID) && (m.opts.Filter == "" || m.shown(a.ID))
+		pr := needsLook(a) && !m.layout.IsArchived(a.ID) && (m.opts.Filter == "" || m.shown(a.ID))
 		if !pr && (!(a.State == "blocked" || a.State == "ready" || stuck(a) || keep) || !m.shown(a.ID) || (a.Snoozed && !keep)) {
 			continue
 		}

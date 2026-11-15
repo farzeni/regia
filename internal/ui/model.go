@@ -29,7 +29,8 @@ const (
 	modeNormal mode = iota
 	modeInput
 	modeConfirm
-	modeDir // the directory picker (ctrl+o, w)
+	modeDir  // the directory picker (ctrl+o, w)
+	modeMenu // the ! menu: plugin actions and links
 )
 
 type model struct {
@@ -56,6 +57,8 @@ type model struct {
 	confirmKey   string // the action's key: pressed again, it confirms
 	confirmDo    func(m *model) tea.Cmd
 	filterBefore string
+	menu         []menuItem // the ! menu's items while modeMenu
+	menuTitle    string
 
 	cut []string // nodes picked up with m, put with p / P
 

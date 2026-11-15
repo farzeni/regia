@@ -107,6 +107,8 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string, to
 		field("links", strings.Join(ids, "  ")+"   "+a.PRs[len(a.PRs)-1].Href, stDim, 1)
 	}
 
+	pluginFields(a, field)
+
 	if a.Unhealthy != "" {
 		field("stuck?", stuckGlyph+" "+a.Unhealthy, lipgloss.NewStyle().Foreground(cDim), 1)
 	}
