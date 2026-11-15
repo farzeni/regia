@@ -271,7 +271,7 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		m.typing = false
-		m.flash("command keys (j/k, J/K, s, x, …) — i to type again, esc quits")
+		m.flash("esc again quits")
 		return nil
 	case "ctrl+c":
 		if !empty {
@@ -323,7 +323,7 @@ func (m *model) inputBox() string {
 		lines = []string{lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("◉ select · %d marked", len(m.markedIDs()))) +
 			stDim.Render(" — space mark (group: all) · * all · e archive · x remove · esc done")}
 	} else if !m.typing {
-		lines = []string{stDim.Render("❯ command keys — i to type a new task")}
+		lines = []string{stDim.Render("❯ i to type a new task")}
 	} else {
 		border = cAccent
 		_, _, cwd, where, _ := m.spawnTarget()

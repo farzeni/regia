@@ -20,7 +20,7 @@ var helpSections = []helpSection{
 		{"paste", "long: [Pasted text #n]"},
 		{"↑/↓  ctrl+↑/↓", "select (= where it goes)"},
 		{"enter (empty)", "attach (← comes back)"},
-		{"esc", "clear · command keys · quit"},
+		{"esc", "clear · leave the input · quit"},
 		{"alt+⌫ ctrl+w", "delete word (alt+d: next)"},
 		{"ctrl+a/e alt+←→", "line start, end / by word"},
 		{"ctrl+k / ctrl+u", "cut to end / start"},

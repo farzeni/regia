@@ -46,7 +46,7 @@ func TestViewFrames(t *testing.T) {
 	}
 	m.Update(tkey("esc"))
 	m.Update(tkey("esc"))
-	if ls := check("command"); !strings.Contains(ls[n-2], "command keys") {
+	if ls := check("command"); !strings.Contains(ls[n-2], "i to type a new task") {
 		t.Fatalf("command mode hint: %q", ls[n-2])
 	}
 	m.Update(tkey("?"))
