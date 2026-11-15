@@ -4,8 +4,14 @@ A regia plugin is a script that regia runs for each agent. The script gets
 the agent's details as JSON on stdin and prints JSON on stdout. regia shows
 what it prints in four places:
 
-- **fields**: lines on the agent's card in the right panel, e.g.
-  `jira    PROJ-482 · In Review`
+- **fields**: lines in the plugin's own bordered card on the agent's panel:
+
+  ```
+  ╭─ jira ─────────────────────────────── ! actions ─╮
+  │ ticket   PROJ-482 · In Review                     │
+  │ sprint   Sprint 42 · 3 days left                  │
+  ╰───────────────────────────────────────────────────╯
+  ```
 - **badge**: one or two characters on the agent's row in the list, e.g. `J`
 - **attention**: a reason to put the agent in the inbox even though it isn't
   waiting on you, e.g. "PR open but ticket still In Progress"
@@ -102,10 +108,10 @@ Each run is one process for one agent, from start to exit. Nothing stays
 running between runs. Results are cached in memory per plugin and agent, so a
 restart of regia runs everything again.
 
-**Failures:** a non-zero exit, a timeout, or stdout that isn't JSON. The card
-then shows a dim line with the last line of stderr, e.g.
-`jira    ⚠ jira: exit status 1: not logged in`, and keeps showing the last good
-fields above it. A plugin that keeps failing is retried less and less often,
+**Failures:** a non-zero exit, a timeout, or stdout that isn't JSON. The
+plugin's card then shows a dim line at its bottom with the last line of
+stderr, e.g. `⚠ exit status 1: not logged in`, and keeps showing the last
+good fields above it. A plugin that keeps failing is retried less and less often,
 doubling the interval each time up to 30 minutes, so a broken plugin doesn't
 flood your APIs.
 
@@ -218,13 +224,17 @@ output means "nothing to show for this agent", which is valid and common.
 
 ### fields
 
-Lines on the card, shown after the git and PR lines, in the order you give
-them. At most 8 per plugin; the rest are dropped.
+Lines in the plugin's card, in the order you give them. At most 8 per plugin;
+the rest are dropped. Each plugin gets its own bordered card below regia's
+git and PR lines, titled with the plugin's directory name. The title turns
+amber or red when a field is `warn` or `error`, and shows `! actions` on the
+right when the plugin offers actions. A plugin with no fields for an agent
+draws no card.
 
 | key | meaning |
 |---|---|
 | `text` | The line. Wrapped to at most 2 lines, then cut. Keep it short: lead with what matters, put details after ` · `. |
-| `label` | The dim label on the left. Cut to 7 characters; defaults to the manifest's `label`. |
+| `label` | The dim label on the left. Cut to 10 characters; the label column is as wide as the card's longest label. Defaults to the manifest's `label`. |
 | `status` | Color: `ok` (green), `warn` (amber), `error` (red), `dim` (gray), or omitted (plain). Use `error` only for things that need action. |
 | `url` | Shown after the text, and offered as "open …" in the `!` menu (opens in the browser). |
 
@@ -312,8 +322,9 @@ one twice.
    `git.branch` and `agent.intent` instead of asking `gh` or `git` again.
 7. **Handle partial input.** `git`, `pr` and `last` can be `null`, and any
    string can be empty. Interactive sessions have most job fields empty.
-8. **Keep text terse.** The panel is often 60–90 columns wide, and the label
-   column takes 8. Use fragments, not sentences.
+8. **Keep text terse.** The panel is often 60–90 columns wide; the card's
+   border and your label column take about 15 of them. Short labels (`ci`,
+   `ticket`) leave more room. Use fragments, not sentences.
 9. **Use `attention` sparingly.** If everything is attention, the inbox is
    useless. Set it only when the user should act now.
 
