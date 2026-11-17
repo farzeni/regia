@@ -324,10 +324,11 @@ func yourBubble(msg *claude.Msg, w int) []string {
 	return out
 }
 
-// agentLines is one of the agent's replies: the head, then its markdown.
-func agentLines(msg *claude.Msg, w int) []string {
+// agentLines is one of the agent's replies: the head, then its markdown
+// (paths and URLs linked when links are on; relative paths are in dir).
+func agentLines(msg *claude.Msg, w int, dir string) []string {
 	out := []string{messageHead(*msg, false)}
-	for _, l := range renderMarkdown(msg.Text, max(10, w-2)) {
+	for _, l := range agentMarkdown(msg.Text, max(10, w-2), dir) {
 		out = append(out, "  "+l)
 	}
 	return out
@@ -439,7 +440,7 @@ func drawConv(c stepCtx, es []claude.Entry, open map[string]bool, w int) ([]stri
 			if msg.Role == claude.RoleYou {
 				ls = yourBubble(msg, cw)
 			} else {
-				ls = agentLines(msg, cw)
+				ls = agentLines(msg, cw, c.a.Cwd)
 			}
 			add(convBlock{kind: blockMsg, key: msgKey(msg), msg: msg}, ls)
 			i++

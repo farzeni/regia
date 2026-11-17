@@ -12,11 +12,16 @@ import (
 
 // Run opens the full-screen control room.
 func Run() error {
+	var oerr error
+	openers, oerr = loadOpeners()
 	m := newModel()
 	if e := recoverDrafts(); e != nil { // a regia that died while you typed
 		m.showEntry(*e)
 		m.typing = true
 		m.flash("brought back what you were typing when regia closed · esc clears it (pgup brings it back)")
+	}
+	if oerr != nil { // a mistake in openers.conf: say so, open with the defaults
+		m.flash("openers: %v", oerr)
 	}
 	final, err := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 	if fm, ok := final.(*model); ok && fm != nil {
