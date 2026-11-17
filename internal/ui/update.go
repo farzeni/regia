@@ -250,6 +250,11 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) updateInput(k tea.KeyMsg) tea.Cmd {
+	if m.inputPrompt == "/" {
+		if c, ok := m.filterKey(k); ok {
+			return c
+		}
+	}
 	switch k.Type {
 	case tea.KeyEsc, tea.KeyCtrlC:
 		m.mode = modeNormal
