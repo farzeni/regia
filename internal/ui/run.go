@@ -12,7 +12,18 @@ import (
 
 // Run opens the full-screen control room.
 func Run() error {
-	_, err := tea.NewProgram(newModel(), tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
+	m := newModel()
+	if e := recoverDrafts(); e != nil { // a regia that died while you typed
+		m.showEntry(*e)
+		m.typing = true
+		m.flash("brought back what you were typing when regia closed · esc clears it (↑ brings it back)")
+	}
+	final, err := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
+	if fm, ok := final.(*model); ok && fm != nil {
+		fm.finishDraft() // what's in the input goes into the history
+	} else {
+		m.finishDraft()
+	}
 	return err
 }
 

@@ -85,6 +85,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		m.ticks++
+		m.saveDraftFile() // what you type survives regia being killed
 		m.refresh()
 		m.dwell(time.Time(msg))
 		var cmds []tea.Cmd

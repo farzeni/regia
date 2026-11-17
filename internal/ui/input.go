@@ -222,6 +222,7 @@ func (m *model) expandPastes(s string) string {
 }
 
 func (m *model) clearDraft() {
+	m.inHist = nil
 	m.ta.Reset()
 	m.pastes, m.draftInside, m.draftDir, m.draftModel = nil, false, "", ""
 	m.comp, m.compShut = nil, ""
@@ -273,6 +274,10 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 				m.flash("%s no longer exists · ctrl+o picks another directory", tildify(cwd))
 				return nil
 			}
+			e := m.draftEntry()
+			if err := appendHist(e); err != nil {
+				m.flash("could not save the message in the history: %v", err)
+			}
 			cmd := m.spawn(task)
 			m.clearDraft()
 			m.typing = false // sent: keys go back to the list
@@ -281,7 +286,12 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 		return m.updateNormal(k) // empty: attach / fold, as in command mode
 	case "esc":
 		if !empty {
-			m.clearDraft()
+			if m.keepDraft() {
+				m.clearDraft()
+				m.flash("cleared · ↑ brings it back")
+			} else {
+				m.clearDraft()
+			}
 			return nil
 		}
 		m.typing = false
@@ -289,7 +299,12 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 		return nil
 	case "ctrl+c":
 		if !empty {
-			m.clearDraft()
+			if m.keepDraft() {
+				m.clearDraft()
+				m.flash("cleared · ↑ brings it back")
+			} else {
+				m.clearDraft()
+			}
 			return nil
 		}
 		return tea.Quit
@@ -305,8 +320,19 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 	case "ctrl+g":
 		m.openModelPick()
 		return nil
-	case "up", "down":
-		if !multi { // one line: arrows move the list; several: move in the text
+	case "up":
+		// ↑ on the first line: earlier messages (on a multi-line one brought
+		// back as it was, ↑ keeps going through them)
+		if m.ta.Line() == 0 || m.browsingUnchanged() {
+			m.histStep(-1)
+			return nil
+		}
+	case "down":
+		if m.inHist != nil && (m.ta.Line() == m.ta.LineCount()-1 || m.browsingUnchanged()) {
+			m.histStep(1)
+			return nil
+		}
+		if !multi { // one line: ↓ moves the list; several: move in the text
 			return m.updateNormal(k)
 		}
 	case "pgup", "pgdown", "tab", "shift+tab", "shift+up", "shift+down", "alt+up", "alt+down", "ctrl+up", "ctrl+down":
@@ -341,6 +367,9 @@ func (m *model) inputBox() string {
 			stDim.Render(" — space mark (group: all) · * all · e archive · x remove · f pin · esc done")}
 	} else if !m.typing {
 		lines = []string{stDim.Render("❯ i to type a new task")}
+		if d := strings.TrimSpace(m.draft()); d != "" {
+			lines = []string{stDim.Render("❯ i to go on with: ") + strings.ReplaceAll(d, "\n", " ⏎ ")}
+		}
 	} else {
 		border = cAccent
 		_, _, cwd, where, _ := m.spawnTarget()

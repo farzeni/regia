@@ -236,6 +236,15 @@ add a line. A paste longer than 3 lines or 800 characters folds to
 pastes from the clipboard the same way. A task is capped at 120 KiB; beyond
 that, put it in a file and point the agent to it.
 
+`↑` on the input's first line brings back earlier messages (newest first, with
+their pasted text and images); `↓` goes forward again and, past the newest,
+back to what you were typing. Edits you make while moving through them are kept
+until you send. Nothing you type is lost: what you send, what `esc` or `ctrl+c`
+clears, and what is in the input when regia quits all go into the history
+(`~/.config/regia/history.jsonl`, shared by every regia). The draft is also
+written to disk every second, so if regia is killed, the next one puts it back
+in the input.
+
 A word starting with `/` anywhere in the draft lists skills and commands (your
 own, the installed plugins' as `plugin:name`, the project's, and the
 built-ins); a word starting with `@` lists the files of the directory the agent

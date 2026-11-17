@@ -110,6 +110,8 @@ type model struct {
 	dirPick     *dirPicker  // the directory picker, when open
 	comp        *completion // the "/" skill or "@" file popup, when open
 	compShut    string      // the word esc closed the popup for
+	inHist      *inputHist  // moving through earlier messages (↑), when not nil
+	draftSaved  string      // the draft as last written to its file
 
 	draftModel string       // model picked for this task (ctrl+g); "" = claude's default
 	modelPick  *modelPicker // the model picker, when open
