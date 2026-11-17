@@ -31,10 +31,13 @@ const (
 
 // convBlock is a block as drawn: lines [top, top+n) of the conversation.
 type convBlock struct {
-	kind   blockKind
-	key    string // stable across redraws: fold state and the cursor follow it
-	msg    *claude.Msg
-	run    *convRun     // blockRun, and the run of a blockStep
+	kind blockKind
+	key  string // stable across redraws: fold state and the cursor follow it
+	msg  *claude.Msg
+	// the run of a blockRun or a blockStep; on a blockMsg, the run right
+	// before the agent's reply: one item, its lines from the run line through
+	// its steps (the step blocks sit inside it) to the reply's end
+	run    *convRun
 	step   *claude.Step // blockStep
 	top, n int
 }
@@ -458,33 +461,31 @@ func drawConv(c stepCtx, es []claude.Entry, open map[string]bool, w int) ([]stri
 		}
 		blocks = append(blocks, b)
 	}
-	// the agent's reply right after a run: its time goes at the end of the
-	// run line, and the reply follows it with no blank line
+	// the agent's reply right after a run (same day): the two are one item,
+	// the reply's time at the end of the run line, the reply right under it
 	replyAfter := func(i int) *claude.Msg {
-		if i < len(es) && es[i].Msg != nil && es[i].Msg.Role == claude.RoleAgent {
+		if i < len(es) && es[i].Msg != nil && es[i].Msg.Role == claude.RoleAgent && dayLabel(es[i].Msg.At) == lastDay {
 			return es[i].Msg
 		}
 		return nil
 	}
-	timed := false // the next reply's time is already on the run line
+	timeLine := func(msg *claude.Msg) []string {
+		if msg.At.IsZero() {
+			return nil
+		}
+		t := humanTime(msg.At)
+		return []string{strings.Repeat(" ", max(0, cw-len(t))) + stDim.Render(t)}
+	}
 	for i := 0; i < len(es); {
 		if msg := es[i].Msg; msg != nil {
 			day(msg.At)
+			out = append(out, "")
 			var ls []string
 			if msg.Role == claude.RoleYou {
-				out = append(out, "")
 				ls = yourBubble(msg, cw)
 			} else {
-				if !timed {
-					out = append(out, "")
-					if !msg.At.IsZero() {
-						t := humanTime(msg.At)
-						ls = append(ls, strings.Repeat(" ", max(0, cw-len(t)))+stDim.Render(t))
-					}
-				}
-				ls = append(ls, agentLines(msg, cw, c.a.Cwd)...)
+				ls = append(timeLine(msg), agentLines(msg, cw, c.a.Cwd)...)
 			}
-			timed = false
 			add(convBlock{kind: blockMsg, key: msgKey(msg), msg: msg}, ls)
 			i++
 			continue
@@ -496,32 +497,49 @@ func drawConv(c stepCtx, es []claude.Entry, open map[string]bool, w int) ([]stri
 		r.key = "run:" + r.steps[0].ID
 		day(r.steps[0].At)
 		out = append(out, "")
+		reply := replyAfter(i)
 		line := runLine(r, open[r.key], cw)
-		if reply := replyAfter(i); reply != nil && !reply.At.IsZero() && dayLabel(reply.At) == lastDay && cw-len(humanTime(reply.At)) >= 30 { // narrower: the reply's time on its own line
+		timed := false
+		if reply != nil && !reply.At.IsZero() && cw-len(humanTime(reply.At)) >= 30 { // narrower: the reply's time on its own line
 			t := humanTime(reply.At)
 			line = pad(runLine(r, open[r.key], max(1, cw-len(t)-2)), cw-len(t)) + stDim.Render(t)
 			timed = true
 		}
-		add(convBlock{kind: blockRun, key: r.key, run: r}, []string{line})
-		if !open[r.key] {
+		item := len(blocks) // the run's block, or the run + reply's
+		if reply != nil {
+			add(convBlock{kind: blockMsg, key: msgKey(reply), msg: reply, run: r}, []string{line})
+		} else {
+			add(convBlock{kind: blockRun, key: r.key, run: r}, []string{line})
+		}
+		if open[r.key] { // the unfolded steps, in a box
+			iw := max(4, cw-4)
+			side := stDim.Render("│")
+			boxed := func(l string) string { return side + " " + pad(l, iw) + " " + side }
+			out = append(out, " "+stDim.Render("╭"+strings.Repeat("─", iw+2)+"╮"))
+			for _, s := range r.steps {
+				k := kindOf(s)
+				ls := []string{boxed(k.line(c, s, iw))}
+				if open[s.ID] {
+					for _, l := range k.detail(c, s, iw-2) {
+						ls = append(ls, boxed("  "+l))
+					}
+				}
+				add(convBlock{kind: blockStep, key: s.ID, run: r, step: s}, ls)
+			}
+			out = append(out, " "+stDim.Render("╰"+strings.Repeat("─", iw+2)+"╯"))
+		}
+		if reply == nil {
 			continue
 		}
-		// the unfolded steps, in a box
-		iw := max(4, cw-4)
-		side := stDim.Render("│")
-		boxed := func(l string) string { return side + " " + pad(l, iw) + " " + side }
-		out = append(out, " "+stDim.Render("╭"+strings.Repeat("─", iw+2)+"╮"))
-		for _, s := range r.steps {
-			k := kindOf(s)
-			ls := []string{boxed(k.line(c, s, iw))}
-			if open[s.ID] {
-				for _, l := range k.detail(c, s, iw-2) {
-					ls = append(ls, boxed("  "+l))
-				}
-			}
-			add(convBlock{kind: blockStep, key: s.ID, run: r, step: s}, ls)
+		var ls []string
+		if !timed {
+			ls = timeLine(reply)
 		}
-		out = append(out, " "+stDim.Render("╰"+strings.Repeat("─", iw+2)+"╯"))
+		for _, l := range append(ls, agentLines(reply, cw, c.a.Cwd)...) {
+			out = append(out, " "+l)
+		}
+		blocks[item].n = len(out) - blocks[item].top // the item spans the run line, its steps, the reply
+		i++
 	}
 	if len(out) == 0 {
 		out = []string{stDim.Render("no conversation yet")}
@@ -588,14 +606,24 @@ func (m *model) selectConvBlock(i int) {
 // conversationLines returned it) and focuses the conversation; false when no
 // block is there (a blank line, a day separator).
 func (m *model) selectBlockAt(l int) bool {
-	for i, b := range m.conv.blocks {
-		if l >= b.top && l < b.top+b.n {
-			m.selectConvBlock(i)
-			m.convFocus = true
-			return true
-		}
+	if i := m.blockAtLine(l); i >= 0 {
+		m.selectConvBlock(i)
+		m.convFocus = true
+		return true
 	}
 	return false
+}
+
+// blockAtLine is the innermost block drawn at line l (a step inside a run +
+// reply item is the step), or -1.
+func (m *model) blockAtLine(l int) int {
+	at := -1
+	for i, b := range m.conv.blocks {
+		if l >= b.top && l < b.top+b.n {
+			at = i // the blocks inside an item come after it
+		}
+	}
+	return at
 }
 
 // convBlockAtRow is the block drawn at panel row y (0 = the panel's top), or
@@ -605,23 +633,22 @@ func (m *model) convBlockAtRow(y int) int {
 	if m.conv.id == "" || y < m.conv.histRow || l >= m.conv.histEnd {
 		return -1
 	}
-	for i, b := range m.conv.blocks {
-		if l >= b.top && l < b.top+b.n {
-			return i
-		}
-	}
-	return -1
+	return m.blockAtLine(l)
 }
 
 // toggleConv folds or unfolds a run or a step.
 func (m *model) toggleConv(b convBlock) {
-	if b.kind == blockMsg {
-		return
+	key := b.key
+	if b.kind == blockMsg { // a reply folds the run that comes with it
+		if b.run == nil {
+			return
+		}
+		key = b.run.key
 	}
 	st := m.convOf(m.conv.id)
-	st.open[b.key] = !st.open[b.key]
-	if !st.open[b.key] {
-		delete(st.open, b.key)
+	st.open[key] = !st.open[key]
+	if !st.open[key] {
+		delete(st.open, key)
 	}
 	st.ver++
 	st.sel = b.key

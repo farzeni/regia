@@ -98,8 +98,8 @@ func BenchmarkConv(b *testing.B) {
 	b.Run("open", func(b *testing.B) {
 		st := m.convOf(a.ID)
 		for _, bl := range m.conv.blocks {
-			if bl.kind == blockRun {
-				st.open[bl.key] = true
+			if isRun(bl) {
+				st.open[bl.run.key] = true
 			}
 		}
 		st.ver++

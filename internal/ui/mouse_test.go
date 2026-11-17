@@ -28,6 +28,51 @@ func rowOfBlock(t *testing.T, m *model, f func(b convBlock) bool) (int, int) {
 	return 0, 0
 }
 
+// A run and the agent's reply after it are one item: enter folds its steps,
+// c copies the reply; a click on the reply's text only selects, a click on
+// the run line folds / unfolds.
+func TestRunAndReplyOneItem(t *testing.T) {
+	m := convModel(t)
+	var got string
+	prev := copyText
+	copyText = func(s string) error { got = s; return nil }
+	t.Cleanup(func() { copyText = prev })
+	m.Update(tkey("o"))
+	selectWhere(t, m, bigRun)
+	b := m.conv.blocks[m.convSel()]
+	if b.kind != blockMsg || b.msg.Text != "Done: tests fixed." {
+		t.Fatalf("the 7-step run and its reply should be one item: %+v", b)
+	}
+	m.Update(tkey("enter"))
+	if s := convScreen(m); !strings.Contains(s, "▾ ⚙ 7 steps") {
+		t.Fatalf("enter on the item unfolds its steps:\n%s", s)
+	}
+	m.Update(tkey("c"))
+	if got != "Done: tests fixed." {
+		t.Fatalf("c on the item copies the reply: %q", got)
+	}
+	m.Update(tkey("enter")) // fold again
+	m.Update(tkey("esc"))
+	// a click on the reply's text: selected, not unfolded
+	y := -1
+	for row := range m.h {
+		if i := m.convBlockAtRow(row); i >= 0 && bigRun(m.conv.blocks[i]) && strings.Contains(ansi.Strip(m.View()), "Done: tests fixed.") {
+			if l := m.conv.histStart + row - m.conv.histRow; l > m.conv.blocks[i].top {
+				y = row
+				break
+			}
+		}
+	}
+	if y < 0 {
+		t.Fatal("the reply's text is not on screen")
+	}
+	clickPanelAt(m, 10, y)
+	clickPanelAt(m, 10, y)
+	if s := convScreen(m); !m.convFocus || !bigRun(m.conv.blocks[m.convSel()]) || strings.Contains(s, "▾ ⚙ 7 steps") {
+		t.Fatalf("clicks on the reply's text select the item and fold nothing:\n%s", s)
+	}
+}
+
 // The first click on a run selects and unfolds it; the next folds it.
 func TestClickRunSelectsAndUnfolds(t *testing.T) {
 	m := convModel(t)
