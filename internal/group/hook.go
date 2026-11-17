@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -15,12 +16,25 @@ import (
 // A user message always checks.
 var Throttle = time.Minute
 
+// ExplainEvery is how often, at most, a user message that talks about the
+// group in regia's words gets the explanation again.
+var ExplainEvery = 10 * time.Minute
+
+// asksRe matches a user message that talks about the group in regia's words
+// ("check your siblings", "use regia context"), in English or Italian.
+var asksRe = regexp.MustCompile(`(?i)\bregia (context|note)\b|\b(siblings?|coordinator|coordinatore|blackboard|lavagna|fratell[io]|sorell[ae])\b|\b(your|my|our|the|this|tuo|nostro|il) (group|gruppo)\b`)
+
+// Asks says whether a user message talks about the group.
+func Asks(prompt string) bool { return asksRe.MatchString(prompt) }
+
 // state is what the hook remembers per session, in ~/.cache/regia/group.
 type state struct {
 	Intro   bool                 `json:"intro"`   // the intro was given
 	Checked time.Time            `json:"checked"` // last look for news
 	Seen    map[string]time.Time `json:"seen"`    // container -> last change from others already announced or read
 	Nearest string               `json:"nearest"` // nearest container at the last look
+	// Explained is when a user message about the group was last answered.
+	Explained time.Time `json:"explained,omitzero"`
 }
 
 func statePath(self string) string {
@@ -66,9 +80,11 @@ func MarkRead(t *Tree, pos Position) {
 type HookInput struct {
 	SessionID string `json:"session_id"`
 	Event     string `json:"hook_event_name"`
+	Prompt    string `json:"prompt"` // UserPromptSubmit
+	Source    string `json:"source"` // SessionStart: startup, resume, clear, compact
 }
 
-// HandleHook reads a PostToolUse or UserPromptSubmit payload and writes the
+// HandleHook reads a PostToolUse, UserPromptSubmit or SessionStart payload and writes the
 // hook's JSON answer when there is something to say. Silent otherwise, and
 // never an error: a failing hook would show up in every session.
 func HandleHook(stdin io.Reader, stdout io.Writer, jobDir string, now time.Time) {
@@ -83,7 +99,16 @@ func HandleHook(stdin io.Reader, stdout io.Writer, jobDir string, now time.Time)
 		return
 	}
 	t := LoadTree()
-	msg := Check(t, self, in.Event, now, nil)
+	var msg string
+	switch {
+	case in.Event == "SessionStart" && (in.Source == "compact" || in.Source == "clear"):
+		msg = Reintro(t, self, now, nil)
+	case in.Event == "UserPromptSubmit" && Asks(in.Prompt):
+		msg = Answer(t, self, now, nil)
+	}
+	if msg == "" {
+		msg = Check(t, self, in.Event, now, nil)
+	}
 	if msg == "" {
 		return
 	}
@@ -121,8 +146,12 @@ func Check(t *Tree, self, event string, now time.Time, name func(string) string)
 		total := 0
 		for _, c := range pos.Visible() {
 			others := fromOthers(c, self)
+			for _, n := range others { // all of them the first time; on a reintro, the unread ones
+				if n.touched().After(s.Seen[c]) {
+					total++
+				}
+			}
 			s.Seen[c] = latest(others)
-			total += len(others)
 		}
 		return intro(t, pos, name, total)
 	}
@@ -157,6 +186,39 @@ func Check(t *Tree, self, event string, now time.Time, name func(string) string)
 	return "[regia] " + strings.Join(parts, "; ") + " — `regia context` to read."
 }
 
+// Reintro gives a grouped agent the intro again, as its conversation lost it
+// (compacted or cleared).
+func Reintro(t *Tree, self string, now time.Time, name func(string) string) string {
+	if !t.Resolve(self).Grouped() {
+		return ""
+	}
+	s := loadState(self)
+	s.Intro = false
+	saveState(self, s)
+	return Check(t, self, "SessionStart", now, name)
+}
+
+// Answer is for a user message that talks about the group ("check your
+// siblings", "use regia context"): the intro again for a grouped agent, so it
+// knows the words and the commands; for another, that it is in no group.
+// At most once every ExplainEvery: "" then, and the usual Check applies.
+func Answer(t *Tree, self string, now time.Time, name func(string) string) string {
+	s := loadState(self)
+	if now.Sub(s.Explained) < ExplainEvery {
+		return ""
+	}
+	s.Explained = now
+	if !t.Resolve(self).Grouped() {
+		saveState(self, s)
+		return "[regia] You are not in a regia group: you have no coordinator, no siblings and no shared notes " +
+			"(those exist only for agents the user grouped in regia, or that a coordinator agent started). " +
+			"`regia context` shows this too."
+	}
+	s.Intro = false
+	saveState(self, s)
+	return Check(t, self, "UserPromptSubmit", now, name)
+}
+
 // where describes the agent's place in one phrase.
 func where(t *Tree, pos Position, name func(string) string) string {
 	var ps []string
@@ -184,8 +246,10 @@ func intro(t *Tree, pos Position, name func(string) string, notes int) string {
 		fmt.Fprintf(&b, " (%d unread note%s on it)", notes, plural(notes))
 	}
 	b.WriteString(".\n")
-	b.WriteString("- `regia context` reads it: who is in the group, what they are doing, and the notes.\n")
-	b.WriteString("- `regia note \"…\"` writes one line on it for the group.\n")
+	// The words the user may use, so "check your siblings" needs no explaining.
+	b.WriteString("Your coordinator is the agent that started you (or that you were placed under); your siblings are the other agents in your group or under your coordinator.\n")
+	b.WriteString("- `regia context` shows your group, coordinator and siblings with what they are doing, and the blackboard's notes.\n")
+	b.WriteString("- `regia note \"…\"` writes one line on the blackboard for the whole group.\n")
 	b.WriteString("A line like this one tells you when something new is written.")
 	return b.String()
 }
