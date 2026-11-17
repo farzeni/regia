@@ -58,8 +58,8 @@ func stepsModel(t *testing.T, steps ...toolStep) (*model, string) {
 	m.View()
 	st := m.convOf("aaaa1111")
 	for _, b := range m.conv.blocks {
-		if b.kind == blockRun {
-			st.open[b.key] = true
+		if isRun(b) {
+			st.open[b.run.key] = true
 			for _, s := range b.run.steps {
 				st.open[s.ID] = true
 			}
@@ -355,8 +355,8 @@ func TestStepLinesFit(t *testing.T) {
 	for _, w := range []int{20, 40, 90} {
 		_, blocks := m.renderConv(m.agents["aaaa1111"], w)
 		for _, b := range blocks {
-			if b.kind == blockRun {
-				st.open[b.key] = true
+			if isRun(b) {
+				st.open[b.run.key] = true
 				for _, s := range b.run.steps {
 					st.open[s.ID] = true
 				}
@@ -388,7 +388,7 @@ func TestRunLineFitsNarrow(t *testing.T) {
 		ls, blocks := m.renderConv(m.agents["aaaa1111"], w)
 		seen := false
 		for _, b := range blocks {
-			if b.kind != blockRun {
+			if !isRun(b) {
 				continue
 			}
 			l := ls[b.top]

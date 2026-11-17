@@ -111,10 +111,12 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   | Thinking | `… thought` | the thought, when the transcript has it | — |
   | Other tools | `• Tool input` (MCP tools as `server:tool`) | the input and the head of the result | — |
 
-  A click on a block selects it (and focuses the conversation), and on a run
-  or a step also unfolds / folds it; a click on the selected one does what
-  `enter` does (folds, or opens the step). The wheel scrolls, and in
-  focus the cursor stays on what's shown.
+  The steps line and the agent's reply right after it are one item: `enter`
+  /`space` unfold its steps, `c`/`r` copy / quote the reply. A click selects
+  (and focuses the conversation); on a steps line or a step it also unfolds /
+  folds it, a click on the reply's text only selects, and a click on the
+  selected step opens it. The wheel scrolls, and in focus the cursor stays on
+  what's shown.
   The agent box's **changes** tab (`D`) lists the files the agent edited or
   wrote, newest first, each with the lines it added and removed (`+8 −3`) and
   the line it last changed; failed edits don't count. `D` gives the tab the

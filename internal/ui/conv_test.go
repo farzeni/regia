@@ -21,6 +21,12 @@ func TestUnfoldedStepsBoxed(t *testing.T) {
 	selectWhere(t, m, bigRun)
 	m.Update(tkey("enter"))
 	ls := strings.Split(ansi.Strip(strings.Join(m.conversationLines(m.agents["aaaa1111"], 80), "\n")), "\n")
+	for i, l := range ls { // the cursor's bar marks the whole item, box included
+		ls[i] = strings.Replace(l, "▌", " ", 1)
+	}
+	if !strings.Contains(strings.Join(ls, "\n"), "steps") {
+		t.Fatal("no run")
+	}
 	top := -1
 	for i, l := range ls {
 		if strings.Contains(l, "▾ ⚙ 7 steps") {
@@ -102,7 +108,10 @@ func selectWhere(t *testing.T, m *model, f func(b convBlock) bool) {
 	t.Fatal("no such block")
 }
 
-func bigRun(b convBlock) bool { return b.kind == blockRun && len(b.run.steps) == 7 }
+// isRun: a block with a run line on top (a run, or a run + the reply after it).
+func isRun(b convBlock) bool { return b.kind != blockStep && b.run != nil }
+
+func bigRun(b convBlock) bool { return isRun(b) && len(b.run.steps) == 7 }
 
 func TestFocusUnfoldRunAndStep(t *testing.T) {
 	m := convModel(t)
@@ -478,8 +487,8 @@ func TestConvFastJumps(t *testing.T) {
 		t.Fatalf("shift+↓ then j: block %d, want 2", got)
 	}
 	m.Update(tkey("shift+up"))
-	if got := m.convSel(); got != 1 || bs[1].kind == blockMsg {
-		t.Fatalf("shift+↑ should land on the run between messages (block %d)", got)
+	if got := m.convSel(); got != 1 || bs[1].run == nil { // the thought and the reply after it: one item
+		t.Fatalf("shift+↑ should land on the run + reply item (block %d)", got)
 	}
 }
 
