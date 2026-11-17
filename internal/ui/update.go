@@ -9,7 +9,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/farzeni/regia/internal/attach"
 	"github.com/farzeni/regia/internal/group"
 )
 
@@ -240,6 +239,9 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, c
 			}
 		}
+		if m.convFocus {
+			return m, m.updateConv(msg)
+		}
 		return m, m.updateNormal(msg)
 	}
 	return m, nil
@@ -398,7 +400,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		}
 		id := r.ID // r points into m.rows, which changes while attached
 		m.typing = false
-		return tea.Exec(attach.Session(id), func(err error) tea.Msg { return attachDoneMsg{id, err} })
+		return attachSession(id)
 	case " ":
 		if r != nil && (r.HasKids || r.Group) {
 			m.layout.Collapsed[r.ID] = !m.layout.Collapsed[r.ID]
@@ -534,6 +536,8 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		return m.timelineKey(r)
 	case "w":
 		m.groupDirKey(r)
+	case "o": // the conversation takes the keys
+		m.focusConv()
 	case "i":
 		m.typing = true
 	case "c", "C":

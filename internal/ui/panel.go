@@ -153,7 +153,7 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string) {
 	}
 
 	// ── the conversation: your messages and its replies, newest at the bottom
-	return conversationLines(a, w), card, foot
+	return m.conversationLines(a, w), card, foot
 }
 
 func clock(t time.Time) string { return t.Local().Format("15:04") }

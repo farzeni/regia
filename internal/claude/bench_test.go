@@ -3,9 +3,34 @@ package claude
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+// Parse a whole transcript (REGIA_BENCH_TRANSCRIPT names one), the cold read
+// the panel and search do the first time they look at a session:
+//
+//	REGIA_BENCH_TRANSCRIPT=~/.claude/projects/…/x.jsonl go test ./internal/claude -run x -bench Messages -benchmem
+func BenchmarkMessagesCold(b *testing.B) {
+	p := os.Getenv("REGIA_BENCH_TRANSCRIPT")
+	if p == "" {
+		b.Skip("set REGIA_BENCH_TRANSCRIPT")
+	}
+	b.ReportAllocs()
+	var n int
+	for b.Loop() {
+		mcMu.Lock()
+		delete(mcMap, p)
+		mcMu.Unlock()
+		n = len(Messages(p))
+	}
+	runtime.GC()
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	b.ReportMetric(float64(n), "msgs")
+	b.ReportMetric(float64(ms.HeapAlloc)/(1<<20), "heapMB")
+}
 
 // Real-data benchmarks (skipped unless REGIA_BENCH_JOB names a job).
 func benchAgent(b *testing.B) *Agent {

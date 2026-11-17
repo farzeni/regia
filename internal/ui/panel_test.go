@@ -33,9 +33,16 @@ func giveTranscript(t *testing.T, m *model, id string, msgs ...string) {
 			line(map[string]any{"type": "user", "timestamp": ts, "message": map[string]any{"content": s}})
 			continue
 		}
+		// the agent runs a command, then answers
+		tid := fmt.Sprintf("toolu_%d", i)
+		line(map[string]any{"type": "assistant", "timestamp": ts, "message": map[string]any{"content": []any{
+			map[string]any{"type": "tool_use", "id": tid, "name": "Bash", "input": map[string]any{"command": "tool call " + s}},
+		}}})
+		line(map[string]any{"type": "user", "timestamp": ts, "message": map[string]any{"content": []any{
+			map[string]any{"type": "tool_result", "tool_use_id": tid, "content": "tool output " + s},
+		}}})
 		line(map[string]any{"type": "assistant", "timestamp": ts, "message": map[string]any{"content": []any{
 			map[string]any{"type": "text", "text": s},
-			map[string]any{"type": "tool_use", "name": "Bash", "input": map[string]any{"command": "tool call " + s}},
 		}}})
 	}
 	if err := os.WriteFile(p, []byte(b.String()), 0o644); err != nil {
@@ -151,13 +158,13 @@ func TestCoordinatorPanelWithoutBlackboard(t *testing.T) {
 	}
 }
 
-func TestPanelKeysOAndTGone(t *testing.T) {
+func TestPanelKeyTGone(t *testing.T) {
 	m := testModel(t)
 	m.Update(tkey("esc"))
 	goTo(t, m, "aaaa1111")
 	giveTranscript(t, m, "aaaa1111", "do it", "did it")
 	before := strings.Join(renderPanel(m, 60, 16), "\n")
-	for _, k := range []string{"o", "t"} {
+	for _, k := range []string{"t"} { // o focuses the conversation now
 		m.status = ""
 		if m.Update(tkey(k)); m.status != "" {
 			t.Fatalf("%s should do nothing", k)

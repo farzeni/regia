@@ -41,14 +41,15 @@ func TestPanelConversation(t *testing.T) {
 	if v = ansi.Strip(m.View()); !strings.Contains(v, "LAST LINE") || strings.Contains(v, "FIRST LINE") {
 		t.Fatalf("the conversation should open at its end:\n%s", v)
 	}
-	for range 10 {
+	m.h = 40 // room for the head and the first line under the top messages
+	for range 20 {
 		m.Update(tkey("pgup"))
 	}
 	if v = ansi.Strip(m.View()); !strings.Contains(v, "FIRST LINE") {
 		t.Fatalf("pgup should read back:\n%s", v)
 	}
 
-	conv := ansi.Strip(strings.Join(conversationLines(m.agents["aaaa1111"], 80), "\n"))
+	conv := ansi.Strip(strings.Join(m.conversationLines(m.agents["aaaa1111"], 80), "\n"))
 	for _, want := range []string{"please fix the Payment webhook", "The payment webhook retries now", "thanks", "• retries 3 times", "LAST LINE"} {
 		if !strings.Contains(conv, want) {
 			t.Errorf("conversation lacks %q:\n%s", want, conv)

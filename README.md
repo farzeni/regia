@@ -77,9 +77,18 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   in three parts: a card pinned at the top (task, git status, what it is
   asking), the conversation in the middle, and a foot pinned at the bottom
   with its state, name, directory and tokens, which never scrolls. The
-  conversation is your messages and the agent's replies in full, its markdown
-  rendered, tool calls left out, newest last: the panel opens at its end, the
-  latest reply right above the foot (`pgup`/`pgdn` scroll back and forth).
+  conversation is your messages (right-aligned, in your tint) and the agent's
+  replies in full, its markdown rendered, newest last: the panel opens at its
+  end, the latest reply right above the foot (`pgup`/`pgdn` scroll back and
+  forth). The tool calls between two messages are one folded line,
+  `▸ ⚙ 14 steps · edited 3 files · ran 5 commands · 1 error · 2m10s` (how long
+  they took). `o` focuses the conversation (the divider lights up): `j`/`k`
+  move between messages, runs and steps, `enter`/`space` unfold a run into one
+  line per step (`✗` failed) and a step into its detail, `y` copies the
+  selected block, `r` replies to the agent: it copies the selected message as
+  a quote and attaches to the session, where you paste it and go on,
+  `g`/`G` go to the top / bottom, `esc` gives the keys back to the list. What's
+  unfolded is remembered per agent until regia quits.
   `D` swaps it for the agent's changes: the git
   diff of its directory against where it branched off the repo's default
   branch (main/master), uncommitted and new files included, with the changed
@@ -200,6 +209,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward |
+| `o` | focus the conversation: `j`/`k` move between blocks, `enter`/`space` fold / unfold (or open a step), `y` copy, `r` reply: copies the message quoted and attaches to the agent so you paste it, `g`/`G` top / bottom, `esc` back |
 | `b` | jump to the next agent whose turn is yours (waiting or ready) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |

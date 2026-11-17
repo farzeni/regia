@@ -11,7 +11,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
-	"github.com/farzeni/regia/internal/attach"
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/layout"
 )
@@ -251,7 +250,7 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		id := r.Agent.ID
-		return tea.Exec(attach.Session(id), func(err error) tea.Msg { return attachDoneMsg{id, err} })
+		return attachSession(id)
 	case "backspace":
 		if r := []rune(m.srch.query); len(r) > 0 {
 			m.srch.query = string(r[:len(r)-1])
@@ -459,14 +458,14 @@ func (m *model) searchPanel(w, h int) panel {
 	const around = 3
 	var idx []int
 	for i, n := hit.Index-1, 0; i >= 0 && n < around; i-- {
-		if msgs[i].Role != claude.RoleTool || m.srch.tools {
+		if (msgs[i].Role != claude.RoleTool || m.srch.tools) && msgs[i].Text != "" { // a silent step says nothing
 			idx = append([]int{i}, idx...)
 			n++
 		}
 	}
 	idx = append(idx, hit.Index)
 	for i, n := hit.Index+1, 0; i < len(msgs) && n < around; i++ {
-		if msgs[i].Role != claude.RoleTool || m.srch.tools {
+		if (msgs[i].Role != claude.RoleTool || m.srch.tools) && msgs[i].Text != "" { // a silent step says nothing
 			idx = append(idx, i)
 			n++
 		}

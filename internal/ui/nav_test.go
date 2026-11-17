@@ -112,7 +112,7 @@ func TestPanelBottomUpAndScroll(t *testing.T) {
 	if strings.Index(s, "the task") > strings.Index(s, "reply 38") {
 		t.Fatal("card should be above the conversation")
 	}
-	for range 30 {
+	for range 60 { // runs between the messages: more lines
 		m.Update(tkey("pgup"))
 	}
 	if s = screen(); !strings.Contains(s, "ask 00") || strings.Contains(s, "reply 39") || !strings.Contains(s, "newer · pgdn") {

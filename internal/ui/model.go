@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/farzeni/regia/internal/attach"
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/layout"
 	"github.com/farzeni/regia/internal/spawns"
@@ -94,6 +95,15 @@ type model struct {
 	lw, vis  int
 	dragging bool // dragging the divider to resize the list
 
+	// the agent panel's conversation (conv.go): fold state and cursor by
+	// agent, whether it has the keys (o), what the last frame drew of it
+	convs      map[string]*convState
+	convFocus  bool
+	convReveal bool // the cursor moved: scroll it into view at the next frame
+	conv       convShown
+	live       int    // bumped when any agent's state or name changes (liveSig): steps may show them
+	liveSig    uint64 // a hash of every agent's id, state and name at the last refresh
+
 	panelScroll int    // lines the panel's conversation is scrolled back (pgup/pgdn)
 	panelFor    string // the row panelScroll belongs to
 	timeline    bool   // T: a group's or coordinator's panel shows its timeline instead of the blackboard
@@ -151,6 +161,13 @@ type attachDoneMsg struct {
 	id  string
 	err error
 }
+
+// attachSession hands the terminal to an agent's session until you detach
+// (a var so tests can see the attach without running it).
+var attachSession = func(id string) tea.Cmd {
+	return tea.Exec(attach.Session(id), func(err error) tea.Msg { return attachDoneMsg{id, err} })
+}
+
 type spawnedMsg struct {
 	out           string
 	err           error
@@ -258,6 +275,7 @@ func (m *model) refresh() {
 	}
 	m.classify(time.Now())
 	m.checkHealth(time.Now())
+	m.noteLive()
 	m.layout.Spawns = spawns.Cached()
 	placed := m.layout.Place(m.agents)
 	if m.layout.Revive(m.agents) || placed { // archived but working again: back in the tree
@@ -344,6 +362,7 @@ func (m *model) moveCursor(d int) {
 	m.selectID = "" // you moved: don't jump to a just-started agent later
 	m.back = ""
 	m.panelScroll = 0
+	m.convFocus = false
 	if m.dv.on && m.dv.id != m.cursorID {
 		m.dv = diffView{}
 	}

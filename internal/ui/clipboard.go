@@ -2,6 +2,9 @@ package ui
 
 import (
 	"bytes"
+	"encoding/base64"
+	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"os/exec"
@@ -11,6 +14,22 @@ import (
 
 	"github.com/farzeni/regia/internal/claude"
 )
+
+// copyText is y in the conversation: the system clipboard, or, with no tool
+// for it (an ssh session, a bare system), the terminal's own clipboard via
+// OSC 52. A variable for tests.
+var copyText = func(s string) error {
+	err := copyClipboard(s)
+	if errors.Is(err, os.ErrNotExist) {
+		_, err = fmt.Fprint(os.Stdout, osc52(s))
+	}
+	return err
+}
+
+// osc52 asks the terminal to put s on the clipboard.
+func osc52(s string) string {
+	return "\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(s)) + "\x07"
+}
 
 func copyClipboard(s string) error {
 	for _, c := range [][]string{{"wl-copy"}, {"xclip", "-selection", "clipboard"}, {"pbcopy"}} {
