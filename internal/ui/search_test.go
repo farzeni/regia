@@ -142,11 +142,11 @@ func TestSearchPanelAndKeys(t *testing.T) {
 		}
 	}
 	// fold the session to its header, unfold it
-	m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	m.Update(tea.KeyMsg{Type: tea.KeyShiftLeft})
 	if got := rowIDs(m); strings.Join(got, " ") != "aaaa1111" {
 		t.Fatalf("folded: rows %v", got)
 	}
-	m.Update(tea.KeyMsg{Type: tea.KeyRight})
+	m.Update(tea.KeyMsg{Type: tea.KeyShiftRight})
 	if len(m.rows) != 3 {
 		t.Fatalf("unfolded: rows %v", rowIDs(m))
 	}
@@ -239,5 +239,58 @@ func TestSearchMoveWhileTyping(t *testing.T) {
 	m.Update(tkey("down"))
 	if _, cmd := m.Update(tkey("enter")); cmd == nil || m.cursorID != "bbbb2222#0" {
 		t.Fatalf("enter did not attach the highlighted hit: cmd=%v cursor %s", cmd != nil, m.cursorID)
+	}
+}
+
+func TestSearchRegex(t *testing.T) {
+	m := searchModel(t)
+	m.Update(tkey("shift+tab"))
+	typeQuery(m, "/web.ook/")
+	if len(m.rows) == 0 {
+		t.Fatalf("/web.ook/ found nothing")
+	}
+	m.setQuery("")
+	typeQuery(m, "/web(/")
+	if v := ansi.Strip(m.View()); len(m.rows) != 0 || !strings.Contains(v, "bad pattern /web(/") {
+		t.Fatalf("bad pattern: rows %v\n%s", rowIDs(m), v)
+	}
+}
+
+// The query is edited like any other input (cursor, words), on one line, and
+// the new-task box is not drawn: i types into the query there.
+func TestSearchQueryEditing(t *testing.T) {
+	m := searchModel(t)
+	m.Update(tkey("shift+tab"))
+	if v := ansi.Strip(m.View()); strings.Contains(v, "to type a new task") || strings.Contains(v, "╭") {
+		t.Fatalf("input box drawn while searching:\n%s", v)
+	}
+	if got := strings.Count(m.View(), "\n") + 1; got != m.h {
+		t.Fatalf("view is %d lines, screen %d", got, m.h)
+	}
+	key := func(k tea.KeyType, alt bool) { m.Update(tea.KeyMsg{Type: k, Alt: alt}) }
+	typeQuery(m, "payment hook")
+	key(tea.KeyLeft, true) // a word left: the start of "hook"
+	typeQuery(m, "web")
+	if m.srch.query != "payment webhook" {
+		t.Fatalf("word left + type: %q", m.srch.query)
+	}
+	key(tea.KeyHome, false)
+	key(tea.KeyRight, false)
+	key(tea.KeyDelete, false)
+	if m.srch.query != "pyment webhook" {
+		t.Fatalf("home, right, delete: %q", m.srch.query)
+	}
+	key(tea.KeyEnd, false)
+	key(tea.KeyCtrlW, false)
+	if m.srch.query != "pyment " {
+		t.Fatalf("ctrl+w: %q", m.srch.query)
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a\nb"), Paste: true})
+	if m.srch.query != "pyment a b" {
+		t.Fatalf("paste: %q", m.srch.query)
+	}
+	typeQuery(m, "i")
+	if m.typing || m.srch.query != "pyment a bi" {
+		t.Fatalf("i: typing %v query %q", m.typing, m.srch.query)
 	}
 }

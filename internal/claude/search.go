@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -274,9 +276,31 @@ func TranscriptPath(a *Agent) string {
 
 // --- queries ---------------------------------------------------------------
 
-// Query is what you typed: words, or "quoted phrases", that must all appear
-// in the same message, ignoring case.
-type Query struct{ Terms []string }
+// Query is what you typed: words, "quoted phrases" or /regular expressions/,
+// that must all appear in the same message, ignoring case.
+type Query struct {
+	Terms []string
+	Res   []*regexp.Regexp
+	Err   error // a pattern that doesn't compile: nothing matches
+}
+
+// regexEnd is where a /pattern/ starting s ends: the index of the closing
+// slash, which must be followed by a space or the end (so a path such as
+// /home/me is a word), not escaped and not right after the opening one; -1
+// when there's none.
+func regexEnd(s string) int {
+	for i := 1; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			i++
+		case '/':
+			if i > 1 && (i+1 == len(s) || unicode.IsSpace(rune(s[i+1]))) {
+				return i
+			}
+		}
+	}
+	return -1
+}
 
 func ParseQuery(s string) Query {
 	var q Query
@@ -286,6 +310,19 @@ func ParseQuery(s string) Query {
 			break
 		}
 		var t string
+		if s[0] == '/' {
+			if end := regexEnd(s); end > 0 {
+				re, err := regexp.Compile("(?i)" + s[1:end])
+				if err != nil && q.Err == nil {
+					q.Err = fmt.Errorf("/%s/: %w", s[1:end], err)
+				}
+				if re != nil {
+					q.Res = append(q.Res, re)
+				}
+				s = s[end+1:]
+				continue
+			}
+		}
 		if s[0] == '"' {
 			end := strings.IndexByte(s[1:], '"')
 			if end < 0 {
@@ -307,15 +344,22 @@ func ParseQuery(s string) Query {
 	return q
 }
 
-func (q Query) Empty() bool { return len(q.Terms) == 0 }
+// Empty: nothing to look for. A bad pattern isn't empty: it finds nothing,
+// and says why.
+func (q Query) Empty() bool { return len(q.Terms) == 0 && len(q.Res) == 0 && q.Err == nil }
 
-// Match: every term appears in the message.
+// Match: every term and pattern appears in the message.
 func (q Query) Match(m *Msg) bool {
-	if q.Empty() {
+	if q.Empty() || q.Err != nil {
 		return false
 	}
 	for _, t := range q.Terms {
 		if !strings.Contains(m.low, t) {
+			return false
+		}
+	}
+	for _, re := range q.Res {
+		if !re.MatchString(m.Text) {
 			return false
 		}
 	}
@@ -339,6 +383,11 @@ func (q Query) Spans(s string) [][2]int {
 			a, b := off+i, off+i+len(t)
 			sp = append(sp, [2]int{idx[a], idx[b]})
 			off = b
+		}
+	}
+	for _, re := range q.Res {
+		for _, r := range re.FindAllStringIndex(s, -1) {
+			sp = append(sp, [2]int{r[0], r[1]}) // empty matches are dropped below
 		}
 	}
 	sort.Slice(sp, func(i, j int) bool { return sp[i][0] < sp[j][0] })

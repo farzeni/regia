@@ -26,6 +26,54 @@ func TestParseQuery(t *testing.T) {
 	}
 }
 
+func TestRegexQuery(t *testing.T) {
+	cases := []struct {
+		in    string
+		terms []string
+		res   []string // the patterns, as compiled
+	}{
+		{`/retr(y|ies)/`, nil, []string{"(?i)retr(y|ies)"}},
+		{`webhook /fail\w+/ now`, []string{"webhook", "now"}, []string{`(?i)fail\w+`}},
+		{`/a b/`, nil, []string{"(?i)a b"}},     // spaces inside a pattern
+		{`/home/me`, []string{"/home/me"}, nil}, // a path is a word
+		{`/usr/bin /tmp`, []string{"/usr/bin", "/tmp"}, nil},
+		{`/a\/b/`, nil, []string{`(?i)a\/b`}}, // an escaped slash
+		{`/retr`, []string{"/retr"}, nil},     // not closed yet: a word
+		{`//`, []string{"//"}, nil},
+	}
+	for _, c := range cases {
+		q := ParseQuery(c.in)
+		var res []string
+		for _, re := range q.Res {
+			res = append(res, re.String())
+		}
+		if strings.Join(q.Terms, "|") != strings.Join(c.terms, "|") || strings.Join(res, "|") != strings.Join(c.res, "|") || q.Err != nil {
+			t.Errorf("ParseQuery(%q) = terms %q res %q err %v, want %q %q", c.in, q.Terms, res, q.Err, c.terms, c.res)
+		}
+	}
+
+	q := ParseQuery(`deploy /retr(y|ies)/`)
+	m := Msg{Text: "Deploy RETRIES twice", low: "deploy retries twice"}
+	if !q.Match(&m) {
+		t.Fatalf("no match")
+	}
+	if got := q.Spans(m.Text); len(got) != 2 || m.Text[got[1][0]:got[1][1]] != "RETRIES" {
+		t.Fatalf("spans %v", got)
+	}
+	if m2 := (Msg{Text: "deploy retried", low: "deploy retried"}); q.Match(&m2) {
+		t.Fatalf("matched without the pattern")
+	}
+	// a pattern that matches the empty string highlights nothing empty
+	if got := ParseQuery(`/x*/`).Spans("abc"); len(got) != 0 {
+		t.Fatalf("empty spans %v", got)
+	}
+
+	bad := ParseQuery(`/retr(y/`)
+	if bad.Err == nil || bad.Empty() || bad.Match(&m) {
+		t.Fatalf("bad pattern: err %v empty %v", bad.Err, bad.Empty())
+	}
+}
+
 func TestSpans(t *testing.T) {
 	q := ParseQuery("ab cd")
 	s := "xxAB cd abcd"
