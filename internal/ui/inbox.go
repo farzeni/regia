@@ -35,8 +35,8 @@ func (m *model) inboxRows(now time.Time) []layout.Row {
 			earlier = append(earlier, a)
 		}
 	}
-	sortInbox(today)
-	sortInbox(earlier)
+	sortInbox(today, m.opts.Keep)
+	sortInbox(earlier, m.opts.Keep)
 	m.earlier = earlier
 
 	rows := make([]layout.Row, 0, len(today)+len(earlier)+1)
@@ -63,9 +63,17 @@ func (m *model) inboxRows(now time.Time) []layout.Row {
 }
 
 // sortInbox: questions, then agents that look stuck, then results to read, then stale; newest first in each.
-func sortInbox(as []*claude.Agent) {
+// keep is the row you're reading: a result you just read (now done) keeps
+// its place among the results instead of dropping to the bottom.
+func sortInbox(as []*claude.Agent, keep string) {
+	rank := func(a *claude.Agent) int {
+		if a.ID == keep && a.State == "done" {
+			return 2
+		}
+		return inboxRank(a)
+	}
 	sort.SliceStable(as, func(i, j int) bool {
-		if ri, rj := inboxRank(as[i]), inboxRank(as[j]); ri != rj {
+		if ri, rj := rank(as[i]), rank(as[j]); ri != rj {
 			return ri < rj
 		}
 		if ti, tj := waitedSince(as[i]), waitedSince(as[j]); !ti.Equal(tj) {
