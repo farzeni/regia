@@ -56,10 +56,7 @@ func TestAgentTextLinks(t *testing.T) {
 func TestAgentTextNoLinksWhenOff(t *testing.T) {
 	defer withOpeners(t, "preset = vscode\nosc8 = off")()
 	msg := &claude.Msg{Role: claude.RoleAgent, Text: linkReply}
-	var before []string
-	for _, l := range renderMarkdown(linkReply, 98) {
-		before = append(before, "  "+l)
-	}
+	before := renderMarkdown(linkReply, 100)
 	for len(before) > 0 && strings.TrimSpace(ansi.Strip(before[len(before)-1])) == "" {
 		before = before[:len(before)-1]
 	}

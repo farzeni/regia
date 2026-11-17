@@ -349,18 +349,12 @@ func yourBubble(msg *claude.Msg, w int) []string {
 }
 
 // agentLines is one of the agent's replies: its markdown (paths and URLs
-// linked when links are on; relative paths are in dir), then its time, dim
-// (the day separators carry the date).
+// linked when links are on; relative paths are in dir). Its time is drawn
+// by drawConv: at the end of the run line above it, or on a line of its own.
 func agentLines(msg *claude.Msg, w int, dir string) []string {
-	var out []string
-	for _, l := range agentMarkdown(msg.Text, max(10, w-2), dir) {
-		out = append(out, "  "+l)
-	}
+	out := agentMarkdown(msg.Text, max(10, w), dir)
 	for len(out) > 0 && strings.TrimSpace(ansi.Strip(out[len(out)-1])) == "" {
 		out = out[:len(out)-1]
-	}
-	if !msg.At.IsZero() {
-		out = append(out, "  "+stDim.Render(clock(msg.At)))
 	}
 	return out
 }
@@ -463,16 +457,33 @@ func drawConv(c stepCtx, es []claude.Entry, open map[string]bool, w int) ([]stri
 		}
 		blocks = append(blocks, b)
 	}
+	// the agent's reply right after a run: its time goes at the end of the
+	// run line, and the reply follows it with no blank line
+	replyAfter := func(i int) *claude.Msg {
+		if i < len(es) && es[i].Msg != nil && es[i].Msg.Role == claude.RoleAgent {
+			return es[i].Msg
+		}
+		return nil
+	}
+	timed := false // the next reply's time is already on the run line
 	for i := 0; i < len(es); {
 		if msg := es[i].Msg; msg != nil {
 			day(msg.At)
-			out = append(out, "")
 			var ls []string
 			if msg.Role == claude.RoleYou {
+				out = append(out, "")
 				ls = yourBubble(msg, cw)
 			} else {
-				ls = agentLines(msg, cw, c.a.Cwd)
+				if !timed {
+					out = append(out, "")
+					if !msg.At.IsZero() {
+						t := clock(msg.At)
+						ls = append(ls, strings.Repeat(" ", max(0, cw-len(t)))+stDim.Render(t))
+					}
+				}
+				ls = append(ls, agentLines(msg, cw, c.a.Cwd)...)
 			}
+			timed = false
 			add(convBlock{kind: blockMsg, key: msgKey(msg), msg: msg}, ls)
 			i++
 			continue
@@ -484,29 +495,38 @@ func drawConv(c stepCtx, es []claude.Entry, open map[string]bool, w int) ([]stri
 		r.key = "run:" + r.steps[0].ID
 		day(r.steps[0].At)
 		out = append(out, "")
-		add(convBlock{kind: blockRun, key: r.key, run: r}, []string{stepMargin + runLine(r, open[r.key], cw-len(stepMargin))})
+		line := runLine(r, open[r.key], cw)
+		if reply := replyAfter(i); reply != nil && !reply.At.IsZero() && dayLabel(reply.At) == lastDay && cw >= 30 { // narrower: the reply's time on its own line
+			t := clock(reply.At)
+			line = pad(runLine(r, open[r.key], max(1, cw-len(t)-2)), cw-len(t)) + stDim.Render(t)
+			timed = true
+		}
+		add(convBlock{kind: blockRun, key: r.key, run: r}, []string{line})
 		if !open[r.key] {
 			continue
 		}
+		// the unfolded steps, in a box
+		iw := max(4, cw-4)
+		side := stDim.Render("│")
+		boxed := func(l string) string { return side + " " + pad(l, iw) + " " + side }
+		out = append(out, " "+stDim.Render("╭"+strings.Repeat("─", iw+2)+"╮"))
 		for _, s := range r.steps {
 			k := kindOf(s)
-			ls := []string{stepMargin + "  " + k.line(c, s, cw-2-len(stepMargin))}
+			ls := []string{boxed(k.line(c, s, iw))}
 			if open[s.ID] {
-				for _, l := range k.detail(c, s, cw-4-len(stepMargin)) {
-					ls = append(ls, stepMargin+"    "+l)
+				for _, l := range k.detail(c, s, iw-2) {
+					ls = append(ls, boxed("  "+l))
 				}
 			}
 			add(convBlock{kind: blockStep, key: s.ID, run: r, step: s}, ls)
 		}
+		out = append(out, " "+stDim.Render("╰"+strings.Repeat("─", iw+2)+"╯"))
 	}
 	if len(out) == 0 {
 		out = []string{stDim.Render("no conversation yet")}
 	}
 	return out, blocks
 }
-
-// stepMargin sets the steps between messages in from them.
-const stepMargin = "  "
 
 // msgKey names a message across redraws: when it was written and its start.
 func msgKey(msg *claude.Msg) string {
