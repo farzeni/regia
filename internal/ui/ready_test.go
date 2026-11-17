@@ -91,21 +91,23 @@ func TestFinishedTurnIsReadyUntilYouLook(t *testing.T) {
 	st := maps(baseStates, "busy0001", "done")
 	f.list(st)
 	a := m.agents["busy0001"]
-	if a.State != "ready" || !a.YourTurn() {
-		t.Fatalf("a finished turn you haven't seen: state %q", a.State)
+	if a.State != "ready" || a.YourTurn() {
+		t.Fatalf("a finished turn you haven't seen: state %q, your turn %v (want ready, not your turn)", a.State, a.YourTurn())
 	}
 	if !slices.Contains(treeIDs(m), "busy0001") {
 		t.Fatalf("ready agent hidden like done: %v", treeIDs(m))
 	}
 	if head := ansi.Strip(m.header()); !strings.Contains(head, "● 1 need you") || !strings.Contains(head, "✓ 1 ready") {
-		t.Fatalf("header %q (the stale question must not count)", head)
+		t.Fatalf("header %q (the stale question and the unread reply must not count as need you)", head)
 	}
-	// inbox: the question, then the result to read; the stale question is
+	// inbox: questions only; an unread reply stays out, the stale question is
 	// folded under "earlier days"
 	m.Update(tkey("tab"))
-	if got := rowIDs(m); !slices.Equal(got, []string{"ask00001", "busy0001", earlierID}) {
-		t.Fatalf("inbox order %v", got)
+	if got := rowIDs(m); !slices.Equal(got, []string{"ask00001", earlierID}) {
+		t.Fatalf("inbox %v", got)
 	}
+	m.Update(tkey("tab"))
+	m.Update(tkey("tab")) // back to the tree
 	// moving over it doesn't count as looking; staying on it does
 	goTo(t, m, "busy0001")
 	t0 := time.Now()
@@ -117,15 +119,6 @@ func TestFinishedTurnIsReadyUntilYouLook(t *testing.T) {
 	m.dwell(t0.Add(seenAfter))
 	if a.State != "done" {
 		t.Fatalf("still %q after %v selected", a.State, seenAfter)
-	}
-	m.rebuild()
-	if !slices.Contains(rowIDs(m), "busy0001") {
-		t.Fatal("the agent you're reading vanished from under the cursor")
-	}
-	m.moveCursor(-1)
-	m.rebuild()
-	if slices.Contains(rowIDs(m), "busy0001") {
-		t.Fatal("seen done agent still in the inbox after moving away")
 	}
 	// the next refresh keeps it done (seen is saved)
 	f.list(st)

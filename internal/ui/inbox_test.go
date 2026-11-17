@@ -178,28 +178,3 @@ func TestSnoozeToggleAndReady(t *testing.T) {
 		t.Fatalf("Z on a ready agent: %q, want done", s)
 	}
 }
-
-// Reading a result marks it done; while it stays selected it keeps its place
-// among the results instead of jumping to the bottom of the inbox.
-func TestReadResultKeepsItsPlace(t *testing.T) {
-	f := newReady(t)
-	m := f.m
-	now := time.Now()
-	f.job("done0001", "done", now.Add(time.Second))
-	f.job("busy0001", "done", now.Add(2*time.Second))
-	f.list(maps(baseStates, "busy0001", "done"))
-	m.Update(tkey("tab"))
-	want := []string{"ask00001", "busy0001", "done0001", earlierID}
-	if got := rowIDs(m); !slices.Equal(got, want) {
-		t.Fatalf("inbox %v, want %v", got, want)
-	}
-	goTo(t, m, "busy0001")
-	m.markSeen("busy0001", now.Add(3*time.Second))
-	m.rebuild()
-	if got := rowIDs(m); !slices.Equal(got, want) {
-		t.Fatalf("after reading busy0001: %v, want %v", got, want)
-	}
-	if r := m.selected(); r == nil || r.ID != "busy0001" {
-		t.Fatal("cursor should stay on the result just read")
-	}
-}

@@ -26,7 +26,7 @@ func (m *model) inboxRows(now time.Time) []layout.Row {
 		// finished, but its PR fails CI or has changes requested: listed even
 		// when done-and-seen agents are hidden from the tree
 		pr := needsLook(a) && !m.layout.IsArchived(a.ID) && (m.opts.Filter == "" || m.shown(a.ID))
-		if !pr && (!(a.State == "blocked" || a.State == "ready" || stuck(a) || keep) || !m.shown(a.ID) || (a.Snoozed && !keep)) {
+		if !pr && (!(a.State == "blocked" || stuck(a) || keep) || !m.shown(a.ID) || (a.Snoozed && !keep)) {
 			continue
 		}
 		if fromToday(a, now) {
@@ -35,8 +35,8 @@ func (m *model) inboxRows(now time.Time) []layout.Row {
 			earlier = append(earlier, a)
 		}
 	}
-	sortInbox(today, m.opts.Keep)
-	sortInbox(earlier, m.opts.Keep)
+	sortInbox(today)
+	sortInbox(earlier)
 	m.earlier = earlier
 
 	rows := make([]layout.Row, 0, len(today)+len(earlier)+1)
@@ -62,18 +62,10 @@ func (m *model) inboxRows(now time.Time) []layout.Row {
 	return rows
 }
 
-// sortInbox: questions, then agents that look stuck, then results to read, then stale; newest first in each.
-// keep is the row you're reading: a result you just read (now done) keeps
-// its place among the results instead of dropping to the bottom.
-func sortInbox(as []*claude.Agent, keep string) {
-	rank := func(a *claude.Agent) int {
-		if a.ID == keep && a.State == "done" {
-			return 2
-		}
-		return inboxRank(a)
-	}
+// sortInbox: questions, then agents that look stuck, then PRs to look at, then stale; newest first in each.
+func sortInbox(as []*claude.Agent) {
 	sort.SliceStable(as, func(i, j int) bool {
-		if ri, rj := rank(as[i]), rank(as[j]); ri != rj {
+		if ri, rj := inboxRank(as[i]), inboxRank(as[j]); ri != rj {
 			return ri < rj
 		}
 		if ti, tj := waitedSince(as[i]), waitedSince(as[j]); !ti.Equal(tj) {
@@ -97,7 +89,7 @@ func (m *model) earlierSummary() string {
 	var oldest time.Time
 	for _, a := range m.earlier {
 		switch {
-		case a.State == "ready":
+		case needsLook(a):
 			res++
 		case stuck(a):
 			unh++

@@ -9,9 +9,10 @@ import (
 
 // Claude Code marks a session "done" when a turn ends with a result, which
 // for a conversation is after every reply, not when the work is over. So a
-// done session you haven't looked at yet is "ready": your turn, shown, in
-// the inbox and counted. Looking at it (selected for a moment, or attached)
-// makes it plain done again. And a question from before today is stale:
+// done session you haven't looked at yet is "ready": an unread reply, marked
+// in the tree but not in the inbox or the "need you" count (the inbox is for
+// questions). Looking at it (selected for a moment, or attached) makes it
+// plain done again. And a question from before today is stale:
 // still shown, but no longer counted as needing you.
 
 const (
@@ -127,14 +128,14 @@ func (m *model) snoozeKey(r *layout.Row) {
 }
 
 // inboxRank orders the inbox: questions, then agents that look stuck
-// (health.go), then results to read, then stale.
+// (health.go), then finished PRs that need a look, then stale.
 func inboxRank(a *claude.Agent) int {
 	switch {
 	case a.State == "blocked" && !a.Stale:
 		return 0
 	case stuck(a):
 		return 1
-	case a.State == "ready" || needsLook(a):
+	case needsLook(a):
 		return 2
 	case a.Stale:
 		return 3
