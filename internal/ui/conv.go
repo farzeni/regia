@@ -290,7 +290,7 @@ func runLine(r *convRun, open bool, w int) string {
 	}
 	tail := lipgloss.Width(e + d)
 	l := stDim.Render(fold+"⚙ "+trunc(s, w-4-tail)) + stErr.Render(e) + stDim.Render(d)
-	if ansi.StringWidth(l) > w { // a narrow panel: the counts don't fit next to the errors and time
+	if ansi.StringWidth(l) > w || w-4-tail < lipgloss.Width(parts[0]) { // a narrow panel: the counts don't fit next to the errors and time
 		l = ansi.Truncate(stDim.Render(fold+"⚙ "+s)+stErr.Render(e)+stDim.Render(d), max(0, w), "…")
 	}
 	return l
@@ -373,7 +373,7 @@ func (m *model) conversationLines(a *claude.Agent, w int) []string {
 	i := m.convSel()
 	b := blocks[i]
 	out := append([]string(nil), lines...)
-	bar := stAccent.Render("▌")
+	bar := stCursor.Render("▌") // not the divider's purple: the two read apart
 	for j := b.top; j < b.top+b.n && j < len(out); j++ {
 		out[j] = bar + out[j][1:] // block lines start with a plain space
 	}
@@ -460,16 +460,16 @@ func drawConv(c stepCtx, es []claude.Entry, open map[string]bool, w int) ([]stri
 		r.key = "run:" + r.steps[0].ID
 		day(r.steps[0].At)
 		out = append(out, "")
-		add(convBlock{kind: blockRun, key: r.key, run: r}, []string{runLine(r, open[r.key], cw)})
+		add(convBlock{kind: blockRun, key: r.key, run: r}, []string{stepMargin + runLine(r, open[r.key], cw-len(stepMargin))})
 		if !open[r.key] {
 			continue
 		}
 		for _, s := range r.steps {
 			k := kindOf(s)
-			ls := []string{"  " + k.line(c, s, cw-2)}
+			ls := []string{stepMargin + "  " + k.line(c, s, cw-2-len(stepMargin))}
 			if open[s.ID] {
-				for _, l := range k.detail(c, s, cw-4) {
-					ls = append(ls, "    "+l)
+				for _, l := range k.detail(c, s, cw-4-len(stepMargin)) {
+					ls = append(ls, stepMargin+"    "+l)
 				}
 			}
 			add(convBlock{kind: blockStep, key: s.ID, run: r, step: s}, ls)
@@ -480,6 +480,9 @@ func drawConv(c stepCtx, es []claude.Entry, open map[string]bool, w int) ([]stri
 	}
 	return out, blocks
 }
+
+// stepMargin sets the steps between messages in from them.
+const stepMargin = "  "
 
 // msgKey names a message across redraws: when it was written and its start.
 func msgKey(msg *claude.Msg) string {

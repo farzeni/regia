@@ -29,6 +29,7 @@ var (
 	stDim    = lipgloss.NewStyle().Foreground(cDim)
 	stBold   = lipgloss.NewStyle().Bold(true)
 	stAccent = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
+	stCursor = lipgloss.NewStyle().Foreground(lipgloss.Color("81")) // the conversation's block cursor: not the divider's purple
 	stSel    = lipgloss.NewStyle().Background(lipgloss.Color("237"))
 	stYou    = lipgloss.NewStyle().Foreground(lipgloss.Color("183")) // your messages in the history: a light tint of the accent
 	stHead   = lipgloss.NewStyle().Foreground(cDim).Bold(true)
