@@ -85,10 +85,11 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   `▸ ⚙ 14 steps · edited 3 files · ran 5 commands · 1 error · 2m10s` (how long
   they took). `o` focuses the conversation (the divider lights up): `j`/`k`
   move between messages, runs and steps, `enter`/`space` unfold a run into one
-  line per step (`✗` failed) and a step into its detail, `y` copies the
-  selected block, `r` replies to the agent: it copies the selected message as
-  a quote and attaches to the session, where you paste it and go on,
-  `g`/`G` go to the top / bottom, `esc` gives the keys back to the list. What's
+  line per step (`✗` failed) and a step into its detail, `c` copies the
+  selected block, `r` quotes it (`> ` lines) in the input box, also on the
+  clipboard, with the cursor two lines below and the input focused, `i` goes
+  to the input, `g`/`G` go to the top / bottom, `←`/`esc` give the keys back
+  to the list. What's
   unfolded is remembered per agent until regia quits. Each kind of step reads
   its own way; on a step `space` unfolds its detail and `enter` does its action
   (on steps without one, `enter` unfolds too):
@@ -106,8 +107,9 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   | Thinking | `… thought` | the thought, when the transcript has it | — |
   | Other tools | `• Tool input` (MCP tools as `server:tool`) | the input and the head of the result | — |
 
-  A click on a block selects it (and focuses the conversation); a click on
-  the selected one unfolds it, or opens the step. The wheel scrolls, and in
+  A click on a block selects it (and focuses the conversation), and on a run
+  or a step also unfolds / folds it; a click on the selected one does what
+  `enter` does (folds, or opens the step). The wheel scrolls, and in
   focus the cursor stays on what's shown.
   The agent box's **changes** tab (`D`) lists the files the agent edited or
   wrote, newest first, each with the lines it added and removed (`+8 −3`) and
@@ -238,7 +240,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
-| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `j`/`k` move between blocks, `shift+↑`/`↓` message to message over the steps, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `y` copy, `r` reply: copies the message quoted and attaches to the agent so you paste it, `g`/`G` top / bottom, `←`/`esc` back |
+| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `j`/`k` move between blocks, `shift+↑`/`↓` message to message over the steps, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block in the input (and copy it), `i` to the input, `g`/`G` top / bottom, `←`/`esc` back |
 | `b` | jump to the next agent whose turn is yours (waiting on a question) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |

@@ -147,36 +147,39 @@ func TestCopyAndReply(t *testing.T) {
 
 	m.Update(tkey("o"))
 	selectWhere(t, m, func(b convBlock) bool { return b.kind == blockMsg && b.msg.Text == "Done: tests fixed." })
-	m.Update(tkey("y"))
+	m.Update(tkey("c"))
 	if got != "Done: tests fixed." {
-		t.Fatalf("y copied %q", got)
+		t.Fatalf("c copied %q", got)
 	}
 	selectWhere(t, m, bigRun)
 	m.Update(tkey("enter"))
 	selectWhere(t, m, func(b convBlock) bool { return b.kind == blockStep && b.step.Name == "Bash" && b.step.Failed() })
-	m.Update(tkey("y"))
+	m.Update(tkey("c"))
 	if !strings.Contains(got, "go test ./...") || !strings.Contains(got, "Exit code 1") {
-		t.Fatalf("y on a step copies the call and its output: %q", got)
+		t.Fatalf("c on a step copies the call and its output: %q", got)
 	}
-	var attached string
-	prevAttach := attachSession
-	attachSession = func(id string) tea.Cmd { attached = id; return nil }
-	t.Cleanup(func() { attachSession = prevAttach })
-
-	got = ""
+	// r: the selected block quoted in the input box, the cursor two lines
+	// below, the input focused (a step too)
 	m.Update(tkey("r"))
-	if got != "" || attached != "" {
-		t.Fatalf("r on a step quotes nothing (copied %q, attached %q)", got, attached)
+	if v := m.ta.Value(); !strings.HasPrefix(v, "> ") || !strings.Contains(v, "\n> ") || !strings.HasSuffix(v, "\n\n") || m.convFocus || !m.typing || got != strings.TrimSuffix(v, "\n\n") {
+		t.Fatalf("r on a step: input %q copied %q focus %v typing %v", v, got, m.convFocus, m.typing)
 	}
-	// r on a message: the quote goes to the clipboard and you land in the
-	// same agent's session to paste it
+	m.clearDraft()
+	m.Update(tkey("esc")) // back to the list
+	m.Update(tkey("o"))
 	selectWhere(t, m, func(b convBlock) bool { return b.kind == blockMsg && b.msg.Text == "Looking at it." })
 	m.Update(tkey("r"))
-	if got != "> Looking at it.\n\n" || attached != "aaaa1111" || m.convFocus || m.typing || m.ta.Value() != "" {
-		t.Fatalf("r should copy the quote and attach to alpha: copied %q attached %q focus %v typing %v input %q", got, attached, m.convFocus, m.typing, m.ta.Value())
+	m.Update(tkey("ok"))
+	if v := m.ta.Value(); v != "> Looking at it.\n\nok" || !m.typing {
+		t.Fatalf("r on a message, then typing: input %q typing %v", v, m.typing)
 	}
-	if !strings.Contains(ansi.Strip(m.View()), "quote copied — paste it in the session") {
-		t.Fatal("r should say where to paste")
+	// i: from the conversation to the input
+	m.clearDraft()
+	m.typing = false
+	m.Update(tkey("o"))
+	m.Update(tkey("i"))
+	if m.convFocus || !m.typing || m.ta.Value() != "" {
+		t.Fatalf("i should leave the conversation for the input: focus %v typing %v input %q", m.convFocus, m.typing, m.ta.Value())
 	}
 }
 
@@ -432,7 +435,7 @@ func TestHelpListsConversationKeys(t *testing.T) {
 	m.Update(tkey("esc"))
 	m.Update(tkey("?"))
 	v := ansi.Strip(m.View())
-	for _, want := range []string{"o / →: focus the conversation", "reply in its session", "D: the changes tab", "full diff in your tool", "or click", "keys   esc", "pick its model", "refresh", "group's dir"} {
+	for _, want := range []string{"o / →: focus the conversation", "quote in the input", "D: the changes tab", "full diff in your tool", "or click", "keys   esc", "pick its model", "refresh", "group's dir"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("help lacks %q:\n%s", want, v)
 		}
