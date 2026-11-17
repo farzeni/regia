@@ -22,7 +22,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/layout"
 	"github.com/farzeni/regia/internal/spawns"
 )
@@ -92,21 +94,72 @@ func SetEnabled(on bool) error {
 type Tree struct {
 	L      *layout.Layout
 	Spawns map[string]spawns.Link
+	// Live holds the agents that still exist, as regia's panel sees them.
+	// layout.json and spawns.jsonl keep the ids of agents that ended or were
+	// removed long ago; with Live set they are left out, as the panel leaves
+	// them out. nil: unknown, nothing is left out.
+	Live map[string]bool
 }
+
+// liveMaxAge is how old regia's cached listing may be for LoadTree to trust
+// it: regia refreshes it every few seconds while it runs; an older one may
+// miss agents started since, so then nothing is filtered.
+const liveMaxAge = 2 * time.Minute
 
 func LoadTree() *Tree {
 	sp := spawns.Cached()
 	if sp == nil {
 		sp = map[string]spawns.Link{}
 	}
-	return &Tree{L: layout.Load(), Spawns: sp}
+	t := &Tree{L: layout.Load(), Spawns: sp}
+	if claude.CachedAge() < liveMaxAge {
+		if as := claude.ParseAgents(claude.CachedAgents()); len(as) > 0 {
+			t.Live = map[string]bool{}
+			for _, a := range as {
+				t.Live[a.ID] = true
+			}
+		}
+	}
+	return t
 }
+
+// SetLive sets the agents that still exist (see Live) from a fresh listing.
+// An empty listing (`claude agents` failed) leaves Live as it was.
+func (t *Tree) SetLive(agents map[string]*claude.Agent) {
+	if len(agents) == 0 {
+		return
+	}
+	t.Live = make(map[string]bool, len(agents))
+	for id := range agents {
+		t.Live[id] = true
+	}
+}
+
+// exists says whether a node is still there: a group, or an agent that is
+// still listed (always true when the listing is unknown).
+func (t *Tree) exists(id string) bool {
+	return t.Live == nil || t.Live[id] || t.L.IsGroup(id)
+}
+
+// hidden is an agent you archived in regia: put away, so not listed or
+// counted as a member (agents under it still are).
+func (t *Tree) hidden(id string) bool { return t.L.IsArchived(id) }
 
 // parentOf is id's parent as far as groups are concerned: where it sits in
 // layout.json, or its spawner when regia hasn't placed it yet (regia isn't
 // running) or it still sits in its project group waiting to be re-linked.
 // A project group, or the root, is "".
 func (t *Tree) parentOf(id string) string {
+	// As in the panel, a coordinator that is gone hands its agents up to its
+	// own parent.
+	p := t.rawParent(id)
+	for n := 0; p != "" && !t.exists(p) && n < 64; n++ {
+		p = t.rawParent(p)
+	}
+	return p
+}
+
+func (t *Tree) rawParent(id string) string {
 	p, placed := t.L.Parent[id]
 	if placed && (t.L.Pinned[id] || !strings.HasPrefix(p, "p:")) {
 		if strings.HasPrefix(p, "p:") {
@@ -125,7 +178,7 @@ func (t *Tree) children(id string) []string {
 	seen := map[string]bool{}
 	var out []string
 	add := func(c string) {
-		if !seen[c] && c != id && t.parentOf(c) == id {
+		if !seen[c] && c != id && t.exists(c) && t.parentOf(c) == id {
 			seen[c] = true
 			out = append(out, c)
 		}
@@ -201,7 +254,7 @@ func (t *Tree) Siblings(p Position) []string {
 	}
 	var out []string
 	for _, c := range t.children(p.Chain[0]) {
-		if c != p.Self && !t.L.Muted[c] {
+		if c != p.Self && !t.L.Muted[c] && !t.hidden(c) {
 			out = append(out, c)
 		}
 	}
@@ -213,7 +266,13 @@ func (t *Tree) Children(p Position) []string {
 	if !p.Family {
 		return nil
 	}
-	return t.children(p.Self)
+	var out []string
+	for _, c := range t.children(p.Self) {
+		if !t.hidden(c) {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // Members counts the agents a note in container c reaches (everything below it).
@@ -225,7 +284,7 @@ func (t *Tree) Members(c string) int {
 			if depth > 32 || t.L.Muted[ch] {
 				continue
 			}
-			if !IsGroup(ch) {
+			if !IsGroup(ch) && !t.hidden(ch) {
 				n++
 			}
 			walk(ch, depth+1)

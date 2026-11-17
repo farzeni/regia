@@ -32,8 +32,10 @@ func cmdContext(args []string, w io.Writer) error {
 		return fmt.Errorf("not inside a Claude Code session: pass an agent id (regia context <id>)")
 	}
 	t := group.LoadTree()
+	agents := group.Agents()
+	t.SetLive(agents)
 	pos := t.Resolve(self)
-	fmt.Fprint(w, group.Context(t, pos, group.Agents(), all, time.Now()))
+	fmt.Fprint(w, group.Context(t, pos, agents, all, time.Now()))
 	if self == group.SelfFromEnv() {
 		group.MarkRead(t, pos)
 	}
@@ -55,13 +57,14 @@ func cmdNote(args []string, w io.Writer) error {
 		return fmt.Errorf("regia note works inside a Claude Code session (in regia, N adds a note to the selected group)")
 	}
 	t := group.LoadTree()
+	agents := group.Agents()
+	t.SetLive(agents)
 	pos := t.Resolve(self)
 	c := pos.Nearest()
 	if c == "" {
 		fmt.Fprintln(w, "not in a group (a hand-made group in regia, or a coordinator's agents): nothing to share with, note not saved")
 		return nil
 	}
-	agents := group.Agents()
 	name := func(id string) string {
 		if a := agents[id]; a != nil {
 			return a.Name

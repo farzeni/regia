@@ -79,6 +79,55 @@ func TestResolve(t *testing.T) {
 	}
 }
 
+// layout.json and spawns.jsonl keep agents that ended or were removed long
+// ago: like the panel, the group leaves them out, and archived agents too.
+// Before, a group of 13 in the panel was "18 siblings" in regia context.
+func TestGoneAndArchived(t *testing.T) {
+	tr := fixture(t)
+	tr.L.Parent["old1"], tr.L.Parent["old2"] = "g:1", "coord"
+	tr.L.Order["g:1"] = append([]string{"old1"}, tr.L.Order["g:1"]...)
+	tr.Spawns["old3"] = spawns.Link{Parent: "coord", Child: "old3"}
+	live := map[string]*claude.Agent{}
+	for _, id := range []string{"coord", "a1", "w1", "w2", "w3", "lonely", "pp"} {
+		live[id] = &claude.Agent{ID: id}
+	}
+	tr.SetLive(live)
+	if got := tr.Siblings(tr.Resolve("a1")); !slices.Equal(got, []string{"coord"}) {
+		t.Fatalf("a1 siblings without the gone old1: %v", got)
+	}
+	if got := tr.Children(tr.Resolve("coord")); !slices.Equal(got, []string{"w1", "w2", "w3"}) {
+		t.Fatalf("coord children without the gone old2, old3: %v", got)
+	}
+	if n := tr.Members("g:1"); n != 5 {
+		t.Fatalf("g:1 reaches %d agents, want 5", n)
+	}
+
+	tr.L.Archive("w2")
+	if got := tr.Children(tr.Resolve("coord")); !slices.Equal(got, []string{"w1", "w3"}) {
+		t.Fatalf("archived w2 still listed: %v", got)
+	}
+	if n := tr.Members("g:1"); n != 4 {
+		t.Fatalf("g:1 reaches %d agents with w2 archived, want 4", n)
+	}
+
+	// The coordinator itself is gone: its agents move up into g:1.
+	delete(live, "coord")
+	tr.SetLive(live)
+	w1 := tr.Resolve("w1")
+	if !slices.Equal(w1.Chain, []string{"g:1"}) {
+		t.Fatalf("w1 under a gone coordinator: %+v", w1)
+	}
+	if got := tr.Siblings(w1); !slices.Equal(got, []string{"a1", "w3"}) {
+		t.Fatalf("w1 siblings once coord is gone: %v", got)
+	}
+
+	// Listing unknown: nothing is filtered.
+	tr.Live = nil
+	if got := tr.Siblings(tr.Resolve("a1")); !slices.Equal(got, []string{"old1", "coord"}) {
+		t.Fatalf("without a listing every known id counts: %v", got)
+	}
+}
+
 func TestMuted(t *testing.T) {
 	tr := fixture(t)
 	tr.L.Muted = map[string]bool{"g:1": true}
