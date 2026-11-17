@@ -136,7 +136,7 @@ func (l *Layout) autoParent(a *claude.Agent, agents map[string]*claude.Agent) st
 	if fp := a.ForkParent; fp != "" && agents[fp] != nil && fp != a.ID {
 		return fp
 	}
-	if sp := spawnParent(l.Spawns, a.ID, agents); sp != "" && sp != a.ID {
+	if sp := l.spawnParent(a.ID, agents); sp != "" && sp != a.ID {
 		return sp
 	}
 	return ""
@@ -603,12 +603,36 @@ func (l *Layout) Trail(id string, agents map[string]*claude.Agent) []string {
 	return t
 }
 
-// spawnParent resolves a child's spawner to a listed agent id, if any.
-func spawnParent(links map[string]spawns.Link, child string, agents map[string]*claude.Agent) string {
-	l, ok := links[child]
-	if !ok {
-		return ""
+// spawnParent is where a child's spawner puts it: the spawner when it is
+// listed, else, when the spawner is gone (removed, ended), the spawner's own
+// place: where it sat in the tree (a coordinator or a hand-made group, not
+// its project group), or its own spawner, climbing until something is there.
+// "" when nothing is.
+func (l *Layout) spawnParent(child string, agents map[string]*claude.Agent) string {
+	seen := map[string]bool{child: true}
+	for id := child; len(seen) < 64; {
+		link, ok := l.Spawns[id]
+		if !ok {
+			return ""
+		}
+		if p := listedSpawner(link, agents); p != "" {
+			return p
+		}
+		gone := link.Parent
+		if seen[gone] {
+			return ""
+		}
+		seen[gone] = true
+		if p := l.effParent(gone, agents); p != "" && !strings.HasPrefix(p, "p:") {
+			return p
+		}
+		id = gone
 	}
+	return ""
+}
+
+// listedSpawner resolves a link's spawner to a listed agent id, if any.
+func listedSpawner(l spawns.Link, agents map[string]*claude.Agent) string {
 	if agents[l.Parent] != nil {
 		return l.Parent
 	}

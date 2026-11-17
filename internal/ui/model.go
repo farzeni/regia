@@ -76,6 +76,9 @@ type model struct {
 
 	removing map[string]*pendingRemoval // taken off the list while claude rm runs
 
+	scanning  bool // a transcript scan for missed spawns is running
+	scannedAt int  // the tick the last one started
+
 	notesFor string // the blackboard open with N (a group or coordinator id)
 	noteSel  int    // the note picked on it, oldest first
 
@@ -189,13 +192,40 @@ func (m *model) pollListing() tea.Cmd {
 	return fetchCmd
 }
 
+// Spawn scan: the hook links a spawn when it sees it, but sessions started
+// before the plugin was installed never run it. Their transcripts are read
+// for spawns on a goroutine (a tea.Cmd), only what was appended since the
+// last scan; the scanner only appends to spawns.jsonl, and the next refresh
+// picks the links up (spawns.Cached, Place). One scan at a time.
+const scanEvery = 15 // ticks
+
+var spawnScanner *spawns.Scanner // made on the first scan; one scan at a time
+
+type spawnScanMsg struct{ added int }
+
+func spawnScanCmd() tea.Msg {
+	if spawnScanner == nil {
+		spawnScanner = spawns.NewScanner()
+	}
+	n, _ := spawnScanner.Scan()
+	return spawnScanMsg{n}
+}
+
+func (m *model) pollScan() tea.Cmd {
+	if m.scanning || m.ticks-m.scannedAt < scanEvery {
+		return nil
+	}
+	m.scanning, m.scannedAt = true, m.ticks
+	return spawnScanCmd
+}
+
 func tick() tea.Cmd {
 	return tea.Tick(time.Second, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
 
 func (m *model) Init() tea.Cmd {
-	m.fetching = true
-	return tea.Batch(fetchCmd, tick(), autoUpdateCmd, m.startPulse())
+	m.fetching, m.scanning = true, true
+	return tea.Batch(fetchCmd, tick(), autoUpdateCmd, m.startPulse(), spawnScanCmd)
 }
 
 func (m *model) setAgents(b []byte) {
