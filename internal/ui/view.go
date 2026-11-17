@@ -213,6 +213,9 @@ func (m *model) View() string {
 		b.WriteByte('\n')
 	}
 	b.WriteString(m.footer())
+	if m.help && m.view == viewSearch { // ? types into the query: ctrl+r opens the regex cheat sheet
+		return overlay(b.String(), regexHelpModal(m.w, m.h), m.w, m.h)
+	}
 	if m.help {
 		return overlay(b.String(), helpModal(m.w, m.h), m.w, m.h)
 	}

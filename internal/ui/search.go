@@ -280,6 +280,8 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 		m.srch.fold[r.Agent.ID] = fold
 		m.cursorID = r.Agent.ID
 		m.rebuild()
+	case "ctrl+r": // the regex cheat sheet
+		m.help = true
 	case "ctrl+t":
 		m.srch.tools = !m.srch.tools
 		m.flash("tool calls and output %s", map[bool]string{true: "searched too", false: "left out"}[m.srch.tools])
@@ -402,9 +404,9 @@ func (m *model) searchRowLine(r layout.Row, w int) string {
 func (m *model) searchEmpty() string {
 	switch {
 	case strings.TrimSpace(m.srch.query) == "":
-		return "type to search inside every session · /regex/ for a pattern"
+		return "type to search inside every session · /regex/ for a pattern · ctrl+r: regex help"
 	case claude.ParseQuery(m.srch.query).Err != nil:
-		return "bad pattern " + claude.ParseQuery(m.srch.query).Err.Error()
+		return "bad pattern " + claude.ParseQuery(m.srch.query).Err.Error() + " · ctrl+r: regex help"
 	case m.srch.running || m.srch.ranQ != m.srch.query:
 		return "searching…"
 	case m.srch.tools:

@@ -155,7 +155,10 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   words"` match as a phrase, and `/a regex/` as a (case-insensitive) Go
   regular expression, e.g. `deploy /retr(y|ies)/` (a closing `/` needs a space
   or the end after it, so a path like `/home/me` stays a word; a pattern that
-  doesn't compile says why). `ctrl+t` also searches tool calls and their
+  doesn't compile says why). `ctrl+r` shows a cheat sheet of the regex
+  syntax worth knowing (classes, repeats, `\b` word boundaries, anchors,
+  `(?-i)` to match case, ready-made patterns for ids, URLs, `file.go:12`);
+  `esc` closes it and keeps your query. `ctrl+t` also searches tool calls and their
   output. There is no new-task box here: keys type into the search, a
   one-line input with the usual editing keys (`←/→`, `home/end`, `alt+←/→`,
   `ctrl+w`, `ctrl+u`, `delete`…). `↑/↓` (or `ctrl+n/p`, `ctrl+j/k`) move while
@@ -240,6 +243,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 |---|---|
 | `enter` | attach to the session (`←` inside it comes back) |
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
+| `ctrl+r` (in search) | regex cheat sheet for `/patterns/` (`esc` closes it) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
 | `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `↑`/`↓` message to message over the steps, `shift+↑`/`↓` (`j`/`k`) every block, runs and steps too, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block in the input (and copy it), `i` to the input, `g`/`G` top / bottom, `←`/`esc` back |

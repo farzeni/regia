@@ -192,7 +192,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.help { // the help modal is on top: close it, ignore the rest
 			switch msg.String() {
-			case "esc", "?", "q", "enter", "ctrl+c":
+			case "esc", "?", "q", "enter", "ctrl+c", "ctrl+r":
 				m.help = false
 			}
 			return m, nil
