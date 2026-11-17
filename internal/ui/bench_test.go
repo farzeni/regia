@@ -60,8 +60,13 @@ func BenchmarkConv(b *testing.B) {
 	if p == "" {
 		b.Skip("set REGIA_BENCH_TRANSCRIPT")
 	}
+	if os.Getenv("REGIA_BENCH_LINKS") != "" { // paths and URLs in replies linked
+		orig := openers
+		defer func() { openers = orig }()
+		openers, _ = buildOpeners("openers.conf", "preset = vscode\nosc8 = on", "linux", noEnv)
+	}
 	m := &model{}
-	a := &claude.Agent{ID: "bench", Transcript: p}
+	a := &claude.Agent{ID: "bench", Transcript: p, Cwd: "/wt"}
 	claude.Messages(p) // parsed once, before: the parse is BenchmarkMessagesCold
 	reset := func() {
 		for i := range convCache {
@@ -72,6 +77,7 @@ func BenchmarkConv(b *testing.B) {
 		for b.Loop() {
 			reset()
 			clear(mdCache)
+			clear(linkCache)
 			m.conversationLines(a, benchW)
 		}
 	})
