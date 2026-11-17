@@ -126,7 +126,10 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   wrote it, when, and the line around the match, highlighted); the right
   panel shows the selected message in context with the messages around it.
   Several words must all appear in the same message, in any case; `"quoted
-  words"` match as a phrase. `ctrl+t` also searches tool calls and their
+  words"` match as a phrase, and `/a regex/` as a (case-insensitive) Go
+  regular expression, e.g. `deploy /retr(y|ies)/` (a closing `/` needs a space
+  or the end after it, so a path like `/home/me` stays a word; a pattern that
+  doesn't compile says why). `ctrl+t` also searches tool calls and their
   output. There is no new-task box here: keys type into the search, a
   one-line input with the usual editing keys (`←/→`, `home/end`, `alt+←/→`,
   `ctrl+w`, `ctrl+u`, `delete`…). `↑/↓` (or `ctrl+n/p`, `ctrl+j/k`) move while
