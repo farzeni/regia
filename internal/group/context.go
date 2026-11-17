@@ -57,7 +57,7 @@ func Context(t *Tree, pos Position, agents map[string]*claude.Agent, all bool, n
 	var b strings.Builder
 	fmt.Fprintf(&b, "regia · you are %q (%s)\n", t.Title(pos.Self, name), pos.Self)
 	if !pos.Grouped() {
-		b.WriteString("You are not in a group (a hand-made group in regia, or a coordinator's agents): there is no one to share with.\n")
+		b.WriteString("You are not in a group (a hand-made group in regia, or a coordinator's agents): there is no one to share with: no coordinator, no siblings, no notes.\n")
 		return b.String()
 	}
 	line := func(id string) string {
@@ -138,6 +138,8 @@ func Context(t *Tree, pos Position, agents map[string]*claude.Agent, all bool, n
 	if shown == 0 {
 		b.WriteString("blackboard: empty — `regia note \"…\"` writes on it.\n")
 	}
+	// Self-describing, for an agent told only "use regia context".
+	b.WriteString("(siblings: the other agents in your group or under your coordinator · blackboard: notes the whole group reads · `regia note \"…\"` adds one)\n")
 	return b.String()
 }
 

@@ -8,8 +8,10 @@
 // directory see nothing about each other.
 //
 // It is built to cost nothing when unused and to stay out of the way:
-//   - agents outside a group get nothing (the hook exits at once);
-//   - a grouped agent is told once, in a few lines, that `regia context` and
+//   - agents outside a group get nothing (the hook exits at once), unless the
+//     user asks them about a group: then one line says they are in none;
+//   - a grouped agent is told once (again after a compaction, or when the
+//     user talks about its group), in a few lines, that `regia context` and
 //     `regia note` exist; after that the hook speaks only when a sibling
 //     wrote a note it hasn't seen or it was moved, at most once a minute,
 //     with one line that points to `regia context` instead of pasting notes;

@@ -347,7 +347,12 @@ It is built to stay out of the agents' way. The plugin's hook does nothing for
 agents outside a group. A grouped agent gets a short introduction once (what
 the two commands are for: a shared blackboard, with no advice on how to use it), then
 a single line only when someone else wrote a note it hasn't seen or it was
-moved, at most once a minute (or when it gets a message). Notes are never
+moved, at most once a minute (or when it gets a message). The introduction
+says what "coordinator" and "siblings" mean and comes again after the
+conversation is compacted or cleared, and when a message from you talks about
+the group ("check your siblings", "use regia context", "your coordinator", at
+most every 10 minutes); an agent outside a group is then told it is in none.
+Notes are never
 pasted into the conversation: the agent reads them with `regia context` when
 it wants to.
 
