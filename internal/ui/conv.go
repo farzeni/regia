@@ -519,7 +519,7 @@ func (m *model) focusConv() {
 		return
 	}
 	m.convFocus, m.convReveal, m.typing = true, true, false // → from an empty input box too
-	m.flash("conversation: j/k move · enter/space fold · y copy · r reply · ←/esc back")
+	m.flash("conversation: j/k move · shift/ctrl+↑↓ message/yours · enter/space fold · y copy · r reply · ←/esc back")
 }
 
 // selectConvBlock selects block i of what is shown and brings it into view.
@@ -652,6 +652,13 @@ func (m *model) updateConv(k tea.KeyMsg) tea.Cmd {
 		m.selectConvBlock(i + 1)
 	case "k", "up":
 		m.selectConvBlock(i - 1)
+	case "shift+up", "shift+down": // message to message, over the steps
+		m.jumpConv(i, k.String() == "shift+down", func(b convBlock) bool { return b.kind == blockMsg })
+	case "ctrl+up", "ctrl+down", "alt+up", "alt+down", "[", "]": // your turns
+		down := k.String() == "ctrl+down" || k.String() == "alt+down" || k.String() == "]"
+		m.jumpConv(i, down, func(b convBlock) bool { return b.kind == blockMsg && b.msg.Role == claude.RoleYou })
+	case "ctrl+d", "ctrl+u": // half a screen
+		m.selectConvBlock(m.convBlockNear(b.top + map[bool]int{true: page, false: -page}[k.String() == "ctrl+d"]))
 	case "g", "home":
 		m.selectConvBlock(0)
 	case "G", "end":
@@ -674,6 +681,33 @@ func (m *model) updateConv(k tea.KeyMsg) tea.Cmd {
 		return m.quoteReply(b)
 	}
 	return nil
+}
+
+// jumpConv selects the nearest block after (down) or before block i that
+// matches; with none, the last or first block.
+func (m *model) jumpConv(i int, down bool, match func(convBlock) bool) {
+	d, end := -1, 0
+	if down {
+		d, end = 1, len(m.conv.blocks)-1
+	}
+	for j := i + d; j >= 0 && j < len(m.conv.blocks); j += d {
+		if match(m.conv.blocks[j]) {
+			m.selectConvBlock(j)
+			return
+		}
+	}
+	m.selectConvBlock(end)
+}
+
+// convBlockNear is the index of the block drawn at line l of the
+// conversation, or the nearest one.
+func (m *model) convBlockNear(l int) int {
+	for i, b := range m.conv.blocks {
+		if l < b.top+b.n {
+			return i
+		}
+	}
+	return len(m.conv.blocks) - 1
 }
 
 // revealConv scrolls the panel so the selected block shows (its top first),

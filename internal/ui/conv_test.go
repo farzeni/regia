@@ -368,6 +368,59 @@ func TestArrowsFocusConversation(t *testing.T) {
 	}
 }
 
+// shift+↑↓ jumps message to message over the steps, ctrl+↑↓ to your
+// messages, ctrl+d/u half a screen.
+func TestConvFastJumps(t *testing.T) {
+	m := convModel(t)
+	m.Update(tkey("o"))
+	m.Update(tkey("g"))
+	bs := m.conv.blocks
+	var msgs, yours []int
+	for i, b := range bs {
+		if b.kind == blockMsg {
+			msgs = append(msgs, i)
+			if b.msg.Role == claude.RoleYou {
+				yours = append(yours, i)
+			}
+		}
+	}
+	if len(msgs) < 3 || len(yours) < 2 {
+		t.Fatalf("fixture: %d messages, %d yours", len(msgs), len(yours))
+	}
+	for _, want := range msgs[1:] {
+		if m.convSel() == want {
+			continue
+		}
+		m.Update(tkey("shift+down"))
+		if got := m.convSel(); got != want {
+			t.Fatalf("shift+↓: block %d, want message at %d (messages %v)", got, want, msgs)
+		}
+	}
+	m.Update(tkey("g"))
+	for _, want := range yours {
+		if m.convSel() == want {
+			continue
+		}
+		m.Update(tkey("ctrl+down"))
+		if got := m.convSel(); got != want {
+			t.Fatalf("ctrl+↓: block %d, want your message at %d (yours %v)", got, want, yours)
+		}
+	}
+	m.Update(tkey("ctrl+up"))
+	if got := m.convSel(); yours[len(yours)-1] > yours[0] && got >= yours[len(yours)-1] {
+		t.Fatalf("ctrl+↑ should go back to an earlier message of yours (at %d)", got)
+	}
+	m.Update(tkey("g"))
+	m.Update(tkey("ctrl+d"))
+	if m.convSel() == 0 || !m.convFocus {
+		t.Fatal("ctrl+d should move the block cursor down, staying in the conversation")
+	}
+	m.Update(tkey("ctrl+u"))
+	if m.convSel() != 0 {
+		t.Fatalf("ctrl+u should come back to the top (at %d)", m.convSel())
+	}
+}
+
 // ? lists the conversation's keys, and still fits a 30-row terminal.
 func TestHelpListsConversationKeys(t *testing.T) {
 	m := testModel(t)

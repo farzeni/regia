@@ -30,6 +30,14 @@ func tkey(s string) tea.KeyMsg {
 		return tea.KeyMsg{Type: tea.KeyCtrlUp}
 	case "ctrl+down":
 		return tea.KeyMsg{Type: tea.KeyCtrlDown}
+	case "shift+up":
+		return tea.KeyMsg{Type: tea.KeyShiftUp}
+	case "shift+down":
+		return tea.KeyMsg{Type: tea.KeyShiftDown}
+	case "ctrl+d":
+		return tea.KeyMsg{Type: tea.KeyCtrlD}
+	case "ctrl+u":
+		return tea.KeyMsg{Type: tea.KeyCtrlU}
 	case "left":
 		return tea.KeyMsg{Type: tea.KeyLeft}
 	case "right":
