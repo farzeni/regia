@@ -111,10 +111,10 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string) {
 	if a.Unhealthy != "" {
 		field("stuck?", stuckGlyph+" "+a.Unhealthy, lipgloss.NewStyle().Foreground(cDim), 1)
 	}
-	if tabs := pluginTabs(a, w); len(tabs) > 0 {
-		out = append(out, m.tabbedBox(append([]panelTab{{name: agentTab, body: ctx}}, tabs...), w)...)
-	} else if len(ctx) > 0 {
-		out = append(out, box("", "", ctx, w)...)
+	// the box, unless it would only say there's nothing yet
+	tabs := append([]panelTab{{name: agentTab, body: ctx}, m.changesTab(a, w)}, pluginTabs(a, w)...)
+	if len(ctx) > 0 || len(tabs) > 2 || tabs[1].badge != nil || m.panelTab == changesTab {
+		out = append(out, m.tabbedBox(tabs, w)...)
 	}
 
 	// ── the ask: what it needs from you (or what it's doing), in a barred block
@@ -146,11 +146,6 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string) {
 	// the state and meta lines go in the foot, under the latest activity
 	card = out
 	foot = []string{head, meta}
-
-	// ── the agent's git diff (D) replaces the conversation
-	if dl, ok := m.diffHist(a, r.ID, w); ok {
-		return dl, card, foot
-	}
 
 	// ── the conversation: your messages and its replies, newest at the bottom
 	return m.conversationLines(a, w), card, foot

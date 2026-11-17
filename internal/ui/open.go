@@ -19,6 +19,7 @@ type openTarget struct {
 	URL  string
 	Text string // what the pager shows
 	Dir  string // the agent's worktree, for "diff"
+	Base string // merge-base commit for "diff": the agent's changes start there
 }
 
 // openDoneMsg reports an opener that failed, to flash it.
@@ -31,7 +32,11 @@ var openThing = func(t openTarget) tea.Cmd {
 	case "pager", "diff":
 		text := t.Text
 		if t.Kind == "diff" && text == "" {
-			out, _ := exec.Command("git", "-C", t.Dir, "diff").Output()
+			args := []string{"-C", t.Dir, "diff", "--color"}
+			if t.Base != "" {
+				args = append(args, t.Base)
+			}
+			out, _ := exec.Command("git", args...).Output()
 			text = string(out)
 		}
 		pager := os.Getenv("PAGER")

@@ -184,7 +184,7 @@ func (m *model) View() string {
 	}
 	margin := strings.Repeat(" ", padX)
 	divider := stDim.Render("│")
-	if m.convFocus { // the conversation has the keys
+	if m.convFocus || m.chg.focus { // the conversation or the changes tab has the keys
 		divider = stAccent.Render("┃")
 	}
 	sep := strings.Repeat(" ", gap/2) + divider + strings.Repeat(" ", gap-gap/2-1)
