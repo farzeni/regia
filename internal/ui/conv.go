@@ -121,7 +121,10 @@ var stepKinds = map[string]stepKind{
 }
 
 func kindOf(s *claude.Step) stepKind {
-	k := stepKinds[s.Name]
+	k, ok := stepKinds[s.Name]
+	if !ok && s.Res != nil && len(s.Res.Images) > 0 {
+		k = imageKind
+	}
 	if k.line == nil {
 		k.line = genericLine
 	}
@@ -131,12 +134,12 @@ func kindOf(s *claude.Step) stepKind {
 	return k
 }
 
-// toolLabel: an MCP tool by its own name (mcp__server__take_screenshot →
-// take_screenshot).
+// toolLabel: an MCP tool as server:tool (mcp__browser__take_screenshot →
+// browser:take_screenshot).
 func toolLabel(name string) string {
-	if strings.HasPrefix(name, "mcp__") {
-		if i := strings.LastIndex(name, "__"); i > 3 {
-			return name[i+2:]
+	if rest, ok := strings.CutPrefix(name, "mcp__"); ok {
+		if i := strings.Index(rest, "__"); i > 0 {
+			return rest[:i] + ":" + rest[i+2:]
 		}
 	}
 	return name
@@ -199,7 +202,7 @@ func thoughtLine(_ stepCtx, s *claude.Step, w int) string {
 
 func thoughtDetail(_ stepCtx, s *claude.Step, w int) []string {
 	if strings.TrimSpace(s.Text) == "" {
-		return []string{stDim.Render("(not in the transcript)")}
+		return []string{stDim.Render(trunc("(not in the transcript)", w))}
 	}
 	var out []string
 	for _, l := range wrap(s.Text, w) {
@@ -286,7 +289,11 @@ func runLine(r *convRun, open bool, w int) string {
 		fold = "▾ "
 	}
 	tail := lipgloss.Width(e + d)
-	return stDim.Render(fold+"⚙ "+trunc(s, w-4-tail)) + stErr.Render(e) + stDim.Render(d)
+	l := stDim.Render(fold+"⚙ "+trunc(s, w-4-tail)) + stErr.Render(e) + stDim.Render(d)
+	if ansi.StringWidth(l) > w { // a narrow panel: the counts don't fit next to the errors and time
+		l = ansi.Truncate(stDim.Render(fold+"⚙ "+s)+stErr.Render(e)+stDim.Render(d), max(0, w), "…")
+	}
+	return l
 }
 
 // fmtDur is 45s, 2m10s, 1h05m.
