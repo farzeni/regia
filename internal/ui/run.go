@@ -12,7 +12,13 @@ import (
 
 // Run opens the full-screen control room.
 func Run() error {
-	_, err := tea.NewProgram(newModel(), tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
+	var oerr error
+	openers, oerr = loadOpeners()
+	m := newModel()
+	if oerr != nil { // a mistake in openers.conf: say so, open with the defaults
+		m.flash("openers: %v", oerr)
+	}
+	_, err := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 	return err
 }
 
