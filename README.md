@@ -89,12 +89,16 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   a quote and attaches to the session, where you paste it and go on,
   `g`/`G` go to the top / bottom, `esc` gives the keys back to the list. What's
   unfolded is remembered per agent until regia quits.
-  `D` swaps it for the agent's changes: the git
-  diff of its directory against where it branched off the repo's default
-  branch (main/master), uncommitted and new files included, with the changed
-  files and their +/- counts on top; `pgup`/`pgdn` scroll, `D` or `esc` goes
-  back. It's computed in the background and kept until the agent commits or
-  edits something; diffs over 5000 lines are cut, with a note saying how much.
+  A click on a block selects it (and focuses the conversation); a click on
+  the selected one unfolds it, or opens the step. The wheel scrolls, and in
+  focus the cursor stays on what's shown.
+  The agent box's **changes** tab (`D`) lists the files the agent edited or
+  wrote, newest first, each with the lines it added and removed (`+8 −3`) and
+  the line it last changed; failed edits don't count. `D` gives the tab the
+  keys: `j`/`k` move, `enter` (or a click on the selected file) opens the file
+  at that line, `d` opens the agent's whole diff (from where its branch left
+  main/master, uncommitted changes included) in your diff tool, `esc` gives
+  the keys back, `D` again goes back to the agent tab.
   When the agent has a **pull request** (a PR
   link in its job state, or else a PR for its branch), the card has a `pr`
   line: number, draft/open, CI checks (✓ passing, ✗ failing, … pending) and
@@ -126,11 +130,17 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   wrote it, when, and the line around the match, highlighted); the right
   panel shows the selected message in context with the messages around it.
   Several words must all appear in the same message, in any case; `"quoted
-  words"` match as a phrase. `ctrl+t` also searches tool calls and their
-  output. Keys type into the search, so: `↑/↓` (or `ctrl+n/p`, `ctrl+j/k`) move while you type, `ctrl+↑/↓` jump between
-  sessions, `←/→` fold a session's matches, `enter` attaches, `pgup/pgdn`
-  scroll the panel, `esc` clears the search and, again, goes back to the tree
-  on that session. The transcripts are read once (a few hundred ms) and then
+  words"` match as a phrase, and `/a regex/` as a (case-insensitive) Go
+  regular expression, e.g. `deploy /retr(y|ies)/` (a closing `/` needs a space
+  or the end after it, so a path like `/home/me` stays a word; a pattern that
+  doesn't compile says why). `ctrl+t` also searches tool calls and their
+  output. There is no new-task box here: keys type into the search, a
+  one-line input with the usual editing keys (`←/→`, `home/end`, `alt+←/→`,
+  `ctrl+w`, `ctrl+u`, `delete`…). `↑/↓` (or `ctrl+n/p`, `ctrl+j/k`) move while
+  you type, `ctrl+↑/↓` jump between sessions, `ctrl+home/end` go to the first
+  or last match, `shift+←/→` fold a session's matches, `enter` attaches,
+  `pgup/pgdn` scroll the panel, `esc` clears the search and, again, goes back
+  to the tree on that session. The transcripts are read once (a few hundred ms) and then
   only what was appended, so searching is instant after that.
 
 What the states mean. Claude Code marks a session *done* whenever a turn ends
@@ -208,13 +218,13 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `enter` | attach to the session (`←` inside it comes back) |
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
-| `pgup` / `pgdn` | scroll the panel's conversation back / forward |
+| `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
 | `o` | focus the conversation: `j`/`k` move between blocks, `enter`/`space` fold / unfold (or open a step), `y` copy, `r` reply: copies the message quoted and attaches to the agent so you paste it, `g`/`G` top / bottom, `esc` back |
 | `b` | jump to the next agent whose turn is yours (waiting or ready) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |
-| `,` / `.` | previous / next tab of the agent box: `agent`, then one per plugin |
-| `D` | the panel shows the agent's git diff against the default branch (uncommitted changes too) / back (`esc` too) |
+| `,` / `.` | previous / next tab of the agent box: `agent`, `changes`, then one per plugin |
+| `D` | the agent box's `changes` tab, with the keys: `j`/`k` move between the files the agent touched, `enter` opens one at the line it last changed, `d` opens the agent's whole diff against where it branched off main/master in your diff tool, `esc` back, `D` again: the agent tab |
 | `i` / `c` / `C` | type a new task; `C` starts it inside the selection |
 | `s` | stop the session (conversation kept) |
 | `x` | remove from the list (`claude rm`: worktree deleted if safe, conversation kept; refuses over unpushed commits) |
@@ -235,9 +245,12 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `v` | select mode: `space` marks a row (a group: all of it), `*` marks everything, then `e` archives or `x` removes them all, `m` picks them all up to move (`p` puts them down), `n` makes a new group of them, `f` pins them (unpins, if all pinned); `esc` leaves |
 | `?` | help |
 
-The mouse works too: the wheel scrolls the list or the panel (whichever is
-under the pointer), a click selects a row, and dragging the divider resizes
-the list. Hold `shift` to select text with the mouse as usual.
+The mouse works too: the wheel scrolls the list or the panel's conversation
+(whichever is under the pointer), a click selects a row, a tab of the agent
+box, a file of the changes tab or a block of the conversation (a second click
+on the selected one opens it, or folds / unfolds it), and dragging the
+divider resizes the list. Hold `shift` while dragging to select text with the
+mouse as usual (regia captures the mouse, so plain dragging doesn't select).
 
 The input takes the usual readline keys (`ctrl+a`/`ctrl+e`, `ctrl+w`,
 `alt+←/→`, `ctrl+k`/`ctrl+u`, …), and so do names and notes edited in place. `alt+enter`, `ctrl+j`, or `\` then `enter`
@@ -245,6 +258,15 @@ add a line. A paste longer than 3 lines or 800 characters folds to
 `[Pasted text #1 +N lines]` and is expanded when the agent starts; `ctrl+v`
 pastes from the clipboard the same way. A task is capped at 120 KiB; beyond
 that, put it in a file and point the agent to it.
+
+`pgup` in the input brings back earlier messages (newest first, with
+their pasted text and images); `pgdown` goes forward again and, past the newest,
+back to what you were typing. Edits you make while moving through them are kept
+until you send. Nothing you type is lost: what you send, what `esc` or `ctrl+c`
+clears, and what is in the input when regia quits all go into the history
+(`~/.config/regia/history.jsonl`, shared by every regia). The draft is also
+written to disk every second, so if regia is killed, the next one puts it back
+in the input.
 
 A word starting with `/` anywhere in the draft lists skills and commands (your
 own, the installed plugins' as `plugin:name`, the project's, and the

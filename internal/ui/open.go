@@ -25,7 +25,7 @@ type openTarget struct {
 	URL  string
 	Text string // what the pager shows
 	Dir  string // the agent's worktree, for "diff"
-	Base string // the commit "diff" compares with ("": uncommitted changes)
+	Base string // merge-base commit for "diff": the agent's changes start there ("": uncommitted ones)
 }
 
 // openDoneMsg reports an opener that failed, to flash it.
