@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"unicode"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -28,8 +28,10 @@ const perSession = 200
 const searchDelay = 120 * time.Millisecond
 
 type searchState struct {
-	query   string
-	tools   bool // also search tool calls and their output
+	ti      textinput.Model // the query, edited with the usual readline keys
+	tiOn    bool            // ti is set up
+	query   string          // ti's value
+	tools  bool // also search tool calls and their output
 	typed   int  // bumped on every edit; a debounce tick only fires for the latest
 	gen     int  // bumped on every search; only the latest result is kept
 	running bool
@@ -37,6 +39,49 @@ type searchState struct {
 	results []claude.SessionHits
 	fold    map[string]bool         // sessions folded to their header
 	hits    map[string]searchHitRef // row id → its hit
+}
+
+// input is the query's text input, set up the first time it's used.
+func (s *searchState) input() *textinput.Model {
+	if !s.tiOn {
+		s.ti, s.tiOn = newEditInput(s.query), true
+		s.ti.KeyMap.DeleteAfterCursor.SetKeys() // ctrl+k moves up the list here
+	}
+	return &s.ti
+}
+
+// setQuery replaces the whole query (esc clears it).
+func (m *model) setQuery(q string) tea.Cmd {
+	m.srch.input().SetValue(q)
+	m.srch.query = q
+	return m.queryEdited()
+}
+
+var newlines = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ")
+
+// editQuery passes a key to the query's text input; a change searches again.
+func (m *model) editQuery(k tea.KeyMsg) tea.Cmd {
+	ti := m.srch.input()
+	if k.Type == tea.KeySpace {
+		k = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}}
+	}
+	if k.Type == tea.KeyRunes {
+		k.Runes = []rune(newlines.Replace(string(k.Runes))) // one line
+	}
+	if k.Type == tea.KeyRunes && !k.Alt && !k.Paste && len(k.Runes) > 1 {
+		// fast typing comes as one message, whose name could be a key's
+		// ("end", "home"…): one rune at a time, it's text
+		for _, r := range k.Runes {
+			*ti, _ = ti.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		}
+	} else {
+		*ti, _ = ti.Update(k)
+	}
+	if v := ti.Value(); v != m.srch.query {
+		m.srch.query = v
+		return m.queryEdited()
+	}
+	return nil
 }
 
 type searchHitRef struct {
@@ -193,8 +238,7 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 		return m.cycleView(-1)
 	case "esc":
 		if m.srch.query != "" {
-			m.srch.query = ""
-			return m.queryEdited()
+			return m.setQuery("")
 		}
 		m.setView(viewTree)
 		return nil
@@ -206,9 +250,9 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 		m.panelScroll += page
 	case "pgdown":
 		m.panelScroll = max(0, m.panelScroll-page)
-	case "home":
+	case "ctrl+home": // home/end move in the query
 		m.moveCursor(-len(m.rows))
-	case "end":
+	case "ctrl+end":
 		m.moveCursor(len(m.rows))
 	case "ctrl+up", "alt+up", "ctrl+down", "alt+down": // session to session
 		d := 1
@@ -221,7 +265,7 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 				break
 			}
 		}
-	case "left", "right": // fold / unfold the session
+	case "shift+left", "shift+right": // fold / unfold the session (←/→ move in the query)
 		r := m.selected()
 		if r == nil || r.Agent == nil {
 			return nil
@@ -229,7 +273,7 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 		if m.srch.fold == nil {
 			m.srch.fold = map[string]bool{}
 		}
-		fold := k.String() == "left"
+		fold := k.String() == "shift+left"
 		if m.srch.fold[r.Agent.ID] == fold {
 			return nil
 		}
@@ -251,28 +295,8 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 		}
 		id := r.Agent.ID
 		return attachSession(id)
-	case "backspace":
-		if r := []rune(m.srch.query); len(r) > 0 {
-			m.srch.query = string(r[:len(r)-1])
-			return m.queryEdited()
-		}
-	case "ctrl+w", "alt+backspace":
-		q := strings.TrimRightFunc(m.srch.query, unicode.IsSpace)
-		i := strings.LastIndexFunc(q, unicode.IsSpace)
-		m.srch.query = q[:i+1]
-		return m.queryEdited()
-	case "ctrl+u":
-		m.srch.query = ""
-		return m.queryEdited()
-	default:
-		switch k.Type {
-		case tea.KeySpace:
-			m.srch.query += " "
-			return m.queryEdited()
-		case tea.KeyRunes:
-			m.srch.query += strings.ReplaceAll(string(k.Runes), "\n", " ")
-			return m.queryEdited()
-		}
+	default: // everything else edits the query: ←/→, home/end, alt+←/→, ctrl+w…
+		return m.editQuery(k)
 	}
 	return nil
 }
@@ -412,7 +436,11 @@ func (m *model) searchLine(w int) string {
 		tools = m.status
 	}
 	hint := stDim.Render("  " + strings.Join(nonEmpty(info, "↑↓ enter attaches", tools, "esc clears"), " · "))
-	return stAccent.Render("search › ") + m.srch.query + "█" + trunc(hint, max(0, w-runewidth.StringWidth(m.srch.query)-10))
+	prompt := stAccent.Render("search › ")
+	ti := m.srch.input()
+	ti.Width = max(1, w-lipgloss.Width(prompt)-1) // past that it scrolls sideways; -1: the cursor
+	q := strings.TrimRight(ti.View(), " ")        // the input pads to its width: the hint follows the text
+	return prompt + q + trunc(hint, max(0, w-lipgloss.Width(prompt)-lipgloss.Width(q)))
 }
 
 func nonEmpty(ss ...string) []string {

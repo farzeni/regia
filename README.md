@@ -127,10 +127,13 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   panel shows the selected message in context with the messages around it.
   Several words must all appear in the same message, in any case; `"quoted
   words"` match as a phrase. `ctrl+t` also searches tool calls and their
-  output. Keys type into the search, so: `↑/↓` (or `ctrl+n/p`, `ctrl+j/k`) move while you type, `ctrl+↑/↓` jump between
-  sessions, `←/→` fold a session's matches, `enter` attaches, `pgup/pgdn`
-  scroll the panel, `esc` clears the search and, again, goes back to the tree
-  on that session. The transcripts are read once (a few hundred ms) and then
+  output. There is no new-task box here: keys type into the search, a
+  one-line input with the usual editing keys (`←/→`, `home/end`, `alt+←/→`,
+  `ctrl+w`, `ctrl+u`, `delete`…). `↑/↓` (or `ctrl+n/p`, `ctrl+j/k`) move while
+  you type, `ctrl+↑/↓` jump between sessions, `ctrl+home/end` go to the first
+  or last match, `shift+←/→` fold a session's matches, `enter` attaches,
+  `pgup/pgdn` scroll the panel, `esc` clears the search and, again, goes back
+  to the tree on that session. The transcripts are read once (a few hundred ms) and then
   only what was appended, so searching is instant after that.
 
 What the states mean. Claude Code marks a session *done* whenever a turn ends
