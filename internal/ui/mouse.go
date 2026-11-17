@@ -59,6 +59,9 @@ func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 
 // clickPanel handles a click at column x, row y of the panel.
 func (m *model) clickPanel(x, y int) tea.Cmd {
+	if m.view == viewSearch { // its panel is the results: what the last agent frame drew is gone
+		return nil
+	}
 	if y == m.tabRow { // a tab on the agent box's top line
 		for _, t := range m.tabHits {
 			if x >= t.x0 && x < t.x1 {
