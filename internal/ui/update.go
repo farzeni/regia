@@ -111,6 +111,13 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// bubbletea turns the mouse off for the attached session and doesn't turn it back on
 		return m, tea.Batch(fetchCmd, tea.EnableMouseCellMotion)
 
+	case resumeDoneMsg:
+		if msg.err != nil {
+			m.flash("resume: %v", msg.err)
+		}
+		m.fetching = true
+		return m, tea.Batch(fetchCmd, tea.EnableMouseCellMotion)
+
 	case tea.MouseMsg:
 		return m, m.updateMouse(msg)
 
@@ -208,6 +215,8 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.updateMenu(msg)
 		case modeModel:
 			return m, m.updateModelPick(msg)
+		case modeScope:
+			return m, m.updateScopePick(msg)
 		case modeConfirm:
 			m.mode = modeNormal
 			if msg.String() == m.confirmKey {

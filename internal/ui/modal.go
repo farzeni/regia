@@ -51,7 +51,7 @@ var helpSections = []helpSection{
 		{"pgup / pgdn", "scroll the conversation"},
 		{", / .", "agent box: previous / next tab"},
 		{"b", "next agent waiting for you"},
-		{"tab / shift+tab", "tree → inbox → search (ctrl+r: regex)"},
+		{"tab / shift+tab", "tree → inbox → search (ctrl+g scope, ctrl+r regex)"},
 		{"Z", "snooze a question"},
 		{"/", "filter: ↑↓ pick, enter opens, esc clears"},
 		{"h/l  space  z", "fold / unfold / all"},

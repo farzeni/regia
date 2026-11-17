@@ -34,7 +34,8 @@ const (
 	modeMenu // the ! menu: plugin actions and links
 	// the model picker (ctrl+g)
 	modeModel
-	modeEdit // a row or note edited in place (m.edit)
+	modeEdit  // a row or note edited in place (m.edit)
+	modeScope // what search looks in (ctrl+g in search)
 )
 
 type model struct {
@@ -125,6 +126,7 @@ type model struct {
 
 	draftModel string       // model picked for this task (ctrl+g); "" = claude's default
 	modelPick  *modelPicker // the model picker, when open
+	scopeSel   int          // the search scope picker's selection
 
 	status   string
 	statusAt time.Time

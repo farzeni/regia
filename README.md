@@ -159,7 +159,14 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   syntax worth knowing (classes, repeats, `\b` word boundaries, anchors,
   `(?-i)` to match case, ready-made patterns for ids, URLs, `file.go:12`);
   `esc` closes it and keeps your query. `ctrl+t` also searches tool calls and their
-  output. There is no new-task box here: keys type into the search, a
+  output. `ctrl+g` picks what to search, like the model picker in the input:
+  **sessions** (the default: what `claude agents --all` lists) or **history**,
+  every conversation on disk (`~/.claude/projects`), sessions you removed with
+  `x` and old ones too. Those show dimmed, named by their title (or the first
+  thing you wrote), and `enter` on one resumes it here (`claude --resume`, in
+  the directory it ran in) instead of attaching. The first history search reads
+  every transcript (about a second for a few hundred MB); after that it's
+  instant too. There is no new-task box here: keys type into the search, a
   one-line input with the usual editing keys (`←/→`, `home/end`, `alt+←/→`,
   `ctrl+w`, `ctrl+u`, `delete`…). `↑/↓` (or `ctrl+n/p`, `ctrl+j/k`) move while
   you type, `ctrl+↑/↓` jump between sessions, `ctrl+home/end` go to the first
@@ -244,6 +251,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `enter` | attach to the session (`←` inside it comes back) |
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `ctrl+r` (in search) | regex cheat sheet for `/patterns/` (`esc` closes it) |
+| `ctrl+g` (in search) | search the listed sessions or the whole history (removed sessions too; `enter` resumes one) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
 | `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `↑`/`↓` message to message over the steps, `shift+↑`/`↓` (`j`/`k`) every block, runs and steps too, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block in the input (and copy it), `i` to the input, `g`/`G` top / bottom, `←`/`esc` back |
