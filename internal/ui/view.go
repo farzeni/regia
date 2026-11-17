@@ -34,7 +34,6 @@ var (
 	stYou    = lipgloss.NewStyle().Foreground(lipgloss.Color("183")) // your messages in the history: a light tint of the accent
 	stHead   = lipgloss.NewStyle().Foreground(cDim).Bold(true)
 	stErr    = lipgloss.NewStyle().Foreground(cFailed) // a failed step
-	stBubble = stYou.Background(lipgloss.Color("236")) // your message in the conversation: your tint on a subtle background
 )
 
 func glyph(a *claude.Agent) (string, lipgloss.Color) {
