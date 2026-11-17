@@ -109,7 +109,7 @@ func TestPanelBottomUpAndScroll(t *testing.T) {
 		t.Fatal("the conversation should run oldest to newest, top to bottom")
 	}
 	// the card is above the conversation
-	if strings.Index(s, "the task") > strings.Index(s, "reply 38") {
+	if strings.Index(s, "the task") > strings.Index(s, "reply 39") {
 		t.Fatal("card should be above the conversation")
 	}
 	for range 60 { // runs between the messages: more lines

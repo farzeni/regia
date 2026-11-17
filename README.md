@@ -78,7 +78,7 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   in three parts: a card pinned at the top (task, git status, what it is
   asking), the conversation in the middle, and a foot pinned at the bottom
   with its state, name, directory and tokens, which never scrolls. The
-  conversation is your messages (right-aligned, in your tint) and the agent's
+  conversation is your messages (right-aligned, in your tint, in a box) and the agent's
   replies in full, its markdown rendered, newest last: the panel opens at its
   end, the latest reply right above the foot (`pgup`/`pgdn` scroll back and
   forth). The tool calls between two messages are one folded line,
@@ -238,7 +238,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
-| `o` | focus the conversation: `j`/`k` move between blocks, `enter`/`space` fold / unfold (or open a step), `y` copy, `r` reply: copies the message quoted and attaches to the agent so you paste it, `g`/`G` top / bottom, `esc` back |
+| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `j`/`k` move between blocks, `shift+↑`/`↓` message to message over the steps, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `y` copy, `r` reply: copies the message quoted and attaches to the agent so you paste it, `g`/`G` top / bottom, `←`/`esc` back |
 | `b` | jump to the next agent whose turn is yours (waiting on a question) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |
