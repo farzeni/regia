@@ -240,6 +240,9 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, c
 			}
 		}
+		if m.convFocus {
+			return m, m.updateConv(msg)
+		}
 		return m, m.updateNormal(msg)
 	}
 	return m, nil
@@ -534,6 +537,8 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		return m.timelineKey(r)
 	case "w":
 		m.groupDirKey(r)
+	case "o": // the conversation takes the keys
+		m.focusConv()
 	case "i":
 		m.typing = true
 	case "c", "C":

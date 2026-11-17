@@ -32,6 +32,8 @@ var (
 	stSel    = lipgloss.NewStyle().Background(lipgloss.Color("237"))
 	stYou    = lipgloss.NewStyle().Foreground(lipgloss.Color("183")) // your messages in the history: a light tint of the accent
 	stHead   = lipgloss.NewStyle().Foreground(cDim).Bold(true)
+	stErr    = lipgloss.NewStyle().Foreground(cFailed) // a failed step
+	stBubble = stYou.Background(lipgloss.Color("236")) // your message in the conversation: your tint on a subtle background
 )
 
 func glyph(a *claude.Agent) (string, lipgloss.Color) {
@@ -172,7 +174,11 @@ func (m *model) View() string {
 		}
 	}
 	margin := strings.Repeat(" ", padX)
-	sep := strings.Repeat(" ", gap/2) + stDim.Render("│") + strings.Repeat(" ", gap-gap/2-1)
+	divider := stDim.Render("│")
+	if m.convFocus { // the conversation has the keys
+		divider = stAccent.Render("┃")
+	}
+	sep := strings.Repeat(" ", gap/2) + divider + strings.Repeat(" ", gap-gap/2-1)
 	var b strings.Builder
 	b.WriteString(margin + ansi.Truncate(m.header(), iw, "…"))
 	b.WriteString("\n\n")
@@ -586,6 +592,7 @@ func (m *model) placePanel(p panel, h, w int) []string {
 	}
 	card = card[:min(len(card), h-len(foot))]
 	room := h - len(card) - len(foot)
+	m.revealConv(len(p.hist), room)
 	m.panelScroll = max(0, min(m.panelScroll, len(p.hist)-room))
 	end := len(p.hist) - m.panelScroll
 	start := max(0, end-room)
@@ -602,6 +609,7 @@ func (m *model) placePanel(p panel, h, w int) []string {
 	for len(out)+len(view)+len(foot) < h {
 		out = append(out, "")
 	}
+	m.conv.histRow, m.conv.histStart, m.conv.histEnd = len(out), start, end // for clicks
 	return append(append(out, view...), foot...)
 }
 
@@ -648,6 +656,7 @@ func (m *model) detailLines(w int) panel {
 		return panel{card: out}
 	}
 	m.tabHits, m.tabRow = m.tabHits[:0], 0 // agentDetail draws them again if it has tabs
+	m.conv.id = ""                         // agentDetail sets it when it shows the conversation
 	hist, card, foot := m.agentDetail(r, w)
 	// a coordinator's panel is like any agent's; its agents' blackboard shows
 	// atop the card only while open (N)

@@ -110,7 +110,7 @@ func TestStepFields(t *testing.T) {
 	}
 
 	w := step(t, "Write")
-	if w.Res.Info["type"] != "create" || w.Res.Added != 3 || len(w.Res.Patch) != 1 || w.Res.Patch[0].Lines[0] != "+package a" {
+	if w.Res.Info["type"] != "create" || w.Res.FilePath != "/repo/b.go" || w.Res.Added != 3 || w.Res.Removed != 0 || len(w.Res.Patch) != 1 || w.Res.Patch[0].Lines[0] != "+package a" {
 		t.Errorf("Write create: %+v", w.Res)
 	}
 
@@ -152,6 +152,18 @@ func TestStepImage(t *testing.T) {
 	c, f, err := image.DecodeConfig(bytes.NewReader(b))
 	if err != nil || f != "png" || c.Width != 4 {
 		t.Errorf("decoded %v %s %v", c, f, err)
+	}
+}
+
+// A command you interrupted (esc in Claude Code) says so.
+func TestStepInterrupted(t *testing.T) {
+	p := writeTranscript(t,
+		`{"type":"assistant","timestamp":"2026-11-17T10:00:00Z","message":{"content":[{"type":"tool_use","id":"b1","name":"Bash","input":{"command":"sleep 100"}}]}}`,
+		`{"type":"user","timestamp":"2026-11-17T10:00:09Z","message":{"content":[{"type":"tool_result","tool_use_id":"b1","content":"[Request interrupted by user]","is_error":true}]},"toolUseResult":{"stdout":"","stderr":"","interrupted":true,"isImage":false}}`,
+	)
+	es := Conversation(Messages(p))
+	if len(es) != 1 || es[0].Step.Res == nil || !es[0].Step.Res.Interrupted || !es[0].Step.Failed() || es[0].Step.Duration() != 9*time.Second {
+		t.Fatalf("interrupted command: %+v", es)
 	}
 }
 
