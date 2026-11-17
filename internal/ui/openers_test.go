@@ -36,7 +36,9 @@ func TestOpenersConfig(t *testing.T) {
 	}{
 		{name: "no file: default", t: file, argv: []string{"xdg-open", "/w/x.go"}},
 		{name: "macos default", goos: "darwin", t: file, argv: []string{"open", "/w/x.go"}},
-		{name: "preset", conf: "preset = vscode", t: file, argv: []string{"code", "-g", "/w/x.go:12"}},
+		{name: "preset", conf: "preset = vscode", t: file, argv: []string{"code", "/w", "-g", "/w/x.go:12"}},
+		{name: "preset without a folder", conf: "preset = vscode", t: openTarget{Kind: "file", Path: "/w/x.go", Line: 12},
+			argv: []string{"code", "-g", "/w/x.go:12"}},
 		{name: "override after preset", conf: "file = zed {path}:{line}\npreset = vscode # comment", t: file,
 			argv: []string{"zed", "/w/x.go:12"}},
 		{name: "no line is 1", conf: "preset = nvim-tmux", t: openTarget{Kind: "file", Path: "/a/b.go", Dir: "/w"},

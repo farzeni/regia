@@ -145,7 +145,7 @@ func TestChangesKeys(t *testing.T) {
 	}
 	m.Update(tkey("enter"))
 	cwd := m.agents["aaaa1111"].Cwd
-	if len(*got) != 1 || (*got)[0] != (openTarget{Kind: "file", Path: filepath.Join(cwd, "b.go"), Line: 1}) {
+	if len(*got) != 1 || (*got)[0] != (openTarget{Kind: "file", Path: filepath.Join(cwd, "b.go"), Line: 1, Dir: cwd}) {
 		t.Fatalf("enter on b.go opens it at line 1, got %+v", *got)
 	}
 	if s := ansi.Strip(m.View()); !strings.Contains(s, "▸ b.go") {

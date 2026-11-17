@@ -27,7 +27,7 @@ func TestOpenersCLI(t *testing.T) {
 	os.WriteFile(conf, []byte("preset = vscode\nurl = firefox {url}\n"), 0o644)
 	b.Reset()
 	Openers([]string{"show"}, &b)
-	for _, want := range []string{"preset = vscode", "code -g {path}:{line}", "# preset vscode", "firefox {url}", "openers.conf:2"} {
+	for _, want := range []string{"preset = vscode", "code {dir} -g {path}:{line}", "# preset vscode", "firefox {url}", "openers.conf:2"} {
 		if !strings.Contains(b.String(), want) {
 			t.Fatalf("show misses %q:\n%s", want, b.String())
 		}
@@ -44,7 +44,8 @@ func TestOpenersCLI(t *testing.T) {
 	if err := Openers([]string{"test", "file", "/a b/x.go:12"}, &b); err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"code", "-g", "/a b/x.go:12"}; !reflect.DeepEqual(got, want) {
+	wd, _ := os.Getwd() // `regia openers test` opens in the folder you run it from
+	if want := []string{"code", wd, "-g", "/a b/x.go:12"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("test file ran %q, want %q (%s)", got, want, b.String())
 	}
 
