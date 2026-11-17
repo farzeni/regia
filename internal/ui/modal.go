@@ -60,8 +60,8 @@ var helpSections = []helpSection{
 		{"R", "refresh"},
 	}},
 	{"o / →: focus the conversation", [][2]string{
-		{"j/k  ctrl+d/u", "move between blocks / half page"},
-		{"shift / ctrl+↑↓", "next message / your next message"},
+		{"↑↓  ctrl+↑↓", "message to message / your messages"},
+		{"shift+↑↓ j/k  ctrl+d/u", "every block, steps too / half page"},
 		{"enter / space", "fold, unfold, open a step; or click"},
 		{"c r i  ← esc", "copy / quote in the input / input / back"},
 	}},

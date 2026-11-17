@@ -532,7 +532,7 @@ func (m *model) convFresh() bool {
 }
 
 // convHint is what the foot says when the conversation takes the keys.
-const convHint = "conversation: j/k move · shift/ctrl+↑↓ message/yours · enter/space fold · c copy · r quote · i input · ←/esc back"
+const convHint = "conversation: ↑↓ messages · shift+↑↓ steps too · ctrl+↑↓ yours · enter/space fold · c copy · r quote · i input · ←/esc back"
 
 // focusConv is `o`: the conversation takes the keys, the cursor on the last
 // block (or where it was).
@@ -668,12 +668,12 @@ func (m *model) updateConv(k tea.KeyMsg) tea.Cmd {
 	case "esc", "o", "q", "left", "h": // back to the list
 		m.convFocus = false
 		m.status = ""
-	case "j", "down":
+	case "j", "shift+down": // every block: runs and steps too
 		m.selectConvBlock(i + 1)
-	case "k", "up":
+	case "k", "shift+up":
 		m.selectConvBlock(i - 1)
-	case "shift+up", "shift+down": // message to message, over the steps
-		m.jumpConv(i, k.String() == "shift+down", func(b convBlock) bool { return b.kind == blockMsg })
+	case "up", "down": // message to message, over the steps
+		m.jumpConv(i, k.String() == "down", func(b convBlock) bool { return b.kind == blockMsg })
 	case "ctrl+up", "ctrl+down", "alt+up", "alt+down", "[", "]": // your turns
 		down := k.String() == "ctrl+down" || k.String() == "alt+down" || k.String() == "]"
 		m.jumpConv(i, down, func(b convBlock) bool { return b.kind == blockMsg && b.msg.Role == claude.RoleYou })

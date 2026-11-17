@@ -376,7 +376,7 @@ func TestArrowsFocusConversation(t *testing.T) {
 	}
 }
 
-// shift+↑↓ jumps message to message over the steps, ctrl+↑↓ to your
+// ↑↓ jumps message to message over the steps, ctrl+↑↓ to your
 // messages, ctrl+d/u half a screen.
 func TestConvFastJumps(t *testing.T) {
 	m := convModel(t)
@@ -399,9 +399,9 @@ func TestConvFastJumps(t *testing.T) {
 		if m.convSel() == want {
 			continue
 		}
-		m.Update(tkey("shift+down"))
+		m.Update(tkey("down"))
 		if got := m.convSel(); got != want {
-			t.Fatalf("shift+↓: block %d, want message at %d (messages %v)", got, want, msgs)
+			t.Fatalf("↓: block %d, want message at %d (messages %v)", got, want, msgs)
 		}
 	}
 	m.Update(tkey("g"))
@@ -426,6 +426,16 @@ func TestConvFastJumps(t *testing.T) {
 	m.Update(tkey("ctrl+u"))
 	if m.convSel() != 0 {
 		t.Fatalf("ctrl+u should come back to the top (at %d)", m.convSel())
+	}
+	// shift+↓ / j: every block, the run after the first message too
+	m.Update(tkey("shift+down"))
+	m.Update(tkey("j"))
+	if got := m.convSel(); got != 2 {
+		t.Fatalf("shift+↓ then j: block %d, want 2", got)
+	}
+	m.Update(tkey("shift+up"))
+	if got := m.convSel(); got != 1 || bs[1].kind == blockMsg {
+		t.Fatalf("shift+↑ should land on the run between messages (block %d)", got)
 	}
 }
 
