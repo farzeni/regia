@@ -208,7 +208,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `enter` | attach to the session (`←` inside it comes back) |
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
-| `pgup` / `pgdn` | scroll the panel's conversation back / forward |
+| `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
 | `o` | focus the conversation: `j`/`k` move between blocks, `enter`/`space` fold / unfold (or open a step), `y` copy, `r` reply: copies the message quoted and attaches to the agent so you paste it, `g`/`G` top / bottom, `esc` back |
 | `b` | jump to the next agent whose turn is yours (waiting or ready) |
 | `y` / `Y` | copy the suggested reply / the session id |
@@ -245,6 +245,15 @@ add a line. A paste longer than 3 lines or 800 characters folds to
 `[Pasted text #1 +N lines]` and is expanded when the agent starts; `ctrl+v`
 pastes from the clipboard the same way. A task is capped at 120 KiB; beyond
 that, put it in a file and point the agent to it.
+
+`pgup` in the input brings back earlier messages (newest first, with
+their pasted text and images); `pgdown` goes forward again and, past the newest,
+back to what you were typing. Edits you make while moving through them are kept
+until you send. Nothing you type is lost: what you send, what `esc` or `ctrl+c`
+clears, and what is in the input when regia quits all go into the history
+(`~/.config/regia/history.jsonl`, shared by every regia). The draft is also
+written to disk every second, so if regia is killed, the next one puts it back
+in the input.
 
 A word starting with `/` anywhere in the draft lists skills and commands (your
 own, the installed plugins' as `plugin:name`, the project's, and the
