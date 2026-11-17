@@ -397,6 +397,9 @@ var rowCache = map[rowKey]string{}
 const rowCacheMax = 4096
 
 func (m *model) rowLine(r layout.Row, w int) string {
+	if m.editingRow(r.ID) != nil { // the cursor moves with each key: not cached
+		return m.drawRowLine(r, w)
+	}
 	k := rowKey{id: r.ID, title: r.Title, mark: m.markFor(r.ID), depth: r.Depth, count: r.Count, blocked: r.Blocked,
 		busy: r.Busy, w: w, group: r.Group, kids: r.HasKids, collapsed: r.Collapsed, archived: r.Archived,
 		muted: m.layout.Muted[r.ID], inbox: m.view == viewInbox}
@@ -443,8 +446,12 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 		if m.layout.Muted[r.ID] {
 			muted = " (muted)"
 		}
-		title := trunc(r.Title+muted, w-len(indent)-lipgloss.Width(meta)-4-lipgloss.Width(mark))
-		line = indent + stDim.Render(fold) + mark + stHead.Render(title)
+		titleW := w - len(indent) - lipgloss.Width(meta) - 4 - lipgloss.Width(mark)
+		title := stHead.Render(trunc(r.Title+muted, titleW))
+		if e := m.editingRow(r.ID); e != nil {
+			title = e.view(titleW)
+		}
+		line = indent + stDim.Render(fold) + mark + title
 		line = pad(line, w-lipgloss.Width(meta)-1) + meta
 	} else {
 		a := r.Agent
@@ -488,7 +495,11 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 		if r.Archived {
 			ts, gs = lipgloss.NewStyle().Foreground(cDim).Italic(true), stDim
 		}
-		line = indent + stDim.Render(fold) + mark + gs.Render(g) + " " + cutMark + pin + ts.Render(title) + warn
+		title = ts.Render(title)
+		if e := m.editingRow(r.ID); e != nil {
+			title = e.view(titleW)
+		}
+		line = indent + stDim.Render(fold) + mark + gs.Render(g) + " " + cutMark + pin + title + warn
 		line = pad(line, w-len(age)-1) + stDim.Render(age)
 	}
 	return line // the selection bar is drawn by View, across the margins

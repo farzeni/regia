@@ -212,7 +212,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `J` / `K` | move down / up among siblings |
 | `>` / `<` | nest under the agent above (it becomes the coordinator) / un-nest |
 | `m`, then `p` / `P` | move: `p` puts it into the group under the cursor (at the top), or right after the agent; `P` puts it after the group, or under the agent (as its coordinator) |
-| `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up) |
+| `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up); the name is typed right in the row (`enter` saves, `esc` cancels) |
 | `T` | a group's or coordinator's panel shows its timeline instead of the blackboard / back (on an agent: its group's); see [Group awareness](#group-awareness) |
 | `w` | set the directory new agents in the group start in (on an agent: its group's); see [Where a new agent starts](#where-a-new-agent-starts) |
 | `←` `→` `space` | fold / unfold |
@@ -231,7 +231,7 @@ under the pointer), a click selects a row, and dragging the divider resizes
 the list. Hold `shift` to select text with the mouse as usual.
 
 The input takes the usual readline keys (`ctrl+a`/`ctrl+e`, `ctrl+w`,
-`alt+←/→`, `ctrl+k`/`ctrl+u`, …). `alt+enter`, `ctrl+j`, or `\` then `enter`
+`alt+←/→`, `ctrl+k`/`ctrl+u`, …), and so do names and notes edited in place. `alt+enter`, `ctrl+j`, or `\` then `enter`
 add a line. A paste longer than 3 lines or 800 characters folds to
 `[Pasted text #1 +N lines]` and is expanded when the agent starts; `ctrl+v`
 pastes from the clipboard the same way. A task is capped at 120 KiB; beyond
@@ -325,7 +325,8 @@ that only share a directory know nothing about each other.
 In regia, the panel of a group (or of a coordinator, above its card) shows its
 blackboard. `N` opens it, from the group, the coordinator or any agent in it:
 `↑/↓` pick a note, `n` adds one from you, `e` edits the picked note (yours or
-an agent's), `x x` deletes it, `esc` closes. An edit reaches the agents like a
+an agent's), `x x` deletes it, `esc` closes. A note is written right on the
+blackboard (`enter` saves, `esc` cancels). An edit reaches the agents like a
 new note does. Outside regia, `regia context <id>` prints what an agent would
 see (`--all` for every note).
 
