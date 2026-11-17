@@ -209,7 +209,9 @@ func changeLine(f changedFile, sel bool, w int) string {
 	if sel {
 		st = stBold
 	}
-	left := lead + st.Render(path) + stDim.Render(at)
+	// linked after cutting: trunc and leftTrunc don't know escape sequences
+	link := linkify(st.Render(path), openTarget{Kind: "file", Path: f.Path, Line: f.Line})
+	left := lead + link + stDim.Render(at)
 	return pad(left, w-lipgloss.Width(right)) + right
 }
 
