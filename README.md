@@ -552,14 +552,20 @@ cmd/regia/          the binary: argument parsing, `regia setup`, `update`, `unin
 internal/claude/    Claude Code data: `claude agents` listing, job state files, transcript history
 internal/spawns/    spawn links: the hook handler, transcript backfill, spawns.jsonl
 internal/layout/    your organization: tree, automatic placement, moves, layout.json
+internal/group/     group awareness: `regia context`, `regia note`, `regia hook group`
+internal/plugins/   your plugin scripts: run per agent in the background, cached
 internal/gitinfo/   git state of an agent's directory, cached
 internal/prinfo/    PR status of an agent (state, CI, review) via `gh`, cached
 internal/attach/    `claude attach` behind a pty proxy (fast return to regia)
 internal/update/    self-update: version check on the Go module proxy, `go install` in place
 internal/ui/        the terminal interface (bubbletea): model, update, view, panel, input
 .claude-plugin/     plugin manifest + marketplace (this repo is its own marketplace)
-hooks/hooks.json    the PostToolUse hook the plugin installs
+hooks/hooks.json    the hooks the plugin installs (spawn links, group awareness)
+presets/openers/    opener presets, embedded in the binary
+docs/               plugin protocol, code conventions
 ```
 
-Dependencies point one way: `ui` → `layout` → `spawns` → `claude`; `gitinfo`,
-`prinfo`, `attach` and `update` are standalone.
+Dependencies point one way: `ui` → `group` → `layout` → `spawns` → `claude`;
+`gitinfo`, `prinfo`, `attach`, `update` and `plugins` are standalone.
+Before contributing, read [docs/conventions.md](docs/conventions.md);
+[CLAUDE.md](CLAUDE.md) is the short version for Claude Code.
