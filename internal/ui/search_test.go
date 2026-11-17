@@ -242,6 +242,20 @@ func TestSearchMoveWhileTyping(t *testing.T) {
 	}
 }
 
+func TestSearchRegex(t *testing.T) {
+	m := searchModel(t)
+	m.Update(tkey("shift+tab"))
+	typeQuery(m, "/web.ook/")
+	if len(m.rows) == 0 {
+		t.Fatalf("/web.ook/ found nothing")
+	}
+	m.setQuery("")
+	typeQuery(m, "/web(/")
+	if v := ansi.Strip(m.View()); len(m.rows) != 0 || !strings.Contains(v, "bad pattern /web(/") {
+		t.Fatalf("bad pattern: rows %v\n%s", rowIDs(m), v)
+	}
+}
+
 // The query is edited like any other input (cursor, words), on one line, and
 // the new-task box is not drawn: i types into the query there.
 func TestSearchQueryEditing(t *testing.T) {

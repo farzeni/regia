@@ -31,9 +31,9 @@ type searchState struct {
 	ti      textinput.Model // the query, edited with the usual readline keys
 	tiOn    bool            // ti is set up
 	query   string          // ti's value
-	tools  bool // also search tool calls and their output
-	typed   int  // bumped on every edit; a debounce tick only fires for the latest
-	gen     int  // bumped on every search; only the latest result is kept
+	tools   bool            // also search tool calls and their output
+	typed   int             // bumped on every edit; a debounce tick only fires for the latest
+	gen     int             // bumped on every search; only the latest result is kept
 	running bool
 	ranQ    string // the query the results are for
 	results []claude.SessionHits
@@ -402,7 +402,9 @@ func (m *model) searchRowLine(r layout.Row, w int) string {
 func (m *model) searchEmpty() string {
 	switch {
 	case strings.TrimSpace(m.srch.query) == "":
-		return "type to search inside every session"
+		return "type to search inside every session · /regex/ for a pattern"
+	case claude.ParseQuery(m.srch.query).Err != nil:
+		return "bad pattern " + claude.ParseQuery(m.srch.query).Err.Error()
 	case m.srch.running || m.srch.ranQ != m.srch.query:
 		return "searching…"
 	case m.srch.tools:
