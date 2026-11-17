@@ -59,10 +59,10 @@ var helpSections = []helpSection{
 		{"- / +", "list narrower / wider"},
 		{"R", "refresh"},
 	}},
-	{"o: focus the conversation", [][2]string{
+	{"o / →: focus the conversation", [][2]string{
 		{"j/k  g/G", "move between blocks / top, bottom"},
 		{"enter / space", "fold, unfold, open a step; or click"},
-		{"y / r / esc", "copy / reply in its session / back"},
+		{"y / r / ← esc", "copy / reply in its session / back"},
 	}},
 	{"new agent", [][2]string{
 		{"type + enter", "start it at the selection"},

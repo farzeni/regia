@@ -349,13 +349,32 @@ func TestConvBlockAtRow(t *testing.T) {
 	}
 }
 
+// → on an agent focuses its conversation; ← gives the keys back to the list.
+func TestArrowsFocusConversation(t *testing.T) {
+	m := convModel(t)
+	m.View()
+	m.Update(tkey("right"))
+	if !m.convFocus {
+		t.Fatal("→ on an agent should focus the conversation")
+	}
+	m.Update(tkey("left"))
+	if m.convFocus || m.cursorID != "aaaa1111" {
+		t.Fatalf("← should give the keys back to the list, on alpha (at %s)", m.cursorID)
+	}
+	m.Update(tkey("i")) // from the empty input box too
+	m.Update(tkey("right"))
+	if !m.convFocus || m.typing {
+		t.Fatalf("→ from an empty input: focus %v typing %v", m.convFocus, m.typing)
+	}
+}
+
 // ? lists the conversation's keys, and still fits a 30-row terminal.
 func TestHelpListsConversationKeys(t *testing.T) {
 	m := testModel(t)
 	m.Update(tkey("esc"))
 	m.Update(tkey("?"))
 	v := ansi.Strip(m.View())
-	for _, want := range []string{"o: focus the conversation", "reply in its session", "D: the changes tab", "full diff in your tool", "or click", "keys   esc", "pick its model", "refresh", "group's dir"} {
+	for _, want := range []string{"o / →: focus the conversation", "reply in its session", "D: the changes tab", "full diff in your tool", "or click", "keys   esc", "pick its model", "refresh", "group's dir"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("help lacks %q:\n%s", want, v)
 		}

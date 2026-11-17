@@ -385,10 +385,12 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		m.fetching = true
 		return fetchCmd
 
-	case "right", "l":
+	case "right", "l": // unfold; with nothing to unfold, into the conversation
 		if r != nil && (r.HasKids || r.Group) && r.Collapsed {
 			delete(m.layout.Collapsed, r.ID)
 			m.saveLayout()
+		} else if r != nil && r.Agent != nil {
+			m.focusConv()
 		}
 	case "enter":
 		if r == nil {
