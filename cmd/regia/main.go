@@ -25,6 +25,7 @@ const usage = `regia — terminal control room for Claude Code background agents
   regia uninstall  remove the plugin and the binary (--purge: also your layout)
   regia --dump     print the tree and inbox as plain text
   regia plugin     list | new | input | run: your own scripts on the agent panel (docs/plugins.md)
+  regia openers    list | show | test: what opens files, images, URLs and diffs (README "Openers")
 
   group awareness (agents in a hand-made group or under a coordinator):
   regia context    run by an agent: its group, siblings' state and shared notes (--all: every note)
@@ -73,6 +74,8 @@ func dispatch(args []string) error {
 		return cmdGroup(args[1:], os.Stdout)
 	case "plugin", "plugins":
 		return cmdPlugin(args[1:], os.Stdout)
+	case "openers", "opener":
+		return ui.Openers(args[1:], os.Stdout)
 	case "--panel": // hidden: print one agent's detail panel as plain text
 		if len(args) < 2 {
 			return fmt.Errorf("usage: regia --panel <id>")

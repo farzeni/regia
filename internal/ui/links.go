@@ -68,7 +68,8 @@ func agentMarkdown(text string, w int, dir string) []string {
 
 // linkLine adds links to one styled line, keeping its styles and width.
 func linkLine(c *openerConf, line, dir string) string {
-	if strings.Contains(line, "\x1b]8;") { // already linked
+	// most lines have no path or URL: skip them before stripping and the regexps
+	if !strings.ContainsAny(line, "/:") || strings.Contains(line, "\x1b]8;") { // or are already linked
 		return line
 	}
 	spans := findLinks(c, ansi.Strip(line), dir)
