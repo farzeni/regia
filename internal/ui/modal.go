@@ -61,6 +61,7 @@ var helpSections = []helpSection{
 		{"/name  @path", "skill / file (tab completes)"},
 		{"ctrl+v", "paste image or files"},
 		{"ctrl+o", "pick its directory"},
+		{"ctrl+g", "pick its model"},
 	}},
 }
 

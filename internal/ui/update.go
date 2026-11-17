@@ -206,6 +206,8 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.updateDirPick(msg)
 		case modeMenu:
 			return m, m.updateMenu(msg)
+		case modeModel:
+			return m, m.updateModelPick(msg)
 		case modeConfirm:
 			m.mode = modeNormal
 			if msg.String() == m.confirmKey {

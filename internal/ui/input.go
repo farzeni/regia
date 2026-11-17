@@ -23,6 +23,14 @@ var spawnAgent = func(dir, task string) (string, error) {
 	return string(out), err
 }
 
+// spawnAgentModel is spawnAgent with the model picked for the task (ctrl+g).
+var spawnAgentModel = func(dir, model, task string) (string, error) {
+	cmd := exec.Command("claude", "--bg", "--model", model, task)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
 // spawnTarget says where a new agent goes: next to the selected agent, or
 // inside it (C, or a group); and the directory it starts in, with why
 // (layout.SpawnDir, or the one picked with ctrl+o).
@@ -55,7 +63,12 @@ func (m *model) spawnTarget() (parent, after, cwd, where, why string) {
 func (m *model) spawn(task string) tea.Cmd {
 	parent, after, cwd, where, _ := m.spawnTarget()
 	m.flash("starting %s in %s…", where, tildify(cwd))
+	mod := m.draftModel
 	return func() tea.Msg {
+		if mod != "" {
+			out, err := spawnAgentModel(cwd, mod, task)
+			return spawnedMsg{out, err, parent, after}
+		}
 		out, err := spawnAgent(cwd, task)
 		return spawnedMsg{out, err, parent, after}
 	}
@@ -210,7 +223,7 @@ func (m *model) expandPastes(s string) string {
 
 func (m *model) clearDraft() {
 	m.ta.Reset()
-	m.pastes, m.draftInside, m.draftDir = nil, false, ""
+	m.pastes, m.draftInside, m.draftDir, m.draftModel = nil, false, "", ""
 	m.comp, m.compShut = nil, ""
 }
 
@@ -288,6 +301,9 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 		m.comp = nil
 		m.openDirPick("")
 		return nil
+	case "ctrl+g":
+		m.openModelPick()
+		return nil
 	case "up", "down":
 		if !multi { // one line: arrows move the list; several: move in the text
 			return m.updateNormal(k)
@@ -331,6 +347,10 @@ func (m *model) inputBox() string {
 		m.sizeInput()
 		lines = strings.Split(m.ta.View(), "\n")
 		label = m.dirLabel(cwd, m.w/2)
+		// the model sits left of the directory, when both fit
+		if both := m.modelLabel() + lipgloss.NewStyle().Foreground(border).Render(" ── ") + label; label != "" && lipgloss.Width(both)+8 <= m.w {
+			label = both
+		}
 	}
 	for i, l := range lines {
 		l = ansi.Truncate(l, iw-lipgloss.Width(keys)-1, "…")
