@@ -241,7 +241,7 @@ func TestYourMessagesTinted(t *testing.T) {
 	for _, l := range hist {
 		switch {
 		case strings.Contains(l, "my message"): // a bubble: your tint on a subtle background
-			if !strings.Contains(l, fg+";48;5;236m my message") {
+			if !strings.Contains(l, fg+";48;5;236m  my message") {
 				t.Fatalf("your message should have its own text color: %q", l)
 			}
 		case strings.Contains(l, "agent reply"):

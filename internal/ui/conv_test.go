@@ -215,11 +215,13 @@ func TestRunLineBetweenMessages(t *testing.T) {
 	)
 	s := ansi.Strip(m.View())
 	var between []string
-	in := false
+	in, mine := false, false
 	for _, l := range strings.Split(s, "\n") {
 		switch {
 		case strings.Contains(l, "run the checks"):
-			in = true
+			mine = true
+		case mine && strings.Contains(l, "╰"): // your message's box closes
+			in, mine = true, false
 		case strings.Contains(l, "▸ agent"):
 			in = false
 		case in && strings.TrimSpace(strings.SplitN(l, "│", 2)[len(strings.SplitN(l, "│", 2))-1]) != "":
@@ -253,12 +255,15 @@ func TestYourMessageIsARightBubble(t *testing.T) {
 	found := false
 	for i, l := range ls {
 		p := strings.TrimRight(ansi.Strip(l), " ")
-		if strings.HasSuffix(p, "fix the parser") {
+		if strings.HasSuffix(p, "fix the parser  │") { // padded, in its box
 			found = true
 			if ansi.StringWidth(l) != w || !strings.HasPrefix(p, "      ") {
 				t.Fatalf("your message should be pushed to the right edge: %q", p)
 			}
-			if h := strings.TrimRight(ansi.Strip(ls[i-1]), " "); !strings.Contains(h, "you ") || ansi.StringWidth(h) != w {
+			if top := ansi.Strip(ls[i-2]); !strings.HasSuffix(top, "╮") || !strings.HasSuffix(strings.TrimRight(ansi.Strip(ls[i+1]), " "), "│") {
+				t.Fatalf("your message should sit in a box with a padding row: %q", top)
+			}
+			if h := strings.TrimRight(ansi.Strip(ls[i-3]), " "); !strings.Contains(h, "you ") || ansi.StringWidth(h) != w {
 				t.Fatalf("the head line should be right-aligned above it: %q", h)
 			}
 		}
