@@ -48,9 +48,9 @@ type Agent struct {
 }
 
 // YourTurn: the agent waits on you, with a question (blocked, not stale or
-// snoozed) or a result you haven't looked at yet (ready).
+// snoozed). An unread reply (ready) is not: it is marked in the tree only.
 func (a *Agent) YourTurn() bool {
-	return (a.State == "blocked" && !a.Stale && !a.Snoozed) || a.State == "ready"
+	return a.State == "blocked" && !a.Stale && !a.Snoozed
 }
 
 type Link struct {
