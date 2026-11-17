@@ -97,8 +97,17 @@ func pad(s string, w int) string {
 }
 
 func (m *model) bodyHeight() int {
-	return max(1, m.h-5-m.inputRows()-m.compRows()-m.dirPickRows()-m.modelPickRows())
+	return max(1, m.h-3-m.boxRows()-m.compRows()-m.dirPickRows()-m.modelPickRows())
 } // header + gap, status, popup, input box
+
+// boxRows is how many rows the input box takes with its border; none while
+// searching, where the query on the status line is the input.
+func (m *model) boxRows() int {
+	if m.view == viewSearch {
+		return 0
+	}
+	return 2 + m.inputRows()
+}
 
 // padX is the margin left and right of the tree and the panel; gap separates
 // them (the divider sits in its middle).
@@ -292,6 +301,9 @@ func (m *model) footer() string {
 		status += "\n" + m.modelPickView()
 	} else if pop := m.compView(); pop != "" {
 		status += "\n" + pop
+	}
+	if m.boxRows() == 0 {
+		return status
 	}
 	return status + "\n" + m.inputBox()
 }
