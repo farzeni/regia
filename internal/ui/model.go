@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/farzeni/regia/internal/attach"
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/layout"
 	"github.com/farzeni/regia/internal/spawns"
@@ -160,6 +161,13 @@ type attachDoneMsg struct {
 	id  string
 	err error
 }
+
+// attachSession hands the terminal to an agent's session until you detach
+// (a var so tests can see the attach without running it).
+var attachSession = func(id string) tea.Cmd {
+	return tea.Exec(attach.Session(id), func(err error) tea.Msg { return attachDoneMsg{id, err} })
+}
+
 type spawnedMsg struct {
 	out           string
 	err           error

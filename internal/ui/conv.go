@@ -600,15 +600,27 @@ func blockText(c stepCtx, b convBlock) string {
 }
 
 // quoteReply is r: the message quoted in the input box, ready for your words.
-func (m *model) quoteReply(b convBlock) {
+func (m *model) quoteReply(b convBlock) tea.Cmd {
 	if b.kind != blockMsg {
 		m.flash("r quotes a message: move to one")
-		return
+		return nil
+	}
+	a := m.agents[m.conv.id]
+	if a == nil {
+		return nil
+	}
+	if a.Interactive {
+		m.flash("interactive session: open it in its own terminal (pid shown in `claude agents`)")
+		return nil
 	}
 	q := "> " + strings.ReplaceAll(strings.TrimSpace(b.msg.Text), "\n", "\n> ") + "\n\n"
-	m.ta.SetValue(q)
-	m.ta.CursorEnd()
-	m.convFocus, m.typing = false, true
+	if err := copyText(q); err != nil {
+		m.flash("clipboard: %v", err)
+		return nil
+	}
+	m.flash("quote copied — paste it in the session")
+	m.convFocus, m.typing = false, false
+	return attachSession(a.ID)
 }
 
 // updateConv handles keys while the conversation has focus.
@@ -651,7 +663,7 @@ func (m *model) updateConv(k tea.KeyMsg) tea.Cmd {
 			m.flash("copied")
 		}
 	case "r":
-		m.quoteReply(b)
+		return m.quoteReply(b)
 	}
 	return nil
 }

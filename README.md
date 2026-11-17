@@ -85,7 +85,8 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   they took). `o` focuses the conversation (the divider lights up): `j`/`k`
   move between messages, runs and steps, `enter`/`space` unfold a run into one
   line per step (`✗` failed) and a step into its detail, `y` copies the
-  selected block, `r` starts a task in the input quoting the selected message,
+  selected block, `r` replies to the agent: it copies the selected message as
+  a quote and attaches to the session, where you paste it and go on,
   `g`/`G` go to the top / bottom, `esc` gives the keys back to the list. What's
   unfolded is remembered per agent until regia quits.
   `D` swaps it for the agent's changes: the git
@@ -208,7 +209,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward |
-| `o` | focus the conversation: `j`/`k` move between blocks, `enter`/`space` fold / unfold (or open a step), `y` copy, `r` quote in the input, `g`/`G` top / bottom, `esc` back |
+| `o` | focus the conversation: `j`/`k` move between blocks, `enter`/`space` fold / unfold (or open a step), `y` copy, `r` reply: copies the message quoted and attaches to the agent so you paste it, `g`/`G` top / bottom, `esc` back |
 | `b` | jump to the next agent whose turn is yours (waiting or ready) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |

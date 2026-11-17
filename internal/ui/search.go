@@ -11,7 +11,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
-	"github.com/farzeni/regia/internal/attach"
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/layout"
 )
@@ -251,7 +250,7 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		id := r.Agent.ID
-		return tea.Exec(attach.Session(id), func(err error) tea.Msg { return attachDoneMsg{id, err} })
+		return attachSession(id)
 	case "backspace":
 		if r := []rune(m.srch.query); len(r) > 0 {
 			m.srch.query = string(r[:len(r)-1])

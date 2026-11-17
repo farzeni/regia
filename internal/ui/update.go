@@ -9,7 +9,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/farzeni/regia/internal/attach"
 	"github.com/farzeni/regia/internal/group"
 )
 
@@ -401,7 +400,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		}
 		id := r.ID // r points into m.rows, which changes while attached
 		m.typing = false
-		return tea.Exec(attach.Session(id), func(err error) tea.Msg { return attachDoneMsg{id, err} })
+		return attachSession(id)
 	case " ":
 		if r != nil && (r.HasKids || r.Group) {
 			m.layout.Collapsed[r.ID] = !m.layout.Collapsed[r.ID]
