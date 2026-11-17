@@ -152,7 +152,8 @@ At the bottom is an always-on input (`i` focuses it): type a task and press `ent
 new background agent next to the selected one (inside it if it's a group, or
 with `C` to put it under a coordinator). `enter` on an empty input attaches to
 the selected session; inside it, `←` (or `ctrl+z`) brings you back to regia in
-about 80 ms.
+about 80 ms. Sending a task or attaching lets go of the input, so you land back
+on the list: `i` → type → `enter`, and `i` again for the next one.
 
 ## How agents are organized
 
@@ -188,8 +189,9 @@ know regia exists.
 regia opens on the list (command keys); `i`, `c` or `C` focus the input, and
 `esc` on an empty input goes back to the list. In command keys `esc` clears the filter or a pending
 move, and with nothing to clear it quits (`esc esc` from an empty input exits;
-`ctrl+c` too). A task you start is selected as soon as it shows up in the list,
-so a second `enter` attaches to it.
+`ctrl+c` too). `enter` that sends a task, and attaching to a session, also
+leave the input; coming back from a session lands on the list. A task you start
+is selected as soon as it shows up in the list, so a second `enter` attaches to it.
 
 | Key | Action |
 |---|---|

@@ -102,6 +102,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case attachDoneMsg:
 		m.markSeen(msg.id, time.Now()) // you were in it
+		m.typing = false               // back on the list, not the input
 		if msg.err != nil {
 			m.flash("attach: %v", msg.err)
 		}
@@ -403,6 +404,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		id := r.ID // r points into m.rows, which changes while attached
+		m.typing = false
 		return tea.Exec(attach.Session(id), func(err error) tea.Msg { return attachDoneMsg{id, err} })
 	case " ":
 		if r != nil && (r.HasKids || r.Group) {

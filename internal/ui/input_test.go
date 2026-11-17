@@ -173,3 +173,51 @@ func runCmd(c tea.Cmd) tea.Msg {
 	}
 	return msg
 }
+
+func TestEnterSendsAndBlurs(t *testing.T) {
+	m := testModel(t)
+	orig := spawnAgent
+	defer func() { spawnAgent = orig }()
+	spawnAgent = func(dir, task string) (string, error) { return "started cccc3333\n", nil }
+
+	typeText(m, "fix it")
+	_, cmd := m.Update(tkey("enter"))
+	if cmd == nil || m.draft() != "" {
+		t.Fatalf("enter did not start: cmd=%v draft=%q", cmd != nil, m.draft())
+	}
+	if m.typing {
+		t.Fatal("enter that sends a task should leave the input")
+	}
+	m.Update(runCmd(cmd))
+	if m.typing {
+		t.Fatal("the spawned agent showing up should not refocus the input")
+	}
+	m.Update(tkey("i"))
+	if !m.typing {
+		t.Fatal("i should focus the input again")
+	}
+}
+
+func TestAttachAndReturnBlurs(t *testing.T) {
+	for _, from := range []string{"typing", "list"} {
+		m := testModel(t)
+		if from == "list" {
+			m.Update(tkey("esc"))
+		}
+		id := "aaaa1111"
+		m.cursorID = id
+		m.rebuild()
+		_, cmd := m.Update(tkey("enter")) // empty input: attach
+		if cmd == nil {
+			t.Fatalf("%s: enter did not attach", from)
+		}
+		if m.typing {
+			t.Fatalf("%s: attaching should leave the input", from)
+		}
+		m.typing = true // whatever happened meanwhile, coming back lands on the list
+		m.Update(attachDoneMsg{id: id})
+		if m.typing {
+			t.Fatalf("%s: coming back from a session should land on the list", from)
+		}
+	}
+}

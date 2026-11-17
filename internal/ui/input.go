@@ -262,6 +262,7 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 			}
 			cmd := m.spawn(task)
 			m.clearDraft()
+			m.typing = false // sent: keys go back to the list
 			return cmd
 		}
 		return m.updateNormal(k) // empty: attach / fold, as in command mode
