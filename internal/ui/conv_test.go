@@ -261,7 +261,7 @@ func TestRunLineBetweenMessages(t *testing.T) {
 		}
 	}
 	// the run line, the reply's time at its end
-	if len(between) != 1 || !regexp.MustCompile(`^▸ ⚙ 3 steps · ran 3 commands · 1 error · 2m10s +\d\d:\d\d$`).MatchString(between[0]) {
+	if len(between) != 1 || !regexp.MustCompile(`^▸ ⚙ 3 steps · ran 3 commands · 1 error · 2m10s {3,}(Sat 14 Nov( 2026)?|yesterday|.+ ago|just now)$`).MatchString(between[0]) {
 		t.Fatalf("one run line between the messages, got %q:\n%s", between, s)
 	}
 	if strings.Contains(s, "go vet") {

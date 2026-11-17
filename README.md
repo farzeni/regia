@@ -83,7 +83,9 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   end, the latest reply right above the foot (`pgup`/`pgdn` scroll back and
   forth). The tool calls between two messages are one folded line,
   `▸ ⚙ 14 steps · edited 3 files · ran 5 commands · 1 error · 2m10s` (how long
-  they took), with the time of the reply that follows at its right end; the
+  they took), with when the reply that follows came at its right end (`just
+  now`, `3 minutes ago`, `2 hours ago`, `yesterday`, `Mon 5 Aug`,
+  `Wed 8 Jan 2025`; your messages say it the same way); the
   reply comes right under it. Unfolded, the steps show in a box. `o` focuses the conversation (the divider lights up): `↑`/`↓`
   move message to message, `shift+↑`/`↓` (`j`/`k`) through every block,
   runs and steps too, `enter`/`space` unfold a run into one
