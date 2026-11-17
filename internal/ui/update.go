@@ -120,6 +120,12 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.gotDiff(msg)
 		return m, nil
 
+	case openDoneMsg:
+		if msg.err != nil {
+			m.flash("open failed: %v", msg.err)
+		}
+		return m, nil
+
 	case spawnedMsg:
 		if msg.err != nil {
 			m.flash("spawn failed: %v %s", msg.err, strings.TrimSpace(msg.out))
