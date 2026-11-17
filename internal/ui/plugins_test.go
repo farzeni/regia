@@ -45,10 +45,14 @@ func TestTabbedBox(t *testing.T) {
 		return b
 	}
 	b := boxOf()
-	if !strings.HasPrefix(b[0], "╭─ agent │ gh-pr ✗ ─") || !strings.Contains(strings.Join(b, "\n"), "stuck?") {
+	if !strings.HasPrefix(b[0], "╭─ agent │ changes │ gh-pr ✗ ─") || !strings.Contains(strings.Join(b, "\n"), "stuck?") {
 		t.Fatalf("agent tab first:\n%s", strings.Join(b, "\n"))
 	}
 	h := len(b)
+	m.Update(tkey("."))
+	if m.panelTab != changesTab {
+		t.Fatalf(". goes to the changes tab first, got %q", m.panelTab)
+	}
 	m.Update(tkey("."))
 	b = boxOf()
 	if m.panelTab != "gh-pr" || !strings.Contains(strings.Join(b, "\n"), "│ ci  3/3 · 1 failed") || strings.Contains(strings.Join(b, "\n"), "stuck?") {
@@ -80,7 +84,7 @@ func TestTabbedBox(t *testing.T) {
 	m.cursorID = "done0001"
 	m.rebuild()
 	m.View()
-	if len(m.tabHits) != 2 {
+	if len(m.tabHits) != 3 {
 		t.Fatalf("tab hits %+v", m.tabHits)
 	}
 	x := padX + m.lw + gap + m.tabHits[0].x0
@@ -166,11 +170,12 @@ func TestPluginResultsInUI(t *testing.T) {
 		t.Fatalf("row %q has no badge", l)
 	}
 	card := ansi.Strip(strings.Join(m.detailLines(100).lines(), "\n"))
-	for _, want := range []string{"╭─ agent │ jira J ", "! actions ─╮"} {
+	for _, want := range []string{"╭─ agent │ changes │ jira J ", "! actions ─╮"} {
 		if !strings.Contains(card, want) {
 			t.Fatalf("card lacks %q:\n%s", want, card)
 		}
 	}
+	m.Update(tkey("."))
 	m.Update(tkey("."))
 	card = ansi.Strip(strings.Join(m.detailLines(100).lines(), "\n"))
 	for _, want := range []string{"│ jira  PROJ-7 · In Progress", "https://jira/PROJ-7", "╰──"} {

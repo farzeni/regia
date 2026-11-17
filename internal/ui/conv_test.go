@@ -118,7 +118,7 @@ func TestFoldStateIsPerAgent(t *testing.T) {
 
 func TestFocusMovesAndFollows(t *testing.T) {
 	m := convModel(t)
-	m.h = 16 // a short panel: the top isn't on screen
+	m.h = 19 // a short panel: the top isn't on screen
 	m.View()
 	m.Update(tkey("o"))
 	if i := m.convSel(); i != len(m.conv.blocks)-1 {
@@ -355,7 +355,7 @@ func TestHelpListsConversationKeys(t *testing.T) {
 	m.Update(tkey("esc"))
 	m.Update(tkey("?"))
 	v := ansi.Strip(m.View())
-	for _, want := range []string{"o: focus the conversation", "reply in its session", "keys   esc", "pick its model", "refresh", "group's dir"} {
+	for _, want := range []string{"o: focus the conversation", "reply in its session", "D: the changes tab", "full diff in your tool", "or click", "keys   esc", "pick its model", "refresh", "group's dir"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("help lacks %q:\n%s", want, v)
 		}

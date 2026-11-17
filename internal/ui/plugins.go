@@ -141,8 +141,8 @@ func statusStyle(s string) lipgloss.Style {
 }
 
 // The agent's box on the panel is tabbed: "agent" (regia's own context:
-// task, status, git, pr) first, then one tab per plugin that has something
-// to show for the agent. , and . (or a click on a tab) switch; the tab you
+// task, status, git, pr) first, "changes" (the files it touched, D) second,
+// then one tab per plugin that has something to show for the agent. , and . (or a click on a tab) switch; the tab you
 // pick stays as you move between agents (back to "agent" where that plugin
 // has nothing). Tabs not shown take their worst field's color and their
 // badge, so a failing plugin is visible from any tab.
@@ -159,6 +159,7 @@ type panelTab struct {
 	status  string // the worst field's: "", ok, warn, error
 	badge   *plugins.Badge
 	actions bool
+	own     bool // its height is its own: the box grows to it only while it's shown
 }
 
 // tabHit is where a tab's name sits on the box's top line, in columns from
@@ -183,7 +184,7 @@ func pluginTabs(a *claude.Agent, w int) []panelTab {
 
 // tabNames: the tabs a's box has, "agent" first.
 func tabNames(a *claude.Agent) []string {
-	names := []string{agentTab}
+	names := []string{agentTab, changesTab}
 	for _, r := range plugins.Results(a.ID) {
 		if len(r.Out.Fields) > 0 || r.Err != "" {
 			names = append(names, r.Plugin.Name)
@@ -199,10 +200,7 @@ func (m *model) cycleTab(d int) {
 		return
 	}
 	names := tabNames(r.Agent)
-	if len(names) < 2 {
-		m.flash(", and . switch between plugin tabs: no plugin has anything for this agent")
-		return
-	}
+	m.chg.focus = false
 	i := 0
 	for k, n := range names {
 		if n == m.panelTab {
@@ -224,7 +222,10 @@ func (m *model) tabbedBox(tabs []panelTab, w int) []string {
 	}
 	h := 0
 	actions := false
-	for _, t := range tabs {
+	for i, t := range tabs {
+		if t.own && i != sel {
+			continue
+		}
 		h = max(h, len(t.body))
 		actions = actions || t.actions
 	}

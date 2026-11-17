@@ -13,12 +13,13 @@ type helpSection struct {
 	keys  [][2]string
 }
 
-// helpSections, in two even columns: sessions + organize | navigate + new agent.
+// helpSections, in two even columns: sessions + organize + changes | navigate +
+// conversation + new agent.
 // Text editing in the input box (the usual readline keys) is left out.
 var helpSections = []helpSection{
 	{"sessions", [][2]string{
 		{"enter", "attach (detach to come back)"},
-		{"D", "git diff vs main / back"},
+		{"D", "changes tab: files it touched"},
 		{"!", "plugin actions and links"},
 		{"y / Y", "copy reply / session id"},
 		{"s", "stop (conversation kept)"},
@@ -39,6 +40,10 @@ var helpSections = []helpSection{
 		{"T", "group timeline / blackboard"},
 		{"w", "group's dir for new agents"},
 	}},
+	{"D: the changes tab", [][2]string{
+		{"j/k  enter", "move / open the file at its line"},
+		{"d / esc", "full diff in your tool / back"},
+	}},
 	{"navigate", [][2]string{
 		{"j/k  ↑/↓", "move"},
 		{"[ ]  ctrl+↑/↓", "previous / next group"},
@@ -56,7 +61,7 @@ var helpSections = []helpSection{
 	}},
 	{"o: focus the conversation", [][2]string{
 		{"j/k  g/G", "move between blocks / top, bottom"},
-		{"enter / space", "fold, unfold (enter opens a step)"},
+		{"enter / space", "fold, unfold, open a step; or click"},
 		{"y / r / esc", "copy / reply in its session / back"},
 	}},
 	{"new agent", [][2]string{
@@ -87,7 +92,7 @@ func renderSections(ss []helpSection) []string {
 func helpModal(w, h int) string {
 	var body string
 	hs := helpSections
-	left, right := renderSections(hs[:2]), renderSections(hs[2:])
+	left, right := renderSections(hs[:3]), renderSections(hs[3:])
 	lw, rw := 0, 0
 	for _, l := range left {
 		lw = max(lw, lipgloss.Width(l))

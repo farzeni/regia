@@ -8,7 +8,9 @@ import (
 const listTop = 2
 
 // updateMouse: the wheel scrolls the list or the panel (whichever is under
-// the pointer), a click selects a row, and dragging the divider resizes the
+// the pointer), a click selects a row, a tab of the agent box, a file of the
+// changes tab or a block of the conversation (a click on the selected one
+// opens it, or folds / unfolds it), and dragging the divider resizes the
 // list. (Holding shift lets the terminal select text as usual.)
 func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 	if m.help || m.mode != modeNormal {
@@ -30,27 +32,21 @@ func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 		if onList {
 			m.moveCursor(-3)
 		} else {
-			m.panelScroll += 3
+			m.scrollConv(3)
 		}
 	case e.Button == tea.MouseButtonWheelDown:
 		if onList {
 			m.moveCursor(3)
 		} else {
-			m.panelScroll = max(0, m.panelScroll-3)
+			m.scrollConv(-3)
 		}
 	case e.Button == tea.MouseButtonLeft && e.Action == tea.MouseActionPress:
 		if e.X >= divider-1 && e.X <= divider+1 && e.Y >= listTop {
 			m.dragging = true
 			return nil
 		}
-		if e.Y == listTop+m.tabRow && !onList && !m.dv.on { // a tab on the agent box's top line
-			x := e.X - (padX + m.lw + gap)
-			for _, t := range m.tabHits {
-				if x >= t.x0 && x < t.x1 {
-					m.panelTab = t.name
-					return nil
-				}
-			}
+		if !onList {
+			return m.clickPanel(e.X-(padX+m.lw+gap), e.Y-listTop)
 		}
 		if rh := m.rowHeight(); onList && e.Y >= listTop && e.Y < listTop+m.vis*rh {
 			if i := m.offset + (e.Y-listTop)/rh; i < len(m.rows) {
@@ -59,6 +55,71 @@ func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 		}
 	}
 	return nil
+}
+
+// clickPanel handles a click at column x, row y of the panel.
+func (m *model) clickPanel(x, y int) tea.Cmd {
+	if m.view == viewSearch { // its panel is the results: what the last agent frame drew is gone
+		return nil
+	}
+	if y == m.tabRow { // a tab on the agent box's top line
+		for _, t := range m.tabHits {
+			if x >= t.x0 && x < t.x1 {
+				if t.name != m.panelTab {
+					m.chg.focus = false
+				}
+				m.panelTab = t.name
+				return nil
+			}
+		}
+	}
+	if c, ok := m.clickChanges(y - m.tabRow - 1); ok {
+		return c
+	}
+	i := m.convBlockAtRow(y)
+	if i < 0 {
+		return nil
+	}
+	if m.convFocus && i == m.convSel() {
+		return m.activateConv(m.conv.blocks[i])
+	}
+	m.selectConvBlock(i)
+	m.convFocus, m.chg.focus = true, false
+	m.flash("conversation: j/k move · enter/space fold · y copy · r reply · esc back")
+	return nil
+}
+
+// scrollConv scrolls the panel's conversation d lines back (d < 0: forward).
+// In focus, the cursor stays on screen: when its block scrolls out, the
+// nearest one still shown is selected.
+func (m *model) scrollConv(d int) {
+	m.panelScroll = max(0, m.panelScroll+d)
+	c := &m.conv
+	if !m.convFocus || c.id != m.cursorID || len(c.blocks) == 0 || c.histEnd <= c.histStart {
+		return
+	}
+	// what the next frame shows, from what the last one did
+	room := c.histEnd - c.histStart
+	n := c.histEnd + (m.panelScroll - d) // all the lines: the end + how far back it was
+	m.panelScroll = max(0, min(m.panelScroll, n-room))
+	end := n - m.panelScroll
+	start := max(0, end-room)
+	i := m.convSel()
+	b := c.blocks[i]
+	if b.top < end && b.top+b.n > start {
+		return
+	}
+	pick := -1
+	for j, x := range c.blocks {
+		if x.top < end && x.top+x.n > start {
+			if pick < 0 || b.top >= end { // below the view: the last shown; above: the first
+				pick = j
+			}
+		}
+	}
+	if pick >= 0 {
+		m.convOf(c.id).sel = c.blocks[pick].key
+	}
 }
 
 // setSidebar sets the list width for this session (while dragging).

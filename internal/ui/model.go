@@ -120,6 +120,8 @@ type model struct {
 	dirPick     *dirPicker  // the directory picker, when open
 	comp        *completion // the "/" skill or "@" file popup, when open
 	compShut    string      // the word esc closed the popup for
+	inHist      *inputHist  // moving through earlier messages (↑), when not nil
+	draftSaved  string      // the draft as last written to its file
 
 	draftModel string       // model picked for this task (ctrl+g); "" = claude's default
 	modelPick  *modelPicker // the model picker, when open
@@ -134,7 +136,7 @@ type model struct {
 
 	hist    claude.History
 	histFor string
-	dv      diffView // D: the panel shows the agent's git diff
+	chg     changesState // the changes tab (D): its cursor and whether it has the keys
 
 	fetching  bool
 	fetchErr  error
@@ -362,10 +364,7 @@ func (m *model) moveCursor(d int) {
 	m.selectID = "" // you moved: don't jump to a just-started agent later
 	m.back = ""
 	m.panelScroll = 0
-	m.convFocus = false
-	if m.dv.on && m.dv.id != m.cursorID {
-		m.dv = diffView{}
-	}
+	m.convFocus, m.chg.focus = false, false
 	m.loadDetail()
 }
 

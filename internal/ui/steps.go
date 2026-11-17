@@ -34,7 +34,7 @@ const (
 )
 
 func init() {
-	edit := stepKind{line: editLine, detail: editDetail, activate: editActivate}
+	edit := stepKind{line: editStepLine, detail: editDetail, activate: editActivate}
 	read := stepKind{line: readLine, detail: readDetail, activate: readActivate}
 	search := stepKind{line: searchLine, detail: searchDetail, activate: searchActivate}
 	sub := stepKind{line: subagentLine, detail: subagentDetail, activate: subagentActivate}
@@ -208,8 +208,8 @@ func editAt(s *claude.Step) int {
 	return max(h.NewStart, 1)
 }
 
-// editLine is "✎ path:line +8 −3" (a new file: "+12 new").
-func editLine(c stepCtx, s *claude.Step, w int) string {
+// editStepLine is "✎ path:line +8 −3" (a new file: "+12 new").
+func editStepLine(c stepCtx, s *claude.Step, w int) string {
 	p, at := editPath(s), editAt(s)
 	var tail string
 	if s.Res != nil && !s.Failed() {
