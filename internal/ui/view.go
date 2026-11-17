@@ -94,7 +94,9 @@ func pad(s string, w int) string {
 	return s
 }
 
-func (m *model) bodyHeight() int { return max(1, m.h-5-m.inputRows()-m.compRows()-m.dirPickRows()) } // header + gap, status, popup, input box
+func (m *model) bodyHeight() int {
+	return max(1, m.h-5-m.inputRows()-m.compRows()-m.dirPickRows()-m.modelPickRows())
+} // header + gap, status, popup, input box
 
 // padX is the margin left and right of the tree and the panel; gap separates
 // them (the divider sits in its middle).
@@ -265,6 +267,8 @@ func (m *model) footer() string {
 		line1 = stAccent.Render(m.inputPrompt) + m.input + "█"
 	case modeDir:
 		line1 = m.dirPickPrompt()
+	case modeModel:
+		line1 = m.modelPickPrompt()
 	case modeConfirm:
 		line1 = lipgloss.NewStyle().Foreground(cBlocked).Render(m.confirmMsg)
 	default:
@@ -278,6 +282,8 @@ func (m *model) footer() string {
 	}
 	if m.dirPickRows() > 0 {
 		status += "\n" + m.dirPickView()
+	} else if m.modelPickRows() > 0 {
+		status += "\n" + m.modelPickView()
 	} else if pop := m.compView(); pop != "" {
 		status += "\n" + pop
 	}

@@ -280,6 +280,15 @@ opens the same picker on the group: `enter` saves, and the first entry,
 `(no saved dir)`, forgets it. If the directory no longer exists, regia doesn't
 start the task: pick another one.
 
+### Which model a new agent runs
+
+Left of the directory, the border shows the model
+(`╰── default · ctrl+g ── ~/Projects/regia · ctrl+o ─╯`). `default` lets
+claude choose; `ctrl+g` picks one for this task: `opus`, `sonnet`, `haiku`,
+`fable`, or type a full model id (`claude-opus-5-5`) and `enter`. regia then
+starts the agent with `claude --bg --model <model>`. Like the directory, the
+pick lasts until the task is sent or the draft is cleared.
+
 ## Cleaning up
 
 Agents pile up; three ways to keep the tree short:

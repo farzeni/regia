@@ -31,6 +31,8 @@ const (
 	modeConfirm
 	modeDir  // the directory picker (ctrl+o, w)
 	modeMenu // the ! menu: plugin actions and links
+	// the model picker (ctrl+g)
+	modeModel
 )
 
 type model struct {
@@ -103,6 +105,9 @@ type model struct {
 	dirPick     *dirPicker  // the directory picker, when open
 	comp        *completion // the "/" skill or "@" file popup, when open
 	compShut    string      // the word esc closed the popup for
+
+	draftModel string       // model picked for this task (ctrl+g); "" = claude's default
+	modelPick  *modelPicker // the model picker, when open
 
 	status   string
 	statusAt time.Time
