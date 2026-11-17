@@ -340,7 +340,7 @@ func yourBubble(msg *claude.Msg, w int) []string {
 	}
 	box = append(box, side+fill+side, edge("╰", "╯"))
 	left := strings.Repeat(" ", max(0, w-bw-2))
-	head := roleStyle(claude.RoleYou).Bold(true).Render("you") + " " + stDim.Render(clock(msg.At))
+	head := roleStyle(claude.RoleYou).Bold(true).Render("you") + " " + stDim.Render(humanTime(msg.At))
 	out := []string{strings.Repeat(" ", max(0, w-lipgloss.Width(head))) + head}
 	for _, l := range box {
 		out = append(out, left+l)
@@ -402,7 +402,8 @@ func (m *model) renderConv(a *claude.Agent, w int) ([]string, []convBlock) {
 	path := claude.TranscriptPath(a)
 	msgs := claude.Messages(path)
 	st := m.convOf(a.ID)
-	k := convKey{path, time.Now().Format(time.DateOnly), len(msgs), w, st.ver, m.live}
+	k := convKey{path, time.Now().Format("2006-01-02 15:04"), // "3 minutes ago" moves on: drawn again each minute
+		len(msgs), w, st.ver, m.live}
 	slot := -1
 	for i, c := range convCache {
 		if c.key == k && c.lines != nil {
@@ -477,7 +478,7 @@ func drawConv(c stepCtx, es []claude.Entry, open map[string]bool, w int) ([]stri
 				if !timed {
 					out = append(out, "")
 					if !msg.At.IsZero() {
-						t := clock(msg.At)
+						t := humanTime(msg.At)
 						ls = append(ls, strings.Repeat(" ", max(0, cw-len(t)))+stDim.Render(t))
 					}
 				}
@@ -496,8 +497,8 @@ func drawConv(c stepCtx, es []claude.Entry, open map[string]bool, w int) ([]stri
 		day(r.steps[0].At)
 		out = append(out, "")
 		line := runLine(r, open[r.key], cw)
-		if reply := replyAfter(i); reply != nil && !reply.At.IsZero() && dayLabel(reply.At) == lastDay && cw >= 30 { // narrower: the reply's time on its own line
-			t := clock(reply.At)
+		if reply := replyAfter(i); reply != nil && !reply.At.IsZero() && dayLabel(reply.At) == lastDay && cw-len(humanTime(reply.At)) >= 30 { // narrower: the reply's time on its own line
+			t := humanTime(reply.At)
 			line = pad(runLine(r, open[r.key], max(1, cw-len(t)-2)), cw-len(t)) + stDim.Render(t)
 			timed = true
 		}

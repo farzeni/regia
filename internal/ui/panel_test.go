@@ -103,7 +103,7 @@ func TestAgentPanelLayout(t *testing.T) {
 	}
 	// the body ends with the latest reply right above the foot, its time at
 	// the end of the run line above it
-	if !strings.Contains(ls[n-4], "Done: the panel shows the conversation now.") || !regexp.MustCompile(`^\s+▸ ⚙ .*\s\d\d:\d\d\s*$`).MatchString(ansi.Strip(ls[n-5])) {
+	if !strings.Contains(ls[n-4], "Done: the panel shows the conversation now.") || !regexp.MustCompile(`^\s+▸ ⚙ .*\s(just now|\d+ \w+ ago)\s*$`).MatchString(ansi.Strip(ls[n-5])) {
 		t.Fatalf("the latest reply should sit right above the foot:\n%s", all)
 	}
 	if !strings.Contains(all, "fix the panel") || !strings.Contains(all, "earlier · pgup") {
