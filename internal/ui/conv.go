@@ -560,7 +560,7 @@ func (m *model) convFresh() bool {
 }
 
 // convHint is what the foot says when the conversation takes the keys.
-const convHint = "conversation: ↑↓ messages · shift+↑↓ steps too · ctrl+↑↓ yours · enter/space fold · c copy · r quote · i input · ←/esc back"
+const convHint = "conversation: ↑↓ messages · shift+↑↓ steps too · ctrl+↑↓ yours · enter/space fold · c copy · r quote · i input · alt+enter attach · ←/esc back"
 
 // focusConv is `o`: the conversation takes the keys, the cursor on the last
 // block (or where it was).
@@ -730,6 +730,17 @@ func (m *model) updateConv(k tea.KeyMsg) tea.Cmd {
 	case "i": // to the input, out of the conversation
 		m.convFocus, m.typing = false, true
 		m.status = ""
+	case "alt+enter": // into the agent's session (shift+enter can't be told from enter)
+		a := m.agents[m.conv.id]
+		if a == nil {
+			return nil
+		}
+		if a.Interactive {
+			m.flash("interactive session: open it in its own terminal (pid shown in `claude agents`)")
+			return nil
+		}
+		m.convFocus, m.typing = false, false
+		return attachSession(a.ID)
 	}
 	return nil
 }
