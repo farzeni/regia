@@ -348,12 +348,8 @@ func TestMCPStepName(t *testing.T) {
 
 // Every step line fits its width, folded or not, at any width.
 func TestStepLinesFit(t *testing.T) {
-	prev := linkify // links on: escapes must not count as width
-	linkify = func(text string, o openTarget) string {
-		return ansi.SetHyperlink("file://"+o.Path+o.URL) + text + ansi.ResetHyperlink()
-	}
-	t.Cleanup(func() { linkify = prev })
 	m := convModel(t)
+	defer withOpeners(t, "preset = vscode\nosc8 = on")() // the real links: escapes must not count as width
 	st := m.convOf("aaaa1111")
 	linked := false
 	for _, w := range []int{20, 40, 90} {
