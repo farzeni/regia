@@ -318,8 +318,8 @@ const bubblePadX = 2
 var stBubbleEdge = lipgloss.NewStyle().Foreground(lipgloss.Color("97"))
 
 // yourBubble is one of your messages: pushed to the right edge, at most 3/4
-// of the width, on a subtle background with room around the text, in a
-// rounded box; the head line right-aligned too.
+// of the width, in your tint with room around the text, in a rounded box (no
+// background); the head line right-aligned too.
 func yourBubble(msg *claude.Msg, w int) []string {
 	text := claude.PasteRe.ReplaceAllString(msg.Text, "[pasted text]")
 	inner := max(10, w*3/4-2-2*bubblePadX)
@@ -330,13 +330,13 @@ func yourBubble(msg *claude.Msg, w int) []string {
 		bw = max(bw, lipgloss.Width(ls[i]))
 	}
 	bw += 2 * bubblePadX
-	fill := stBubble.Render(strings.Repeat(" ", bw)) // a padding row
+	fill := strings.Repeat(" ", bw) // a padding row
 	edge := func(l, r string) string { return stBubbleEdge.Render(l + strings.Repeat("─", bw) + r) }
 	side := stBubbleEdge.Render("│")
 	box := []string{edge("╭", "╮"), side + fill + side}
 	sp := strings.Repeat(" ", bubblePadX)
 	for _, l := range ls {
-		box = append(box, side+stBubble.Render(pad(sp+l, bw))+side)
+		box = append(box, side+sp+stYou.Render(l)+strings.Repeat(" ", bw-bubblePadX-lipgloss.Width(l))+side)
 	}
 	box = append(box, side+fill+side, edge("╰", "╯"))
 	left := strings.Repeat(" ", max(0, w-bw-2))
