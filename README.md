@@ -83,8 +83,9 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   end, the latest reply right above the foot (`pgup`/`pgdn` scroll back and
   forth). The tool calls between two messages are one folded line,
   `▸ ⚙ 14 steps · edited 3 files · ran 5 commands · 1 error · 2m10s` (how long
-  they took). `o` focuses the conversation (the divider lights up): `j`/`k`
-  move between messages, runs and steps, `enter`/`space` unfold a run into one
+  they took). `o` focuses the conversation (the divider lights up): `↑`/`↓`
+  move message to message, `shift+↑`/`↓` (`j`/`k`) through every block,
+  runs and steps too, `enter`/`space` unfold a run into one
   line per step (`✗` failed) and a step into its detail, `c` copies the
   selected block, `r` quotes it (`> ` lines) in the input box, also on the
   clipboard, with the cursor two lines below and the input focused, `i` goes
@@ -240,7 +241,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
-| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `j`/`k` move between blocks, `shift+↑`/`↓` message to message over the steps, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block in the input (and copy it), `i` to the input, `g`/`G` top / bottom, `←`/`esc` back |
+| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `↑`/`↓` message to message over the steps, `shift+↑`/`↓` (`j`/`k`) every block, runs and steps too, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block in the input (and copy it), `i` to the input, `g`/`G` top / bottom, `←`/`esc` back |
 | `b` | jump to the next agent whose turn is yours (waiting on a question) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |
