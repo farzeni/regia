@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// Input history: ↑ on the input's first line brings back earlier messages,
-// ↓ goes forward again and, past the newest, back to what you were typing.
+// Input history: pgup in the input brings back earlier messages, pgdown goes
+// forward again and, past the newest, back to what you were typing.
 //
 // Typed text is never thrown away: what you send, what esc or ctrl+c clears,
 // what is in the input when regia quits, and what was there when it was
@@ -32,7 +32,7 @@ type histEntry struct {
 type inputHist struct {
 	list  []histEntry       // oldest first, as loaded when browsing started
 	idx   int               // the entry shown: len(list) is the draft you were typing
-	draft histEntry         // what you were typing before ↑
+	draft histEntry         // what you were typing before pgup
 	edits map[int]histEntry // entries you changed while browsing, kept until you send
 	shown string            // the text put in the input, to tell when you edit it
 }
@@ -209,7 +209,7 @@ func (m *model) histStep(d int) bool {
 	m.showEntry(e)
 	h.shown = e.Text
 	if to == len(h.list) {
-		m.inHist = nil // back on your draft: ↓ moves the list again
+		m.inHist = nil // back on your draft
 		m.flash("")
 		return true
 	}
@@ -220,7 +220,7 @@ func (m *model) histStep(d int) bool {
 	if _, ok := h.edits[to]; ok {
 		note += " · edited"
 	}
-	m.flash("message %d/%d · %s%s · ↓ newer", to+1, len(h.list), histAgo(e.At), note)
+	m.flash("message %d/%d · %s%s · pgdown newer", to+1, len(h.list), histAgo(e.At), note)
 	return true
 }
 
@@ -253,12 +253,6 @@ func (m *model) bumpPasteN() {
 			}
 		}
 	}
-}
-
-// browsingUnchanged says whether the input shows a history entry as it was:
-// then ↑/↓ keep moving through the history even on a multi-line one.
-func (m *model) browsingUnchanged() bool {
-	return m.inHist != nil && m.draft() == m.inHist.shown
 }
 
 func histAgo(t time.Time) string {

@@ -288,7 +288,7 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 		if !empty {
 			if m.keepDraft() {
 				m.clearDraft()
-				m.flash("cleared · ↑ brings it back")
+				m.flash("cleared · pgup brings it back")
 			} else {
 				m.clearDraft()
 			}
@@ -301,7 +301,7 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 		if !empty {
 			if m.keepDraft() {
 				m.clearDraft()
-				m.flash("cleared · ↑ brings it back")
+				m.flash("cleared · pgup brings it back")
 			} else {
 				m.clearDraft()
 			}
@@ -320,22 +320,19 @@ func (m *model) updateTyping(k tea.KeyMsg) tea.Cmd {
 	case "ctrl+g":
 		m.openModelPick()
 		return nil
-	case "up":
-		// ↑ on the first line: earlier messages (on a multi-line one brought
-		// back as it was, ↑ keeps going through them)
-		if m.ta.Line() == 0 || m.browsingUnchanged() {
-			m.histStep(-1)
-			return nil
-		}
-	case "down":
-		if m.inHist != nil && (m.ta.Line() == m.ta.LineCount()-1 || m.browsingUnchanged()) {
-			m.histStep(1)
-			return nil
-		}
-		if !multi { // one line: ↓ moves the list; several: move in the text
+	case "up", "down":
+		if !multi { // one line: arrows move the list; several: move in the text
 			return m.updateNormal(k)
 		}
-	case "pgup", "pgdown", "tab", "shift+tab", "shift+up", "shift+down", "alt+up", "alt+down", "ctrl+up", "ctrl+down":
+	case "pgup": // earlier messages
+		m.histStep(-1)
+		return nil
+	case "pgdown":
+		if m.histStep(1) {
+			return nil
+		}
+		return m.updateNormal(k) // not in the history: scroll the panel
+	case "tab", "shift+tab", "shift+up", "shift+down", "alt+up", "alt+down", "ctrl+up", "ctrl+down":
 		return m.updateNormal(k)
 	case "left", "right", "home", "end", "ctrl+d":
 		if empty { // nothing to edit: fold / top / bottom / half page

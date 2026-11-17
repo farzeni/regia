@@ -16,7 +16,7 @@ func Run() error {
 	if e := recoverDrafts(); e != nil { // a regia that died while you typed
 		m.showEntry(*e)
 		m.typing = true
-		m.flash("brought back what you were typing when regia closed · esc clears it (↑ brings it back)")
+		m.flash("brought back what you were typing when regia closed · esc clears it (pgup brings it back)")
 	}
 	final, err := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 	if fm, ok := final.(*model); ok && fm != nil {
