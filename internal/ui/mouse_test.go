@@ -28,20 +28,27 @@ func rowOfBlock(t *testing.T, m *model, f func(b convBlock) bool) (int, int) {
 	return 0, 0
 }
 
-func TestClickRunSelectsThenUnfolds(t *testing.T) {
+// The first click on a run selects and unfolds it; the next folds it.
+func TestClickRunSelectsAndUnfolds(t *testing.T) {
 	m := convModel(t)
 	y, i := rowOfBlock(t, m, bigRun)
 	clickPanelAt(m, 10, y)
 	if !m.convFocus || m.convSel() != i {
 		t.Fatalf("a click selects the run and focuses (focus %v, sel %d want %d)", m.convFocus, m.convSel(), i)
 	}
-	if s := convScreen(m); strings.Contains(s, "go test") {
-		t.Fatalf("the first click doesn't unfold:\n%s", s)
+	if s := convScreen(m); !strings.Contains(s, "▾ ⚙ 7 steps") {
+		t.Fatalf("the first click unfolds the run too:\n%s", s)
 	}
 	y, _ = rowOfBlock(t, m, bigRun)
 	clickPanelAt(m, 10, y)
-	if s := convScreen(m); !strings.Contains(s, "▾ ⚙ 7 steps") {
-		t.Fatalf("a click on the selected run unfolds it:\n%s", s)
+	if s := convScreen(m); !strings.Contains(s, "▸ ⚙ 7 steps") {
+		t.Fatalf("a click on the selected run folds it:\n%s", s)
+	}
+	// a message only gets selected
+	y, i = rowOfBlock(t, m, func(b convBlock) bool { return b.kind == blockMsg })
+	clickPanelAt(m, 10, y)
+	if m.convSel() != i {
+		t.Fatalf("a click selects the message (sel %d want %d)", m.convSel(), i)
 	}
 }
 

@@ -85,7 +85,10 @@ func (m *model) clickPanel(x, y int) tea.Cmd {
 	}
 	m.selectConvBlock(i)
 	m.convFocus, m.chg.focus = true, false
-	m.flash("conversation: j/k move · enter/space fold · y copy · r reply · esc back")
+	m.flash(convHint)
+	if b := m.conv.blocks[i]; b.kind != blockMsg { // a run or a step folds / unfolds on the first click too
+		m.toggleConv(b)
+	}
 	return nil
 }
 

@@ -531,6 +531,9 @@ func (m *model) convFresh() bool {
 	return len(m.conv.blocks) > 0
 }
 
+// convHint is what the foot says when the conversation takes the keys.
+const convHint = "conversation: j/k move · shift/ctrl+↑↓ message/yours · enter/space fold · c copy · r quote · i input · ←/esc back"
+
 // focusConv is `o`: the conversation takes the keys, the cursor on the last
 // block (or where it was).
 func (m *model) focusConv() {
@@ -539,7 +542,7 @@ func (m *model) focusConv() {
 		return
 	}
 	m.convFocus, m.convReveal, m.typing = true, true, false // → from an empty input box too
-	m.flash("conversation: j/k move · shift/ctrl+↑↓ message/yours · enter/space fold · y copy · r reply · ←/esc back")
+	m.flash(convHint)
 }
 
 // selectConvBlock selects block i of what is shown and brings it into view.
@@ -627,28 +630,25 @@ func blockText(c stepCtx, b convBlock) string {
 	return strings.Join(ls, "\n")
 }
 
-// quoteReply is r: the message quoted in the input box, ready for your words.
-func (m *model) quoteReply(b convBlock) tea.Cmd {
-	if b.kind != blockMsg {
-		m.flash("r quotes a message: move to one")
-		return nil
+// quoteReply is r: the selected block quoted in the input box (and on the
+// clipboard), the cursor two lines below it, ready for your words.
+func (m *model) quoteReply(b convBlock) {
+	text := strings.TrimSpace(blockText(stepCtx{m, m.agents[m.conv.id]}, b))
+	if text == "" {
+		return
 	}
-	a := m.agents[m.conv.id]
-	if a == nil {
-		return nil
-	}
-	if a.Interactive {
-		m.flash("interactive session: open it in its own terminal (pid shown in `claude agents`)")
-		return nil
-	}
-	q := "> " + strings.ReplaceAll(strings.TrimSpace(b.msg.Text), "\n", "\n> ") + "\n\n"
+	q := "> " + strings.ReplaceAll(text, "\n", "\n> ")
 	if err := copyText(q); err != nil {
 		m.flash("clipboard: %v", err)
-		return nil
 	}
-	m.flash("quote copied — paste it in the session")
-	m.convFocus, m.typing = false, false
-	return attachSession(a.ID)
+	v := m.draft()
+	if strings.TrimSpace(v) != "" { // below what you had typed
+		v = strings.TrimRight(v, "\n") + "\n\n"
+	} else {
+		v = ""
+	}
+	m.ta.SetValue(v + q + "\n\n")
+	m.convFocus, m.typing = false, true
 }
 
 // updateConv handles keys while the conversation has focus.
@@ -691,14 +691,17 @@ func (m *model) updateConv(k tea.KeyMsg) tea.Cmd {
 		m.toggleConv(b)
 	case "enter":
 		return m.activateConv(b)
-	case "y":
+	case "c":
 		if err := copyText(blockText(stepCtx{m, m.agents[m.conv.id]}, b)); err != nil {
 			m.flash("clipboard: %v", err)
 		} else {
 			m.flash("copied")
 		}
 	case "r":
-		return m.quoteReply(b)
+		m.quoteReply(b)
+	case "i": // to the input, out of the conversation
+		m.convFocus, m.typing = false, true
+		m.status = ""
 	}
 	return nil
 }
