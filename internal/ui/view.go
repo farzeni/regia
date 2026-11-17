@@ -549,15 +549,11 @@ func wrap(s string, w int) []string {
 }
 
 // panel is what the right side shows: for an agent, a card pinned at the top,
-// a foot pinned at the bottom, and between them a history that scrolls, stuck
-// to the foot (bottomUp); for a group, plain lines.
+// a foot pinned at the bottom, and between them the conversation, which
+// scrolls, stuck to the foot (bottomUp); for a group, plain lines.
 type panel struct {
 	hist, card, foot []string
 	bottomUp         bool
-	// top is the line of hist to open on when the row is first shown and
-	// the history doesn't fit (the start of the latest reply, so it reads
-	// top-down); 0 = the bottom, as usual
-	top int
 }
 
 func (p panel) lines() []string {
@@ -590,9 +586,6 @@ func (m *model) placePanel(p panel, h, w int) []string {
 	}
 	card = card[:min(len(card), h-len(foot))]
 	room := h - len(card) - len(foot)
-	if fresh && p.top > 0 {
-		m.panelScroll = max(0, len(p.hist)-p.top-room)
-	}
 	m.panelScroll = max(0, min(m.panelScroll, len(p.hist)-room))
 	end := len(p.hist) - m.panelScroll
 	start := max(0, end-room)
@@ -655,12 +648,14 @@ func (m *model) detailLines(w int) panel {
 		return panel{card: out}
 	}
 	m.tabHits, m.tabRow = m.tabHits[:0], 0 // agentDetail draws them again if it has tabs
-	hist, card, foot, top := m.agentDetail(r, w)
-	if r.HasKids { // a coordinator: its agents' shared notes atop its card
+	hist, card, foot := m.agentDetail(r, w)
+	// a coordinator's panel is like any agent's; its agents' blackboard shows
+	// atop the card only while open (N)
+	if r.HasKids && m.notesFor == r.ID {
 		if ns := m.notesSection(r.ID, w, 5); len(ns) > 0 {
 			card = append(append(ns[1:], ""), card...)
 			m.tabRow = len(ns) // the tab bar moved down by the notes
 		}
 	}
-	return panel{hist: hist, card: card, foot: foot, bottomUp: true, top: top}
+	return panel{hist: hist, card: card, foot: foot, bottomUp: true}
 }

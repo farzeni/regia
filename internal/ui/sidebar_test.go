@@ -196,10 +196,8 @@ func TestPanelDivider(t *testing.T) {
 	m.Update(tkey("esc"))
 	m.moveCursor(1)
 	r := m.selected()
-	at := time.Now().Add(-time.Minute)
-	m.hist, m.histFor = claude.History{Task: "the task", Turns: []claude.Turn{{
-		User: &claude.HEntry{At: at, Detail: "do it"}, Results: []claude.HEntry{{At: at, State: "done", Detail: "did it"}}, LastAt: at,
-	}}}, r.ID
+	giveTranscript(t, m, r.ID, "do it", "did it")
+	m.hist, m.histFor = claude.History{Task: "the task"}, r.ID
 	ls := strings.Split(ansi.Strip(m.View()), "\n")
 	task, rule1, did, rule2, state, meta := -1, -1, -1, -1, -1, -1
 	for i, l := range ls {
@@ -237,11 +235,8 @@ func TestYourMessagesTinted(t *testing.T) {
 	m.Update(tkey("esc"))
 	m.moveCursor(1)
 	r := m.selected()
-	at := time.Now().Add(-time.Minute)
-	m.hist, m.histFor = claude.History{Turns: []claude.Turn{{
-		User: &claude.HEntry{At: at, Detail: "my message"}, Results: []claude.HEntry{{At: at, State: "done", Detail: "agent reply"}}, LastAt: at,
-	}}}, r.ID
-	hist, _, _, _ := m.agentDetail(r, 60)
+	giveTranscript(t, m, r.ID, "my message", "agent reply")
+	hist, _, _ := m.agentDetail(r, 60)
 	fg := "\x1b[38;5;183m"
 	for _, l := range hist {
 		if strings.Contains(l, "\x1b[48;") {

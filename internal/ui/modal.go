@@ -18,7 +18,6 @@ type helpSection struct {
 var helpSections = []helpSection{
 	{"sessions", [][2]string{
 		{"enter", "attach (detach to come back)"},
-		{"o", "terminal output (logs)"},
 		{"D", "git diff vs main / back"},
 		{"!", "plugin actions and links"},
 		{"y / Y", "copy reply / session id"},
@@ -45,9 +44,8 @@ var helpSections = []helpSection{
 		{"[ ]  ctrl+↑/↓", "previous / next group"},
 		{"g / G", "top / bottom"},
 		{"ctrl+d / u", "half page down / up"},
-		{"pgup / pgdn", "scroll the panel"},
+		{"pgup / pgdn", "scroll the conversation"},
 		{", / .", "agent box: previous / next tab"},
-		{"t", "whole conversation / compact"},
 		{"b", "next agent waiting for you"},
 		{"tab / shift+tab", "tree → inbox → search"},
 		{"Z", "snooze a question"},

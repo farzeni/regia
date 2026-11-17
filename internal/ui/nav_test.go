@@ -1,10 +1,8 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -98,35 +96,26 @@ func TestPanelBottomUpAndScroll(t *testing.T) {
 	m.w, m.h = 120, 24
 	m.moveCursor(1) // alpha, an agent
 	r := m.selected()
-	base := time.Now().Add(-time.Hour)
-	var turns []claude.Turn
-	for i := range 40 {
-		at := base.Add(time.Duration(i) * time.Minute)
-		turns = append(turns, claude.Turn{
-			User:    &claude.HEntry{At: at, Detail: fmt.Sprintf("ask %02d", i)},
-			Results: []claude.HEntry{{At: at, State: "done", Detail: fmt.Sprintf("answer %02d", i)}},
-			LastAt:  at,
-		})
-	}
-	m.hist, m.histFor = claude.History{Turns: turns, Task: "the task"}, r.ID
+	giveTranscript(t, m, r.ID, exchanges(40)...)
+	m.hist, m.histFor = claude.History{Task: "the task"}, r.ID
 
 	screen := func() string { return ansi.Strip(m.View()) }
 	s := screen()
 	// newest at the bottom, oldest scrolled off above
-	if !strings.Contains(s, "answer 39") || strings.Contains(s, "ask 00") || !strings.Contains(s, "earlier · pgup") {
-		t.Fatalf("panel should show the newest turns:\n%s", s)
+	if !strings.Contains(s, "reply 39") || strings.Contains(s, "ask 00") || !strings.Contains(s, "earlier · pgup") {
+		t.Fatalf("panel should show the newest messages:\n%s", s)
 	}
 	if strings.Index(s, "ask 38") > strings.Index(s, "ask 39") {
-		t.Fatal("history should run oldest to newest, top to bottom")
+		t.Fatal("the conversation should run oldest to newest, top to bottom")
 	}
-	// the card is above the history
-	if strings.Index(s, "the task") > strings.Index(s, "answer 38") {
-		t.Fatal("card should be above the history")
+	// the card is above the conversation
+	if strings.Index(s, "the task") > strings.Index(s, "reply 38") {
+		t.Fatal("card should be above the conversation")
 	}
-	for range 10 {
+	for range 30 {
 		m.Update(tkey("pgup"))
 	}
-	if s = screen(); !strings.Contains(s, "ask 00") || strings.Contains(s, "answer 39") || !strings.Contains(s, "newer · pgdn") {
+	if s = screen(); !strings.Contains(s, "ask 00") || strings.Contains(s, "reply 39") || !strings.Contains(s, "newer · pgdn") {
 		t.Fatalf("pgup should scroll back to the start:\n%s", s)
 	}
 	if !strings.Contains(s, "the task") {
@@ -134,8 +123,7 @@ func TestPanelBottomUpAndScroll(t *testing.T) {
 	}
 	m.Update(tkey("j")) // another agent: back to the newest
 	m.moveCursor(-1)
-	m.hist, m.histFor = claude.History{Turns: turns}, r.ID
-	if s = screen(); !strings.Contains(s, "answer 39") {
+	if s = screen(); !strings.Contains(s, "reply 39") {
 		t.Fatal("selecting another row should reset the scroll")
 	}
 }

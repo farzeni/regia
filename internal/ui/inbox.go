@@ -162,7 +162,7 @@ func (m *model) earlierKey(k string) bool {
 		m.earlierOpen = true
 	case "left", "h":
 		m.earlierOpen = false
-	case "e", "f", "x", "s", "r", "d", "N", "M", "w", "m", "Z", "y", "Y", "o":
+	case "e", "f", "x", "s", "r", "d", "N", "M", "w", "m", "Z", "y", "Y":
 		return true // agent and group actions: nothing to act on
 	default:
 		return false

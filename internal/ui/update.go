@@ -121,15 +121,6 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.gotDiff(msg)
 		return m, nil
 
-	case logsMsg:
-		if msg.id == m.cursorID {
-			m.logs, m.logsFor = msg.out, msg.id
-			if strings.TrimSpace(m.logs) == "" {
-				m.logs = "(no recent terminal output)"
-			}
-		}
-		return m, nil
-
 	case spawnedMsg:
 		if msg.err != nil {
 			m.flash("spawn failed: %v %s", msg.err, strings.TrimSpace(msg.out))
@@ -323,14 +314,6 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 				break
 			}
 		}
-	case "t":
-		m.fullHist = !m.fullHist
-		m.panelFor = "" // open on the latest reply again
-		if m.fullHist {
-			m.flash("whole conversation · pgup/pgdn scroll · t: compact history")
-		} else {
-			m.flash("compact history · t: whole conversation")
-		}
 	case "z":
 		if m.view == viewInbox {
 			m.earlierKey("z")
@@ -461,15 +444,6 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		return m.pluginMenuKey(r)
 	case "D": // the panel shows the agent's git diff / back
 		return m.diffKey(r)
-	case "o":
-		if r != nil && r.Agent != nil && !r.Agent.Interactive {
-			id := r.ID
-			m.logs, m.logsFor = "loading…", id
-			return func() tea.Msg {
-				out, _ := exec.Command("claude", "logs", id).CombinedOutput()
-				return logsMsg{id, string(out)}
-			}
-		}
 	case "x":
 		if r != nil && r.Agent != nil && !r.Agent.Interactive {
 			id, name := r.ID, r.Title

@@ -36,7 +36,7 @@ func TestStuckAgentShown(t *testing.T) {
 	if i < 0 || !strings.Contains(ansi.Strip(m.rowLine(m.rows[i], 60)), stuckGlyph) {
 		t.Fatal("no ⚠ on the tree row")
 	}
-	_, card, _, _ := m.agentDetail(&m.rows[i], 80)
+	_, card, _ := m.agentDetail(&m.rows[i], 80)
 	if txt := ansi.Strip(strings.Join(card, "\n")); !strings.Contains(txt, "no activity for 23m") {
 		t.Fatalf("card doesn't say why:\n%s", txt)
 	}
