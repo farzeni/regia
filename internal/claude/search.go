@@ -33,6 +33,10 @@ type Msg struct {
 	At   time.Time
 	Text string
 	low  string // Text lowercased, for matching
+	// RoleTool messages: a call (or a thought) has Tool, its output has
+	// Result (see steps.go; Conversation pairs them).
+	Tool   *Tool
+	Result *Result
 }
 
 // maxToolText caps how much of one tool call or output is kept: tool output
@@ -90,8 +94,8 @@ func Messages(path string) []Msg {
 		if err != nil { // at EOF, a half-written last line is read next time
 			break
 		}
+		c.msgs = appendMsgs(c.msgs, line, c.size)
 		c.size += int64(len(line))
-		c.msgs = appendMsgs(c.msgs, line)
 	}
 	return c.msgs
 }
@@ -102,14 +106,21 @@ var (
 )
 
 type rawBlock struct {
-	Type    string          `json:"type"`
-	Text    string          `json:"text"`
-	Name    string          `json:"name"`
-	Input   json.RawMessage `json:"input"`
-	Content json.RawMessage `json:"content"`
+	Type      string          `json:"type"`
+	Text      string          `json:"text"`
+	Thinking  string          `json:"thinking"`
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Input     json.RawMessage `json:"input"`
+	ToolUseID string          `json:"tool_use_id"`
+	IsError   bool            `json:"is_error"`
+	Content   json.RawMessage `json:"content"`
+	Source    *rawSource      `json:"source"`
 }
 
-func appendMsgs(msgs []Msg, line []byte) []Msg {
+// appendMsgs adds a transcript line's messages; off is where the line starts
+// in the file (kept on tool steps, to read the line again).
+func appendMsgs(msgs []Msg, line []byte, off int64) []Msg {
 	if !bytes.Contains(line, userType) && !bytes.Contains(line, agentType) {
 		return msgs
 	}
@@ -120,6 +131,7 @@ func appendMsgs(msgs []Msg, line []byte) []Msg {
 		Message   struct {
 			Content json.RawMessage `json:"content"`
 		} `json:"message"`
+		UseResult json.RawMessage `json:"toolUseResult"`
 	}
 	if json.Unmarshal(line, &e) != nil || e.IsMeta || (e.Type != "user" && e.Type != "assistant") {
 		return msgs
@@ -135,6 +147,14 @@ func appendMsgs(msgs []Msg, line []byte) []Msg {
 		}
 		msgs = append(msgs, Msg{Role: r, At: at, Text: s, low: strings.ToLower(s)})
 	}
+	// a step is kept even with no text (a silent command, a redacted thought)
+	step := func(s string, t *Tool, res *Result) {
+		s = strings.TrimSpace(s)
+		if len(s) > maxToolText {
+			s = cutUTF8(s, maxToolText)
+		}
+		msgs = append(msgs, Msg{Role: RoleTool, At: at, Text: s, low: strings.ToLower(s), Tool: t, Result: res})
+	}
 	var s string
 	if json.Unmarshal(e.Message.Content, &s) == nil {
 		if e.Type == "user" && !metaText(s) {
@@ -146,7 +166,13 @@ func appendMsgs(msgs []Msg, line []byte) []Msg {
 	if json.Unmarshal(e.Message.Content, &blocks) != nil {
 		return msgs
 	}
+	results := 0 // toolUseResult describes the line's only result
 	for _, b := range blocks {
+		if b.Type == "tool_result" {
+			results++
+		}
+	}
+	for i, b := range blocks {
 		switch b.Type {
 		case "text":
 			if e.Type == "assistant" {
@@ -154,10 +180,17 @@ func appendMsgs(msgs []Msg, line []byte) []Msg {
 			} else if !metaText(b.Text) {
 				add(RoleYou, b.Text)
 			}
+		case "thinking", "redacted_thinking":
+			step(b.Thinking, &Tool{ID: thoughtID(off, i), Name: ThinkingTool, Off: off}, nil)
 		case "tool_use":
-			add(RoleTool, toolCall(b))
+			step(toolCall(b), parseTool(b, off), nil)
 		case "tool_result":
-			add(RoleTool, toolOutput(b.Content))
+			var use json.RawMessage
+			if results == 1 {
+				use = e.UseResult
+			}
+			text, parts := toolOutput(b.Content)
+			step(text, nil, parseResult(b, parts, use, off))
 		}
 	}
 	return msgs
@@ -183,14 +216,16 @@ func toolCall(b rawBlock) string {
 	return b.Name + ": " + string(b.Input)
 }
 
-func toolOutput(c json.RawMessage) string {
+// toolOutput is a tool_result's text, and its parts when it has several
+// (text, images…).
+func toolOutput(c json.RawMessage) (string, []rawBlock) {
 	var s string
 	if json.Unmarshal(c, &s) == nil {
-		return s
+		return s, nil
 	}
 	var parts []rawBlock
 	if json.Unmarshal(c, &parts) != nil {
-		return ""
+		return "", nil
 	}
 	var out []string
 	for _, p := range parts {
@@ -198,7 +233,7 @@ func toolOutput(c json.RawMessage) string {
 			out = append(out, p.Text)
 		}
 	}
-	return strings.Join(out, "\n")
+	return strings.Join(out, "\n"), parts
 }
 
 // --- transcript paths ------------------------------------------------------

@@ -75,6 +75,7 @@ func TestMessages(t *testing.T) {
 	}
 	exp := []want{
 		{RoleYou, "find the bug in search"},
+		{RoleTool, "secret"}, // a thought, kept as a step
 		{RoleAgent, "Looking at search.go"},
 		{RoleTool, "Bash: grep -n search"},
 		{RoleTool, "search.go:1: package"},
@@ -97,7 +98,7 @@ func TestMessages(t *testing.T) {
 	_, _ = f.WriteString(`{"type":"assistant","message":{"content":[{"type":"text","text":"done"}]}}` + "\n" + `{"type":"assistant","mess`)
 	f.Close()
 	ms = Messages(p)
-	if len(ms) != 6 || ms[5].Text != "done" {
+	if len(ms) != 7 || ms[6].Text != "done" {
 		t.Fatalf("after append: %d messages, last %q", len(ms), ms[len(ms)-1].Text)
 	}
 }

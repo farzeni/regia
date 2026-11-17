@@ -459,14 +459,14 @@ func (m *model) searchPanel(w, h int) panel {
 	const around = 3
 	var idx []int
 	for i, n := hit.Index-1, 0; i >= 0 && n < around; i-- {
-		if msgs[i].Role != claude.RoleTool || m.srch.tools {
+		if (msgs[i].Role != claude.RoleTool || m.srch.tools) && msgs[i].Text != "" { // a silent step says nothing
 			idx = append([]int{i}, idx...)
 			n++
 		}
 	}
 	idx = append(idx, hit.Index)
 	for i, n := hit.Index+1, 0; i < len(msgs) && n < around; i++ {
-		if msgs[i].Role != claude.RoleTool || m.srch.tools {
+		if (msgs[i].Role != claude.RoleTool || m.srch.tools) && msgs[i].Text != "" { // a silent step says nothing
 			idx = append(idx, i)
 			n++
 		}
