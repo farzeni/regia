@@ -291,7 +291,7 @@ func (m *model) timelineView(r *layout.Row, w int) panel {
 	var card []string
 	if r.Group {
 		card = []string{stBold.Render(r.Title),
-			stDim.Render(fmt.Sprintf("%d agents · %d your turn · %d busy", r.Count, r.Blocked, r.Busy)), "", head}
+			stDim.Render(trunc(groupCounts(*r), w)), "", head}
 	} else {
 		_, c, foot := m.agentDetail(r, w)
 		m.conv.id = "" // the timeline is shown, not its conversation

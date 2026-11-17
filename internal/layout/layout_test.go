@@ -230,3 +230,21 @@ func TestOrphansLiftWhenCoordinatorRemoved(t *testing.T) {
 		t.Fatalf("tree\n got %q\nwant %q", got, want)
 	}
 }
+
+// A group's counts split the way its rows are drawn: ● waiting on you (a stale
+// question is not), bold ✓ an unseen result, ◆ working; none counted twice.
+func TestGroupCountsSplitByGlyph(t *testing.T) {
+	l, agents := fixture(t)
+	agents["w2"].State = "ready"
+	agents["fork"].State = "blocked"
+	agents["fork"].Stale = true
+	var alpha Row
+	for _, r := range l.Flatten(agents, ViewOpts{ShowDone: true}) {
+		if r.ID == "p:alpha" {
+			alpha = r
+		}
+	}
+	if alpha.Count != 4 || alpha.Blocked != 1 || alpha.Ready != 1 || alpha.Busy != 1 {
+		t.Fatalf("p:alpha counts %+v, want 4 agents · 1 need you (w1) · 1 ready (w2) · 1 busy (coord)", alpha)
+	}
+}

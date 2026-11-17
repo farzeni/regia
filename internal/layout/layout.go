@@ -55,9 +55,10 @@ type Row struct {
 	HasKids   bool
 	Collapsed bool
 	Archived  bool
-	Count     int // visible agents below
-	Blocked   int // blocked agents below
-	Busy      int
+	Count     int      // visible agents below
+	Blocked   int      // agents below waiting on you (●): blocked, not stale or snoozed
+	Ready     int      // agents below with a result you haven't seen (bold ✓)
+	Busy      int      // agents below working right now (◆)
 	Where     []string // inbox only: the ancestors' titles, outermost first (see Trail)
 }
 
@@ -257,19 +258,19 @@ func (o ViewOpts) Visible(a *claude.Agent, alias string, pinned bool) bool {
 // descendant is visible; auto groups with nothing visible are dropped.
 func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 	var rows []Row
-	var walk func(id string, depth int, visited map[string]bool) (rs []Row, count, blocked, busy int)
-	walk = func(id string, depth int, visited map[string]bool) ([]Row, int, int, int) {
+	var walk func(id string, depth int, visited map[string]bool) (rs []Row, n Tally)
+	walk = func(id string, depth int, visited map[string]bool) ([]Row, Tally) {
 		if visited[id] || depth > 32 {
-			return nil, 0, 0, 0
+			return nil, Tally{}
 		}
 		visited[id] = true
 		kids := l.Children(id, agents)
 		var sub []Row
-		count, blocked, busy := 0, 0, 0
+		var n Tally
 		for _, k := range kids {
-			r, c, b, u := walk(k, depth+1, visited)
+			r, t := walk(k, depth+1, visited)
 			sub = append(sub, r...)
-			count, blocked, busy = count+c, blocked+b, busy+u
+			n.add(t)
 		}
 		row := Row{ID: id, Depth: depth, HasKids: len(sub) > 0}
 		selfVisible := false
@@ -283,13 +284,8 @@ func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 			// archived: hidden unless shown (A) or searched for
 			selfVisible = o.Visible(a, l.Alias[id], l.Pins[id]) && (!row.Archived || o.ShowArchived || o.Filter != "")
 			if selfVisible {
-				count++
-				if a.YourTurn() {
-					blocked++
-				}
-				if a.State == "busy" {
-					busy++
-				}
+				n.Count++
+				n.Tick(a)
 			}
 		} else {
 			row.Group = true
@@ -297,19 +293,19 @@ func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 			selfVisible = strings.HasPrefix(id, "g:") && o.Filter == ""
 		}
 		if !selfVisible && len(sub) == 0 {
-			return nil, 0, 0, 0
+			return nil, Tally{}
 		}
-		row.Count, row.Blocked, row.Busy = count, blocked, busy
+		row.Count, row.Blocked, row.Ready, row.Busy = n.Count, n.Blocked, n.Ready, n.Busy
 		row.Collapsed = l.Collapsed[id] && o.Filter == ""
 		out := []Row{row}
 		if !row.Collapsed {
 			out = append(out, sub...)
 		}
-		return out, count, blocked, busy
+		return out, n
 	}
 	visited := map[string]bool{}
 	for _, id := range l.Children("", agents) {
-		r, _, _, _ := walk(id, 0, visited)
+		r, _ := walk(id, 0, visited)
 		rows = append(rows, r...)
 	}
 	return rows
@@ -645,4 +641,24 @@ func listedSpawner(l spawns.Link, agents map[string]*claude.Agent) string {
 		}
 	}
 	return ""
+}
+
+// Tally counts agents the way the tree draws them: ● waiting on you, bold ✓
+// a result you haven't seen, ◆ working. Each agent lands in at most one.
+type Tally struct{ Count, Blocked, Ready, Busy int }
+
+// Tick counts a's state (not Count: the caller decides what is visible).
+func (t *Tally) Tick(a *claude.Agent) {
+	switch {
+	case a.State == "blocked" && a.YourTurn():
+		t.Blocked++
+	case a.State == "ready":
+		t.Ready++
+	case a.State == "busy":
+		t.Busy++
+	}
+}
+
+func (t *Tally) add(o Tally) {
+	t.Count, t.Blocked, t.Ready, t.Busy = t.Count+o.Count, t.Blocked+o.Blocked, t.Ready+o.Ready, t.Busy+o.Busy
 }
