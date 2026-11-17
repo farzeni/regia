@@ -478,8 +478,8 @@ defaults; `regia openers show` says which line.
 | preset | opens files with | links go to |
 |---|---|---|
 | `default` | `xdg-open` (`open` on macOS) | `file://` |
-| `vscode` | `code -g path:line` | `vscode://file…` |
-| `cursor` | `cursor -g path:line` | `cursor://file…` |
+| `vscode` | `code <agent folder> -g path:line`: the window of the agent's worktree | `vscode://file…` |
+| `cursor` | `cursor <agent folder> -g path:line`: the window of the agent's worktree | `cursor://file…` |
 | `zed` | `zed path:line` | `zed://file…` |
 | `idea` | `idea --line N path` (JetBrains) | `idea://open?file=…` |
 | `nvim-tmux` | `nvim +N path` in a new tmux window | `file://` |

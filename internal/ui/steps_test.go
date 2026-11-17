@@ -132,7 +132,7 @@ func TestEditStep(t *testing.T) {
 		t.Fatalf("the diff should stop at 20 lines:\n%s", s)
 	}
 	enterOn(t, m, "Edit")
-	if len(*got) != 1 || (*got)[0] != (openTarget{Kind: "file", Path: path, Line: 12}) {
+	if len(*got) != 1 || (*got)[0] != (openTarget{Kind: "file", Path: path, Line: 12, Dir: cwd}) {
 		t.Fatalf("enter should open %s at 12, got %+v", path, *got)
 	}
 }
@@ -250,7 +250,7 @@ func TestReadGrepGlobSteps(t *testing.T) {
 		`◦ glob "**/*.go" 2 files`, "y.go")
 	enterOn(t, m, "Read")
 	enterOn(t, m, "Grep")
-	want := []openTarget{{Kind: "file", Path: a, Line: 1}, {Kind: "file", Path: a, Line: 12}}
+	want := []openTarget{{Kind: "file", Path: a, Line: 1, Dir: cwd}, {Kind: "file", Path: a, Line: 12, Dir: cwd}}
 	if len(*got) != 2 || (*got)[0] != want[0] || (*got)[1] != want[1] {
 		t.Fatalf("enter should open the read file and the first hit, got %+v", *got)
 	}

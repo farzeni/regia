@@ -128,6 +128,7 @@ type changesState struct {
 	focus bool   // it has the keys (D, or a click on a file)
 	sel   string // the selected file's path ("" = the first)
 	id    string // the agent drawn
+	dir   string // its folder, for the editor's window
 	files []changedFile
 	rows  []int // per body line, the file drawn there or -1
 }
@@ -145,7 +146,7 @@ func (c *changesState) selIndex() int {
 func (m *model) changesTab(a *claude.Agent, w int) panelTab {
 	files := changesOf(a)
 	c := &m.chg
-	c.id, c.files = a.ID, files
+	c.id, c.dir, c.files = a.ID, a.Cwd, files
 	t := panelTab{name: changesTab, own: true}
 	if len(files) > 0 {
 		t.badge = &plugins.Badge{Text: fmt.Sprint(len(files))}
@@ -301,7 +302,7 @@ func (m *model) openChanged(i int) tea.Cmd {
 	}
 	f := m.chg.files[i]
 	m.chg.sel = f.Path
-	return openThing(openTarget{Kind: "file", Path: f.Path, Line: f.Line})
+	return openThing(openTarget{Kind: "file", Path: f.Path, Line: f.Line, Dir: m.chg.dir})
 }
 
 // mergeBaseMsg is where the agent's branch left the default one, found off

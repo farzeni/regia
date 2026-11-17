@@ -161,13 +161,18 @@ func errorDetail(s *claude.Step, w int) []string {
 	return headLines(lines(s.Out), maxHeadLines, w, stErr)
 }
 
-// openFile opens path at line, or says why not.
-func openFile(m *model, path string, line int) tea.Cmd {
+// openFile opens path at line, or says why not. The agent's folder goes
+// along as {dir}, so an editor can open the file in that folder's window.
+func openFile(m *model, a *claude.Agent, path string, line int) tea.Cmd {
 	if path == "" {
 		m.flash("no file to open")
 		return nil
 	}
-	return openThing(openTarget{Kind: "file", Path: path, Line: line})
+	t := openTarget{Kind: "file", Path: path, Line: line}
+	if a != nil {
+		t.Dir = a.Cwd
+	}
+	return openThing(t)
 }
 
 // pageText shows text in the pager, or says there's nothing.
@@ -284,8 +289,8 @@ func editDetail(c stepCtx, s *claude.Step, w int) []string {
 	return out
 }
 
-func editActivate(m *model, _ *claude.Agent, s *claude.Step) tea.Cmd {
-	return openFile(m, editPath(s), editAt(s))
+func editActivate(m *model, a *claude.Agent, s *claude.Step) tea.Cmd {
+	return openFile(m, a, editPath(s), editAt(s))
 }
 
 // --- Bash (and the agents it spawns) ---------------------------------------------
@@ -528,7 +533,7 @@ func readActivate(m *model, a *claude.Agent, s *claude.Step) tea.Cmd {
 		return imageActivate(m, a, s)
 	}
 	at, _ := readRange(s)
-	return openFile(m, s.In["file_path"], at)
+	return openFile(m, a, s.In["file_path"], at)
 }
 
 // searchLine is `◦ grep "p" 12 hits` or `◦ glob "*.go" 8 files`.
@@ -649,7 +654,7 @@ func searchActivate(m *model, a *claude.Agent, s *claude.Step) tea.Cmd {
 	}
 	c := stepCtx{m, a}
 	p, at := hitAt(c, s, ps[0])
-	return openFile(m, absIn(c, s, p), at)
+	return openFile(m, a, absIn(c, s, p), at)
 }
 
 // --- images ---------------------------------------------------------------------------
