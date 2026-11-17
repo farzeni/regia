@@ -518,8 +518,8 @@ func (m *model) focusConv() {
 		m.flash("no conversation to focus")
 		return
 	}
-	m.convFocus, m.convReveal = true, true
-	m.flash("conversation: j/k move · enter/space fold · y copy · r reply · esc back")
+	m.convFocus, m.convReveal, m.typing = true, true, false // → from an empty input box too
+	m.flash("conversation: j/k move · enter/space fold · y copy · r reply · ←/esc back")
 }
 
 // selectConvBlock selects block i of what is shown and brings it into view.
@@ -645,7 +645,7 @@ func (m *model) updateConv(k tea.KeyMsg) tea.Cmd {
 		return tea.Quit
 	case "?":
 		m.help = !m.help
-	case "esc", "o", "q":
+	case "esc", "o", "q", "left", "h": // back to the list
 		m.convFocus = false
 		m.status = ""
 	case "j", "down":
