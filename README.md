@@ -89,12 +89,16 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   a quote and attaches to the session, where you paste it and go on,
   `g`/`G` go to the top / bottom, `esc` gives the keys back to the list. What's
   unfolded is remembered per agent until regia quits.
-  `D` swaps it for the agent's changes: the git
-  diff of its directory against where it branched off the repo's default
-  branch (main/master), uncommitted and new files included, with the changed
-  files and their +/- counts on top; `pgup`/`pgdn` scroll, `D` or `esc` goes
-  back. It's computed in the background and kept until the agent commits or
-  edits something; diffs over 5000 lines are cut, with a note saying how much.
+  A click on a block selects it (and focuses the conversation); a click on
+  the selected one unfolds it, or opens the step. The wheel scrolls, and in
+  focus the cursor stays on what's shown.
+  The agent box's **changes** tab (`D`) lists the files the agent edited or
+  wrote, newest first, each with the lines it added and removed (`+8 −3`) and
+  the line it last changed; failed edits don't count. `D` gives the tab the
+  keys: `j`/`k` move, `enter` (or a click on the selected file) opens the file
+  at that line, `d` opens the agent's whole diff (from where its branch left
+  main/master, uncommitted changes included) in your diff tool, `esc` gives
+  the keys back, `D` again goes back to the agent tab.
   When the agent has a **pull request** (a PR
   link in its job state, or else a PR for its branch), the card has a `pr`
   line: number, draft/open, CI checks (✓ passing, ✗ failing, … pending) and
@@ -213,8 +217,8 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `b` | jump to the next agent whose turn is yours (waiting or ready) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |
-| `,` / `.` | previous / next tab of the agent box: `agent`, then one per plugin |
-| `D` | the panel shows the agent's git diff against the default branch (uncommitted changes too) / back (`esc` too) |
+| `,` / `.` | previous / next tab of the agent box: `agent`, `changes`, then one per plugin |
+| `D` | the agent box's `changes` tab, with the keys: `j`/`k` move between the files the agent touched, `enter` opens one at the line it last changed, `d` opens the agent's whole diff against where it branched off main/master in your diff tool, `esc` back, `D` again: the agent tab |
 | `i` / `c` / `C` | type a new task; `C` starts it inside the selection |
 | `s` | stop the session (conversation kept) |
 | `x` | remove from the list (`claude rm`: worktree deleted if safe, conversation kept; refuses over unpushed commits) |
@@ -235,9 +239,12 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `v` | select mode: `space` marks a row (a group: all of it), `*` marks everything, then `e` archives or `x` removes them all, `m` picks them all up to move (`p` puts them down), `n` makes a new group of them, `f` pins them (unpins, if all pinned); `esc` leaves |
 | `?` | help |
 
-The mouse works too: the wheel scrolls the list or the panel (whichever is
-under the pointer), a click selects a row, and dragging the divider resizes
-the list. Hold `shift` to select text with the mouse as usual.
+The mouse works too: the wheel scrolls the list or the panel's conversation
+(whichever is under the pointer), a click selects a row, a tab of the agent
+box, a file of the changes tab or a block of the conversation (a second click
+on the selected one opens it, or folds / unfolds it), and dragging the
+divider resizes the list. Hold `shift` while dragging to select text with the
+mouse as usual (regia captures the mouse, so plain dragging doesn't select).
 
 The input takes the usual readline keys (`ctrl+a`/`ctrl+e`, `ctrl+w`,
 `alt+←/→`, `ctrl+k`/`ctrl+u`, …), and so do names and notes edited in place. `alt+enter`, `ctrl+j`, or `\` then `enter`

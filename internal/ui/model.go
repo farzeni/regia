@@ -134,7 +134,7 @@ type model struct {
 
 	hist    claude.History
 	histFor string
-	dv      diffView // D: the panel shows the agent's git diff
+	chg     changesState // the changes tab (D): its cursor and whether it has the keys
 
 	fetching  bool
 	fetchErr  error
@@ -362,10 +362,7 @@ func (m *model) moveCursor(d int) {
 	m.selectID = "" // you moved: don't jump to a just-started agent later
 	m.back = ""
 	m.panelScroll = 0
-	m.convFocus = false
-	if m.dv.on && m.dv.id != m.cursorID {
-		m.dv = diffView{}
-	}
+	m.convFocus, m.chg.focus = false, false
 	m.loadDetail()
 }
 
