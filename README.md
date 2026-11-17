@@ -108,7 +108,10 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   opens it (a `/` filter searches inside it too). It starts folded each time
   regia opens. `Z` snoozes a question: it leaves the inbox and the "need you"
   count until the agent does something new (`Z` again brings it back; on a
-  result to read, `Z` just marks it read).
+  result to read, `Z` just marks it read). To work down the inbox, `enter`
+  the top item, reply, and exit: once the agent is working again it leaves
+  and the cursor is on the next item, now on top (if you left without
+  replying it stays selected).
 - **search** — looks inside every session's conversation, not just names:
   what you type is matched against your messages and the agents' replies in
   every listed session (archived and finished ones too). The list shows each

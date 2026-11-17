@@ -101,6 +101,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 
 	case attachDoneMsg:
+		m.back = msg.id                // you're done with it, unless it still waits on you
 		m.markSeen(msg.id, time.Now()) // you were in it
 		m.typing = false               // back on the list, not the input
 		if msg.err != nil {
