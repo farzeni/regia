@@ -51,7 +51,7 @@ var helpSections = []helpSection{
 		{"b", "next agent waiting for you"},
 		{"tab / shift+tab", "tree → inbox → search"},
 		{"Z", "snooze a question"},
-		{"/", "filter (esc clears)"},
+		{"/", "filter: ↑↓ pick, enter opens, esc clears"},
 		{"h/l  space  z", "fold / unfold / all"},
 		{"- / +", "list narrower / wider"},
 		{"R", "refresh"},

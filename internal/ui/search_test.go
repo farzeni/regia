@@ -219,3 +219,25 @@ func TestSearchRealScreen(t *testing.T) {
 	}
 	t.Log("\n" + ansi.Strip(m.View()))
 }
+
+// The query stays live while you move: type, move, enter opens; typing more
+// after moving refines the results and starts again from the top.
+func TestSearchMoveWhileTyping(t *testing.T) {
+	m := searchModel(t)
+	m.Update(tkey("shift+tab"))
+	typeQuery(m, "payment")
+	m.Update(tkey("down"))
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlJ})
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
+	if m.cursorID != "bbbb2222#0" {
+		t.Fatalf("down: cursor %s", m.cursorID)
+	}
+	typeQuery(m, " refunds")
+	if got := rowIDs(m); strings.Join(got, " ") != "bbbb2222 bbbb2222#0" || m.cursorID != "bbbb2222" {
+		t.Fatalf("refined: rows %v cursor %s", got, m.cursorID)
+	}
+	m.Update(tkey("down"))
+	if _, cmd := m.Update(tkey("enter")); cmd == nil || m.cursorID != "bbbb2222#0" {
+		t.Fatalf("enter did not attach the highlighted hit: cmd=%v cursor %s", cmd != nil, m.cursorID)
+	}
+}

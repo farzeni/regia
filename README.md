@@ -117,7 +117,7 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   panel shows the selected message in context with the messages around it.
   Several words must all appear in the same message, in any case; `"quoted
   words"` match as a phrase. `ctrl+t` also searches tool calls and their
-  output. Keys type into the search, so: `↑/↓` move, `ctrl+↑/↓` jump between
+  output. Keys type into the search, so: `↑/↓` (or `ctrl+n/p`, `ctrl+j/k`) move while you type, `ctrl+↑/↓` jump between
   sessions, `←/→` fold a session's matches, `enter` attaches, `pgup/pgdn`
   scroll the panel, `esc` clears the search and, again, goes back to the tree
   on that session. The transcripts are read once (a few hundred ms) and then
@@ -216,7 +216,7 @@ so a second `enter` attaches to it.
 | `←` `→` `space` | fold / unfold |
 | `z` | fold everything / unfold everything |
 | `-` / `+` | list narrower / wider (or drag the divider; remembered) |
-| `/`, `esc` | filter by name, question, path or branch / clear |
+| `/`, `esc` | filter by name, question, path or branch / clear; while typing, `↑/↓` (`ctrl+n/p`, `ctrl+j/k`) move among the matches and `enter` opens the highlighted one (the filter stays); `ctrl+w` drops a word |
 | `a` | hide or show finished sessions you've already seen (shown by default) |
 | `f` | pin / unpin the agent (a group: all its agents): pinned ones stay listed when done |
 | `e` | archive the agent, or everything in a group except busy agents (asks first); on an archived agent, bring it back |

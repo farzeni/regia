@@ -199,9 +199,9 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 		}
 		m.setView(viewTree)
 		return nil
-	case "up", "ctrl+p":
+	case "up", "ctrl+p", "ctrl+k":
 		m.moveCursor(-1)
-	case "down", "ctrl+n":
+	case "down", "ctrl+n", "ctrl+j":
 		m.moveCursor(1)
 	case "pgup":
 		m.panelScroll += page
