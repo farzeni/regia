@@ -31,6 +31,7 @@ const (
 	modeConfirm
 	modeDir  // the directory picker (ctrl+o, w)
 	modeMenu // the ! menu: plugin actions and links
+	modeEdit // a row or note edited in place (m.edit)
 )
 
 type model struct {
@@ -53,6 +54,7 @@ type model struct {
 	input        string
 	inputPrompt  string
 	inputAction  func(m *model, s string) tea.Cmd
+	edit         *inlineEdit // what modeEdit edits
 	confirmMsg   string
 	confirmKey   string // the action's key: pressed again, it confirms
 	confirmDo    func(m *model) tea.Cmd

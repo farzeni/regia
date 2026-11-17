@@ -1,11 +1,6 @@
 package ui
 
 import (
-	"fmt"
-	"strings"
-
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/farzeni/regia/internal/layout"
 )
 
@@ -63,19 +58,8 @@ func (m *model) groupMarked() {
 		m.flash("nothing marked: space marks a row (a group: all of it), * marks all")
 		return
 	}
-	m.prompt(fmt.Sprintf("new group with %s: ", count(len(ids), "agent")), "", func(m *model, s string) tea.Cmd {
-		if s = strings.TrimSpace(s); s == "" {
-			return nil
-		}
-		gid, err := m.layout.GroupOf(s, ids, m.agents)
-		if err != nil {
-			m.flash("%v", err)
-			return nil
-		}
+	m.newGroupInPlace(func() (string, error) { return m.layout.GroupOf("", ids, m.agents) }, func(m *model, gid, title string) {
 		m.selecting, m.marked = false, nil
-		m.cursorID = gid
-		m.flash("grouped %s in %s", count(len(ids), "agent"), s)
-		m.saveLayout()
-		return nil
+		m.flash("grouped %s in %s", count(len(ids), "agent"), title)
 	})
 }

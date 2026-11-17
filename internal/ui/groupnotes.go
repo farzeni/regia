@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -94,7 +95,7 @@ func (m *model) updateNotes(k tea.KeyMsg) (tea.Cmd, bool) {
 			break
 		}
 		n, c := notes[m.noteSel], m.notesFor
-		m.prompt("edit note: ", n.Text, func(m *model, s string) tea.Cmd {
+		m.editNote(c, m.noteSel, n.Text, func(m *model, s string) tea.Cmd {
 			if err := group.EditNote(c, n, s); err != nil {
 				m.flash("not saved: %v", err)
 			} else {
@@ -126,7 +127,10 @@ func (m *model) updateNotes(k tea.KeyMsg) (tea.Cmd, bool) {
 func (m *model) addNote() {
 	target := m.notesFor
 	title := m.titleOf(target)
-	m.prompt("note for "+title+": ", "", func(m *model, s string) tea.Cmd {
+	m.editNote(target, -1, "", func(m *model, s string) tea.Cmd {
+		if strings.TrimSpace(s) == "" {
+			return nil
+		}
 		if err := group.AddNote(target, group.Note{By: group.FromUser, Name: "you", Text: s}); err != nil {
 			m.flash("note: %v", err)
 			return nil
@@ -183,7 +187,7 @@ func (m *model) notesSection(container string, w, last int) []string {
 // notesLines renders a container's notes for the panel: the latest, or with
 // the blackboard open, a window that keeps the picked note in view.
 func (m *model) notesLines(container string, w, last int, open bool) []string {
-	notes := group.ReadNotes(container)
+	notes, editing := m.noteForEdit(container, group.ReadNotes(container))
 	if len(notes) == 0 {
 		return nil
 	}
@@ -191,6 +195,9 @@ func (m *model) notesLines(container string, w, last int, open bool) []string {
 	start := max(0, len(notes)-last)
 	if open {
 		sel = max(0, min(m.noteSel, len(notes)-1))
+		if editing >= 0 {
+			sel = editing
+		}
 		start = min(start, sel)
 	}
 	end := min(len(notes), start+last)
@@ -206,7 +213,7 @@ func (m *model) notesLines(container string, w, last int, open bool) []string {
 			when = n.At.Format("Jan 2")
 		}
 		text := n.Text
-		if !n.Edited.IsZero() {
+		if !n.Edited.IsZero() && i != editing {
 			text += " (edited)"
 		}
 		mark, room := "", w-len(when)-len(n.Name)-3
@@ -216,7 +223,12 @@ func (m *model) notesLines(container string, w, last int, open bool) []string {
 				mark = "› "
 			}
 		}
-		line := mark + stDim.Render(when+" ") + stAccent.Render(n.Name) + stDim.Render(": ") + trunc(text, room)
+		line := mark + stDim.Render(when+" ") + stAccent.Render(n.Name) + stDim.Render(": ")
+		if i == editing {
+			out = append(out, line+m.edit.view(room))
+			continue
+		}
+		line += trunc(text, room)
 		if i == sel {
 			line = stSel.Render(line)
 		}

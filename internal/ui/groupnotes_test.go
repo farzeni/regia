@@ -34,10 +34,13 @@ func TestNoteFromRegia(t *testing.T) {
 		t.Fatalf("group panel should show the notes section:\n%s", v)
 	}
 	send(m, tkey("N"))
-	if m.mode != modeInput || !strings.Contains(m.inputPrompt, "team") {
-		t.Fatalf("N should ask for a note: mode %v %q", m.mode, m.inputPrompt)
+	if m.editingNotes("g:t") == nil {
+		t.Fatalf("N should ask for a note in place: mode %v", m.mode)
 	}
 	typeText(m, "ship by friday")
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "you: ship by friday") {
+		t.Fatalf("the new note should be written on the blackboard:\n%s", v)
+	}
 	send(m, tkey("enter"))
 	ns := group.ReadNotes("g:t")
 	if len(ns) != 1 || ns[0].Text != "ship by friday" || ns[0].By != "you" {
@@ -96,8 +99,8 @@ func TestBlackboardEditDelete(t *testing.T) {
 
 	send(m, tkey("k")) // pick "first", edit it
 	send(m, tkey("e"))
-	if m.mode != modeInput || m.input != "first" {
-		t.Fatalf("edit prompt: %v %q", m.mode, m.input)
+	if e := m.editingNotes("g:t"); e == nil || e.ti.Value() != "first" || e.note != 0 {
+		t.Fatalf("edit in place: %v %+v", m.mode, m.edit)
 	}
 	send(m, tea.KeyMsg{Type: tea.KeyCtrlU})
 	typeText(m, "first, fixed")

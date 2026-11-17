@@ -202,6 +202,8 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.mode {
 		case modeInput:
 			return m, m.updateInput(msg)
+		case modeEdit:
+			return m, m.updateEdit(msg)
 		case modeDir:
 			return m, m.updateDirPick(msg)
 		case modeMenu:
@@ -522,32 +524,12 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		if r != nil && m.view == viewTree {
 			near = r.ID
 		}
-		m.prompt("new group: ", "", func(m *model, s string) tea.Cmd {
-			if s = strings.TrimSpace(s); s != "" {
-				m.cursorID = m.layout.NewGroup(s, near, m.agents)
-				m.saveLayout()
-			}
-			return nil
-		})
+		m.newGroupInPlace(func() (string, error) { return m.layout.NewGroup("", near, m.agents), nil }, nil)
 	case "r":
 		if r == nil {
 			return nil
 		}
-		id := r.ID
-		m.prompt("rename: ", r.Title, func(m *model, s string) tea.Cmd {
-			s = strings.TrimSpace(s)
-			if m.layout.IsGroup(id) {
-				if s != "" {
-					m.layout.Groups[id] = s
-				}
-			} else if s == "" || (m.agents[id] != nil && s == m.agents[id].Name) {
-				delete(m.layout.Alias, id)
-			} else {
-				m.layout.Alias[id] = s
-			}
-			m.saveLayout()
-			return nil
-		})
+		m.renameKey(r.ID, r.Title)
 	case "d":
 		if r != nil && r.Group {
 			id, title := r.ID, r.Title
