@@ -48,11 +48,11 @@ func (m *model) inboxRows(now time.Time) []layout.Row {
 	}
 	open := m.earlierOpen || m.opts.Filter != ""
 	fold := layout.Row{ID: earlierID, Group: true, Title: "earlier days", HasKids: true, Collapsed: !open, Count: len(earlier)}
+	var t layout.Tally
 	for _, a := range earlier {
-		if a.YourTurn() {
-			fold.Blocked++
-		}
+		t.Tick(a)
 	}
+	fold.Blocked, fold.Ready = t.Blocked, t.Ready
 	rows = append(rows, fold)
 	if open {
 		for _, a := range earlier {

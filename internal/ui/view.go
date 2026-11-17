@@ -400,7 +400,8 @@ func faded(a *claude.Agent, now time.Time) bool {
 // change but for the pulsing icon's color, which is part of the key.
 type rowKey struct {
 	id, title, mark, age               string
-	depth, count, blocked, busy, w     int
+	depth, count, blocked, ready, busy int
+	w                                  int
 	group, kids, collapsed, archived   bool
 	muted, inbox                       bool
 	glyph                              string
@@ -419,7 +420,7 @@ func (m *model) rowLine(r layout.Row, w int) string {
 		return m.drawRowLine(r, w)
 	}
 	k := rowKey{id: r.ID, title: r.Title, mark: m.markFor(r.ID), depth: r.Depth, count: r.Count, blocked: r.Blocked,
-		busy: r.Busy, w: w, group: r.Group, kids: r.HasKids, collapsed: r.Collapsed, archived: r.Archived,
+		ready: r.Ready, busy: r.Busy, w: w, group: r.Group, kids: r.HasKids, collapsed: r.Collapsed, archived: r.Archived,
 		muted: m.layout.Muted[r.ID], inbox: m.view == viewInbox}
 	if a := r.Agent; !r.Group && a != nil {
 		k.glyph, k.color = m.agentGlyph(a)
@@ -452,13 +453,7 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 	}
 	var line string
 	if r.Group {
-		meta := fmt.Sprintf("%d", r.Count)
-		if r.Busy > 0 {
-			meta = lipgloss.NewStyle().Foreground(cBusy).Render(fmt.Sprintf("◆%d ", r.Busy)) + meta
-		}
-		if r.Blocked > 0 {
-			meta = lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("●%d ", r.Blocked)) + meta
-		}
+		meta := countBadge(r) + fmt.Sprintf("%d", r.Count)
 		mark := m.markFor(r.ID)
 		muted := ""
 		if m.layout.Muted[r.ID] {
@@ -480,8 +475,10 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 			cutMark = "✂ "
 		}
 		extra := ""
-		if r.Collapsed && r.Blocked > 0 && m.view != viewInbox {
-			extra = fmt.Sprintf("  (+%d your turn)", r.Blocked)
+		if r.Collapsed && m.view != viewInbox {
+			if s := countWords(r, false); s != "" {
+				extra = "  (+" + strings.ReplaceAll(s, " · ", ", +") + ")"
+			}
 		}
 		if m.layout.Muted[r.ID] {
 			extra += "  (muted)"
@@ -644,7 +641,7 @@ func (m *model) detailLines(w int) panel {
 			return panel{card: c.lines}
 		}
 		defer func() { m.groupPanel.id, m.groupPanel.w, m.groupPanel.gen, m.groupPanel.lines = r.ID, w, m.gen, out }()
-		out = append(out, stBold.Render(r.Title), stDim.Render(fmt.Sprintf("%d agents · %d your turn · %d busy", r.Count, r.Blocked, r.Busy)),
+		out = append(out, stBold.Render(r.Title), stDim.Render(trunc(groupCounts(*r), w)),
 			trunc(m.groupDirLine(r.ID), w))
 		sec("your turn")
 		n := 0
@@ -679,4 +676,42 @@ func (m *model) detailLines(w int) panel {
 		}
 	}
 	return panel{hist: hist, card: card, foot: foot, bottomUp: true}
+}
+
+// countBadge is a group row's "●2 ✓1 ◆3 " before its total: each count wears
+// the glyph and colour of the rows it counts (● waiting on you, bold ✓ a
+// result you haven't seen, ◆ working), so the badge reads like the tree.
+func countBadge(r layout.Row) string {
+	var b strings.Builder
+	if r.Blocked > 0 {
+		b.WriteString(lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("●%d ", r.Blocked)))
+	}
+	if r.Ready > 0 {
+		b.WriteString(lipgloss.NewStyle().Foreground(cReady).Bold(true).Render(fmt.Sprintf("✓%d ", r.Ready)))
+	}
+	if r.Busy > 0 {
+		b.WriteString(lipgloss.NewStyle().Foreground(cBusy).Render(fmt.Sprintf("◆%d ", r.Busy)))
+	}
+	return b.String()
+}
+
+// countWords spells the badge out in the status bar's words: "2 need you ·
+// 1 ready · 3 busy". zeros: keep the counts that are 0.
+func countWords(r layout.Row, zeros bool) string {
+	var parts []string
+	for _, c := range []struct {
+		n    int
+		word string
+	}{{r.Blocked, "need you"}, {r.Ready, "ready"}, {r.Busy, "busy"}} {
+		if c.n > 0 || zeros {
+			parts = append(parts, fmt.Sprintf("%d %s", c.n, c.word))
+		}
+	}
+	return strings.Join(parts, " · ")
+}
+
+// groupCounts is the line under a group's title: "17 agents · 2 need you ·
+// 1 ready · 3 busy".
+func groupCounts(r layout.Row) string {
+	return fmt.Sprintf("%d agents · %s", r.Count, countWords(r, true))
 }
