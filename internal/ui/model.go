@@ -46,6 +46,10 @@ type model struct {
 	cursor   int
 	offset   int
 	w, h     int
+	// back is the agent you just came back from (attach) while the cursor
+	// still sits on it: the inbox doesn't hold it, so once it no longer needs
+	// you it drops and the cursor lands on the next item
+	back string
 
 	view viewKind
 	opts layout.ViewOpts
@@ -268,6 +272,9 @@ func (m *model) refresh() {
 
 func (m *model) rebuild() {
 	m.opts.Keep = m.cursorID
+	if m.view == viewInbox && m.back == m.cursorID {
+		m.opts.Keep = "" // answered (now or at a later refresh): move on
+	}
 	if m.view == viewInbox {
 		m.rows = m.inboxRows(time.Now())
 	} else if m.view == viewSearch {
@@ -339,6 +346,7 @@ func (m *model) moveCursor(d int) {
 	m.cursorID = m.rows[m.cursor].ID
 	m.draftInside = false
 	m.selectID = "" // you moved: don't jump to a just-started agent later
+	m.back = ""
 	m.panelScroll = 0
 	if m.logsFor != m.cursorID {
 		m.logs, m.logsFor = "", ""
