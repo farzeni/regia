@@ -122,6 +122,7 @@ func TestPasteFolding(t *testing.T) {
 
 	// too long for one argument: refused, draft kept
 	*got = ""
+	send(m, tkey("i")) // sending left the input
 	send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(strings.Repeat("y\n", 70000)), Paste: true})
 	send(m, tkey("enter"))
 	if *got != "" || m.draft() == "" || !strings.Contains(m.status, "too long") {

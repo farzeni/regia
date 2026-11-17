@@ -70,6 +70,7 @@ func TestSkillCompletionMidText(t *testing.T) {
 	if *got != "please run /swarm on it" {
 		t.Fatalf("sent %q", *got)
 	}
+	send(m, tkey("i")) // sending leaves the input
 
 	// plugin skills match on the part after "plugin:"; enter picks, doesn't send
 	*got = ""
@@ -174,6 +175,7 @@ func TestDroppedImagePath(t *testing.T) {
 	if *got != "what is this "+img {
 		t.Fatalf("sent %q", *got)
 	}
+	send(m, tkey("i")) // sending leaves the input
 
 	// a dropped file that is not an image goes in as its path
 	txt := filepath.Join(dir, "notes.txt")
