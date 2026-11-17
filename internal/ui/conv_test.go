@@ -70,22 +70,22 @@ func TestFocusUnfoldRunAndStep(t *testing.T) {
 	selectWhere(t, m, bigRun)
 	m.Update(tkey("enter"))
 	s := convScreen(m)
-	for _, want := range []string{"▾ ⚙ 7 steps", "• Read /repo/a.go", "• Edit /repo/a.go", "✗ Bash go test ./...", "• take_screenshot", "• Agent review panel"} {
+	for _, want := range []string{"▾ ⚙ 7 steps", "◦ read /repo/a.go 10-49", "✎ /repo/a.go:3 +2 −1", "$ go test ./... ✗", "▣ screenshot 4×3", "⇢ subagent: review panel (done)"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("unfolded run lacks %q:\n%s", want, s)
 		}
 	}
-	// j moves onto the first step; space unfolds it: the generic detail
+	// j moves onto the first step; space unfolds it: its detail
 	m.Update(tkey("j"))
 	m.Update(tkey(" "))
 	s = convScreen(m)
-	if !strings.Contains(s, "file_path: /repo/a.go") || !strings.Contains(s, "limit: 40") || !strings.Contains(s, "10\tpackage a") && !strings.Contains(s, "package a") {
+	if !strings.Contains(s, "lines 10-49 of 120") {
 		t.Fatalf("an unfolded step shows its input and result head:\n%s", s)
 	}
 	// k back on the run, space folds it again, steps gone
 	m.Update(tkey("k"))
 	m.Update(tkey(" "))
-	if s = convScreen(m); strings.Contains(s, "• Read") {
+	if s = convScreen(m); strings.Contains(s, "◦ read") {
 		t.Fatalf("space should fold the run:\n%s", s)
 	}
 	// esc gives the keys back to the list, its cursor where it was
@@ -108,7 +108,7 @@ func TestFoldStateIsPerAgent(t *testing.T) {
 	m.Update(tkey("j")) // beta
 	m.View()
 	m.Update(tkey("k")) // back on alpha: still unfolded
-	if s := convScreen(m); !strings.Contains(s, "• Read /repo/a.go") {
+	if s := convScreen(m); !strings.Contains(s, "◦ read /repo/a.go") {
 		t.Fatalf("alpha's unfolded run should stay unfolded:\n%s", s)
 	}
 	if st := m.convOf("bbbb2222"); len(st.open) != 0 {
@@ -272,6 +272,7 @@ func TestYourMessageIsARightBubble(t *testing.T) {
 func TestStepKindHook(t *testing.T) {
 	m := convModel(t)
 	var ran *claude.Step
+	prevEdit := stepKinds["Edit"]
 	stepKinds["Edit"] = stepKind{
 		line: func(c stepCtx, s *claude.Step, w int) string { return "✎ " + s.Res.FilePath + " of " + c.a.Name },
 		activate: func(m *model, a *claude.Agent, s *claude.Step) tea.Cmd {
@@ -279,12 +280,12 @@ func TestStepKindHook(t *testing.T) {
 			return nil
 		},
 	}
-	t.Cleanup(func() { delete(stepKinds, "Edit") })
+	t.Cleanup(func() { stepKinds["Edit"] = prevEdit })
 	m.Update(tkey("o"))
 	selectWhere(t, m, bigRun)
 	m.Update(tkey("enter"))
-	if s := convScreen(m); !strings.Contains(s, "✎ /repo/a.go of alpha") || !strings.Contains(s, "• Read /repo/a.go") {
-		t.Fatalf("the Edit kind's line should be used, the generic one for Read:\n%s", s)
+	if s := convScreen(m); !strings.Contains(s, "✎ /repo/a.go of alpha") || !strings.Contains(s, "◦ read /repo/a.go") {
+		t.Fatalf("the Edit kind's line should be used, Read's own for Read:\n%s", s)
 	}
 	selectWhere(t, m, func(b convBlock) bool { return b.kind == blockStep && b.step.Name == "Edit" })
 	m.Update(tkey("enter"))
@@ -300,10 +301,11 @@ func TestStepKindHook(t *testing.T) {
 // though the transcript didn't grow.
 func TestStepSeesLiveAgents(t *testing.T) {
 	m := convModel(t)
+	prevRead := stepKinds["Read"]
 	stepKinds["Read"] = stepKind{line: func(c stepCtx, s *claude.Step, w int) string {
 		return "beta is " + c.m.agents["bbbb2222"].State
 	}}
-	t.Cleanup(func() { delete(stepKinds, "Read") })
+	t.Cleanup(func() { stepKinds["Read"] = prevRead })
 	m.Update(tkey("o"))
 	selectWhere(t, m, bigRun)
 	m.Update(tkey("enter"))

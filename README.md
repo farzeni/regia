@@ -89,7 +89,23 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   selected block, `r` replies to the agent: it copies the selected message as
   a quote and attaches to the session, where you paste it and go on,
   `g`/`G` go to the top / bottom, `esc` gives the keys back to the list. What's
-  unfolded is remembered per agent until regia quits.
+  unfolded is remembered per agent until regia quits. Each kind of step reads
+  its own way; on a step `space` unfolds its detail and `enter` does its action
+  (on steps without one, `enter` unfolds too):
+
+  | Step | Folded | Unfolded | `enter` |
+  |---|---|---|---|
+  | Edit / Write | `✎ path:line +8 −3` (`new` for a created file) | the diff with line numbers, first 20 lines | opens the file at the first changed line |
+  | Bash | `$ cmd` (`✗` failed, `⏹` interrupted) | the whole command, the last 15 lines of output (stderr tinted) | the whole output in the pager |
+  | `claude --bg` | `⇢ spawned fb-inbox (working)`, its live state | the command | selects that agent in the list |
+  | Read / Grep / Glob | `◦ read x.go 1-200`, `◦ grep "p" 12 hits`, `◦ glob "*.go" 8 files` | the file and its lines, or what was found | opens the file (a search: its first hit) |
+  | Images (screenshots, Read of an image) | `▣ screenshot 1280×720` | type, size | opens the image (decoded to a temp file) |
+  | Agent / Task | `⇢ subagent: review panel (done)` | its report | its conversation in the pager |
+  | WebFetch / WebSearch | `◦ fetch <url>`, `◦ search "query"` | the first lines of the result | opens the URL (a search: its first link) |
+  | TodoWrite | `☐ todos 3/7` | the list then: ✓ done, ▸ doing, ◻ to do | — |
+  | Thinking | `… thought` | the thought, when the transcript has it | — |
+  | Other tools | `• Tool input` (MCP tools as `server:tool`) | the input and the head of the result | — |
+
   A click on a block selects it (and focuses the conversation); a click on
   the selected one unfolds it, or opens the step. The wheel scrolls, and in
   focus the cursor stays on what's shown.
