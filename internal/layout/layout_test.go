@@ -179,6 +179,39 @@ func TestPlaceUsesSpawnLinks(t *testing.T) {
 	}
 }
 
+// A child whose spawner is gone lands where the spawner sat: segment-sync's
+// workers (moved under it by hand) were removed, and their review sessions
+// fell into the project group.
+func TestSpawnerGoneClimbs(t *testing.T) {
+	l, agents := fixture(t)
+	all := ViewOpts{ShowDone: true}
+	// worker sat under coord by hand, then was removed; it had spawned w2.
+	l.Parent["worker"], l.Pinned["worker"] = "coord", true
+	l.Spawns = map[string]spawns.Link{"w2": {Parent: "worker", Child: "w2"}}
+	if !l.Place(agents) || l.Parent["w2"] != "coord" {
+		t.Fatalf("w2 should climb to coord, the gone worker's place: %q", l.Parent["w2"])
+	}
+	// A spawner never placed, spawned itself by coord: climbs its spawn link.
+	l2, agents2 := fixture(t)
+	l2.Spawns = map[string]spawns.Link{"w2": {Parent: "mid", Child: "w2"}, "mid": {Parent: "coord", Child: "mid"}}
+	if !l2.Place(agents2) || l2.Parent["w2"] != "coord" {
+		t.Fatalf("w2 should climb mid's spawn link to coord: %q", l2.Parent["w2"])
+	}
+	// A gone spawner that sat in its project group, with no spawner of its
+	// own: nothing to climb to, w2 stays put.
+	l3, agents3 := fixture(t)
+	l3.Parent["lost"] = "p:alpha"
+	l3.Spawns = map[string]spawns.Link{"w2": {Parent: "lost", Child: "w2"}}
+	before := render(l3, agents3, all)
+	if l3.Place(agents3) || render(l3, agents3, all) != before {
+		t.Fatalf("w2 moved without a place to go: %q", render(l3, agents3, all))
+	}
+	// Cycles end.
+	l4, agents4 := fixture(t)
+	l4.Spawns = map[string]spawns.Link{"w2": {Parent: "x", Child: "w2"}, "x": {Parent: "y", Child: "x"}, "y": {Parent: "x", Child: "y"}}
+	l4.Place(agents4)
+}
+
 func TestTrail(t *testing.T) {
 	l, agents := fixture(t)
 	l.Alias["coord"] = "Coordinator"

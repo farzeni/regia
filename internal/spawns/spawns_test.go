@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/farzeni/regia/internal/claude"
 )
@@ -46,7 +47,7 @@ func TestSpawnedIDs(t *testing.T) {
 		{"D=/x; cat > $D/x63 <<'EOF'\nnotes\nEOF\n./launch.sh impl 63 t \"\" $D/x63 2>&1 | tail -1", "  claude stop 0653437d      stop this session", "0653437d", true},
 	}
 	for _, c := range cases {
-		ids, wrapper := spawnedIDs(c.cmd, c.out, "f9170743-0cfe-4634")
+		ids, wrapper := spawnedIDs(c.cmd, c.out, "f9170743-0cfe-4634", time.Time{})
 		if got := strings.Join(ids, ","); got != c.want || (got != "" && wrapper != c.wrapper) {
 			t.Errorf("spawnedIDs(%q)\n got %q wrapper=%v\nwant %q wrapper=%v", c.cmd, got, wrapper, c.want, c.wrapper)
 		}
@@ -55,6 +56,7 @@ func TestSpawnedIDs(t *testing.T) {
 
 func TestHookSpawnWritesLink(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir()) // no real job files
 	payload := `{"session_id":"f9170743-1111-2222-3333-444444444444","hook_event_name":"PostToolUse","tool_name":"Bash",
 	"tool_input":{"command":"claude --bg --name \"skl/docs/skillsets\" \"brief\" 2>&1 | tail -5"},
 	"tool_response":{"stdout":` + jsonStr(bgOut) + `,"stderr":"","interrupted":false}}`
@@ -75,6 +77,7 @@ func TestHookSpawnWritesLink(t *testing.T) {
 // over a link already recorded (the same footer read again later is not a spawn).
 func TestHookSpawnThroughWrapper(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir()) // no real job files
 	hook := func(session, job, cmd, out string) {
 		HandleHook(strings.NewReader(`{"session_id":"`+session+`-1111-2222-3333-444444444444","tool_name":"Bash",
 		"tool_input":{"command":`+jsonStr(cmd)+`},"tool_response":{"stdout":`+jsonStr(out)+`,"stderr":""}}`), job)

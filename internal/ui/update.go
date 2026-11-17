@@ -76,6 +76,13 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pulseMsg:
 		return m, m.onPulse()
 
+	case spawnScanMsg:
+		m.scanning = false
+		if msg.added > 0 {
+			m.refresh() // place the newly linked agents now, not at the next tick
+		}
+		return m, nil
+
 	case tickMsg:
 		m.ticks++
 		m.refresh()
@@ -83,6 +90,9 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmds []tea.Cmd
 		cmds = append(cmds, tick(), m.prCmds(), m.pluginCmds())
 		if c := m.pollListing(); c != nil {
+			cmds = append(cmds, c)
+		}
+		if c := m.pollScan(); c != nil {
 			cmds = append(cmds, c)
 		}
 		if m.view == viewSearch && m.ticks%5 == 0 && !m.srch.running && m.srch.ranQ != "" && m.srch.ranQ == m.srch.query {
