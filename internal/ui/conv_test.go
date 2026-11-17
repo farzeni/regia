@@ -42,6 +42,20 @@ func TestUnfoldedStepsBoxed(t *testing.T) {
 	t.Log("\n" + strings.Join(ls[top-1:bot+2], "\n"))
 }
 
+// alt+enter in the conversation attaches to the agent's session.
+func TestConvAltEnterAttaches(t *testing.T) {
+	m := convModel(t)
+	var attached string
+	prev := attachSession
+	attachSession = func(id string) tea.Cmd { attached = id; return nil }
+	t.Cleanup(func() { attachSession = prev })
+	m.Update(tkey("o"))
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter, Alt: true})
+	if attached != "aaaa1111" || m.convFocus {
+		t.Fatalf("alt+enter: attached %q, focus %v", attached, m.convFocus)
+	}
+}
+
 // convModel: alpha's transcript is internal/claude/testdata/steps.jsonl ("fix
 // the parser", a thought, a reply, then Read, Edit, a failed Bash, Write, a
 // screenshot, TodoWrite, a subagent; "Done: tests fixed."; "thanks"; a Bash

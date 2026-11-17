@@ -244,7 +244,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
-| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `↑`/`↓` message to message over the steps, `shift+↑`/`↓` (`j`/`k`) every block, runs and steps too, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block in the input (and copy it), `i` to the input, `g`/`G` top / bottom, `←`/`esc` back |
+| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `↑`/`↓` message to message over the steps, `shift+↑`/`↓` (`j`/`k`) every block, runs and steps too, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block in the input (and copy it), `i` to the input, `alt+enter` attach to its session, `g`/`G` top / bottom, `←`/`esc` back |
 | `b` | jump to the next agent whose turn is yours (waiting on a question) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |
