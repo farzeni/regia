@@ -26,14 +26,15 @@ var (
 	cDim     = lipgloss.Color("241")
 	cAccent  = lipgloss.Color("141")
 
-	stDim    = lipgloss.NewStyle().Foreground(cDim)
-	stBold   = lipgloss.NewStyle().Bold(true)
-	stAccent = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
-	stCursor = lipgloss.NewStyle().Foreground(lipgloss.Color("81")) // the conversation's block cursor: not the divider's purple
-	stSel    = lipgloss.NewStyle().Background(lipgloss.Color("237"))
-	stYou    = lipgloss.NewStyle().Foreground(lipgloss.Color("183")) // your messages in the history: a light tint of the accent
-	stHead   = lipgloss.NewStyle().Foreground(cDim).Bold(true)
-	stErr    = lipgloss.NewStyle().Foreground(cFailed) // a failed step
+	stDim      = lipgloss.NewStyle().Foreground(cDim)
+	stBold     = lipgloss.NewStyle().Bold(true)
+	stAccent   = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
+	stCursor   = lipgloss.NewStyle().Foreground(lipgloss.Color("81")) // the conversation's block cursor: not the divider's purple
+	stSel      = lipgloss.NewStyle().Background(lipgloss.Color("237"))
+	stSelFocus = lipgloss.NewStyle().Background(cAccent).Foreground(lipgloss.Color("16")) // the selected agent while its panel has the keys
+	stYou      = lipgloss.NewStyle().Foreground(lipgloss.Color("183"))                    // your messages in the history: a light tint of the accent
+	stHead     = lipgloss.NewStyle().Foreground(cDim).Bold(true)
+	stErr      = lipgloss.NewStyle().Foreground(cFailed) // a failed step
 )
 
 func glyph(a *claude.Agent) (string, lipgloss.Color) {
@@ -194,7 +195,11 @@ func (m *model) View() string {
 	for i := 0; i < bh; i++ {
 		row := margin + pad(left[i], lw)
 		if sel >= 0 && i >= sel && i < sel+rh {
-			row = selBar(row+" ", padX+lw+1) // the whole row, margins too
+			if m.convFocus || m.chg.focus { // the panel has the keys: the row its agent, in the divider's purple
+				row = stSelFocus.Render(pad(ansi.Strip(row+" "), padX+lw+1))
+			} else {
+				row = selBar(row+" ", padX+lw+1) // the whole row, margins too
+			}
 			if dw > 20 {
 				b.WriteString(row + sep[1:])
 			} else {
