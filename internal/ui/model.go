@@ -94,8 +94,7 @@ type model struct {
 	lw, vis  int
 	dragging bool // dragging the divider to resize the list
 
-	fullHist    bool   // t: the panel shows the whole conversation, not the compact history
-	panelScroll int    // lines the panel's history is scrolled back (pgup/pgdn)
+	panelScroll int    // lines the panel's conversation is scrolled back (pgup/pgdn)
 	panelFor    string // the row panelScroll belongs to
 	timeline    bool   // T: a group's or coordinator's panel shows its timeline instead of the blackboard
 
@@ -125,8 +124,6 @@ type model struct {
 
 	hist    claude.History
 	histFor string
-	logs    string
-	logsFor string
 	dv      diffView // D: the panel shows the agent's git diff
 
 	fetching  bool
@@ -154,7 +151,6 @@ type attachDoneMsg struct {
 	id  string
 	err error
 }
-type logsMsg struct{ id, out string }
 type spawnedMsg struct {
 	out           string
 	err           error
@@ -348,9 +344,6 @@ func (m *model) moveCursor(d int) {
 	m.selectID = "" // you moved: don't jump to a just-started agent later
 	m.back = ""
 	m.panelScroll = 0
-	if m.logsFor != m.cursorID {
-		m.logs, m.logsFor = "", ""
-	}
 	if m.dv.on && m.dv.id != m.cursorID {
 		m.dv = diffView{}
 	}

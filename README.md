@@ -75,14 +75,12 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   ✓ ready, ◆ busy, ✗ failed; see below), name and age; folded groups show how
   many agents are inside and how many are your turn. The right panel shows the selected agent
   in three parts: a card pinned at the top (task, git status, what it is
-  asking), its history in the middle, grouped by your messages, newest last
-  (`pgup`/`pgdn` scroll back), and a foot pinned at the bottom with its state,
-  name, directory and tokens, which never scrolls. At the end of the history,
-  right above the foot, the agent's latest reply is shown in
-  full, its markdown rendered; when it's longer than the panel, the panel opens
-  at its start (`pgdn` reads on). `t` swaps the history for the whole
-  conversation: your messages and the agent's replies in full, tool calls
-  left out (`t` again goes back). `D` swaps it for the agent's changes: the git
+  asking), the conversation in the middle, and a foot pinned at the bottom
+  with its state, name, directory and tokens, which never scrolls. The
+  conversation is your messages and the agent's replies in full, its markdown
+  rendered, tool calls left out, newest last: the panel opens at its end, the
+  latest reply right above the foot (`pgup`/`pgdn` scroll back and forth).
+  `D` swaps it for the agent's changes: the git
   diff of its directory against where it branched off the repo's default
   branch (main/master), uncommitted and new files included, with the changed
   files and their +/- counts on top; `pgup`/`pgdn` scroll, `D` or `esc` goes
@@ -201,11 +199,9 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `enter` | attach to the session (`←` inside it comes back) |
 | `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
-| `pgup` / `pgdn` | scroll the panel's history back / forward |
-| `t` | the panel shows the whole conversation, rendered / back to the compact history |
+| `pgup` / `pgdn` | scroll the panel's conversation back / forward |
 | `b` | jump to the next agent whose turn is yours (waiting or ready) |
 | `y` / `Y` | copy the suggested reply / the session id |
-| `o` | show the session's terminal output |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |
 | `,` / `.` | previous / next tab of the agent box: `agent`, then one per plugin |
 | `D` | the panel shows the agent's git diff against the default branch (uncommitted changes too) / back (`esc` too) |
@@ -325,8 +321,9 @@ that only share a directory know nothing about each other.
   agent and reaches everything below that point. Notes live in
   `~/.config/regia/notes/` and are kept; removing a group removes its notes.
 
-In regia, the panel of a group (or of a coordinator, above its card) shows its
-blackboard. `N` opens it, from the group, the coordinator or any agent in it:
+In regia, the panel of a group shows its blackboard; a coordinator's panel is
+like any agent's, and its agents' blackboard shows above its card only while
+open. `N` opens it, from the group, the coordinator or any agent in it:
 `↑/↓` pick a note, `n` adds one from you, `e` edits the picked note (yours or
 an agent's), `x x` deletes it, `esc` closes. A note is written right on the
 blackboard (`enter` saves, `esc` cancels). An edit reaches the agents like a

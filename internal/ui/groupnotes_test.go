@@ -50,7 +50,7 @@ func TestNoteFromRegia(t *testing.T) {
 		t.Fatalf("note not in the panel:\n%s", v)
 	}
 
-	// a worker: the note goes to its coordinator, which shows it above its card
+	// a worker: the note goes to its coordinator's blackboard (N on it)
 	m.cursorID = "bbbb2222"
 	m.rebuild()
 	send(m, tkey("N"))
@@ -59,11 +59,21 @@ func TestNoteFromRegia(t *testing.T) {
 	if ns := group.ReadNotes("aaaa1111"); len(ns) != 1 {
 		t.Fatalf("worker's note should go to its coordinator: %+v", ns)
 	}
-	m.cursorID = "aaaa1111"
-	m.rebuild()
-	if v := ansi.Strip(m.View()); !strings.Contains(v, "you: beta check") {
-		t.Fatalf("coordinator panel lacks its agents' notes:\n%s", v)
+	if m.cursorID != "aaaa1111" {
+		t.Fatalf("N on a worker should select its coordinator, not %s", m.cursorID)
 	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "you: beta check") {
+		t.Fatalf("the open blackboard should show on the coordinator's panel:\n%s", v)
+	}
+	send(m, tkey("esc")) // closed: the coordinator's panel is an agent's
+	if v := ansi.Strip(m.View()); strings.Contains(v, "you: beta check") {
+		t.Fatalf("coordinator panel should not show the blackboard:\n%s", v)
+	}
+	send(m, tkey("N"))
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "you: beta check") {
+		t.Fatalf("N on the coordinator lacks its agents' notes:\n%s", v)
+	}
+	send(m, tkey("esc"))
 
 	// removing the group removes its notes
 	m.cursorID = "g:t"

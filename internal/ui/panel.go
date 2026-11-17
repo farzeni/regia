@@ -13,13 +13,10 @@ import (
 )
 
 // agentDetail renders the right panel for one agent: a card pinned at the top
-// (context, what it asks), below it the history (oldest to newest, grouped by
-// your messages), which scrolls, and a foot pinned at the bottom, under the
-// latest activity: state and meta.
-//
-// top is where the latest reply starts in hist (0 if none): the panel opens
-// there when the history doesn't fit.
-func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string, top int) {
+// (context, what it asks), below it the conversation (your messages and its
+// replies, oldest to newest), which scrolls and opens at its end, and a foot
+// pinned at the bottom: state and meta.
+func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string) {
 	a := r.Agent
 	var h claude.History
 	if m.histFor == r.ID {
@@ -150,120 +147,14 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string, to
 	card = out
 	foot = []string{head, meta}
 
-	// ── the agent's git diff (D) replaces the history
+	// ── the agent's git diff (D) replaces the conversation
 	if dl, ok := m.diffHist(a, r.ID, w); ok {
-		return dl, card, foot, 0
+		return dl, card, foot
 	}
 
-	// ── terminal output (o) replaces the history
-	if m.logsFor == r.ID && m.logs != "" {
-		hist = append(hist, stHead.Render("terminal  (o)"))
-		for _, l := range strings.Split(strings.TrimRight(m.logs, "\n"), "\n") {
-			hist = append(hist, trunc(l, w))
-		}
-		return hist, card, foot, 0
-	}
-
-	// ── the whole conversation (t) replaces the history
-	if m.fullHist {
-		hist, top = conversationLines(a, w)
-		return hist, card, foot, top
-	}
-
-	hist, top = historyLines(a, h, w)
-	return hist, card, foot, top
+	// ── the conversation: your messages and its replies, newest at the bottom
+	return conversationLines(a, w), card, foot
 }
-
-// histKey is everything the compact history's lines depend on: they're the
-// bulk of a frame, and frames come 8 a second while an agent works.
-type histKey struct {
-	id, state, detail, day string
-	interactive            bool
-	w                      int
-	turns                  *claude.Turn // claude.ReadHistory returns the same slice until the files change
-	nTurns                 int
-	reply                  *claude.Msg
-}
-
-var histCache struct {
-	key   histKey
-	lines []string
-	top   int
-}
-
-// historyLines is the compact history, oldest to newest (the newest right
-// above the card), with day separators, then the latest reply in full.
-func historyLines(a *claude.Agent, h claude.History, w int) (out []string, top int) {
-	reply := latestReply(a)
-	k := histKey{id: a.ID, state: a.State, detail: a.Detail, day: time.Now().Format(time.DateOnly),
-		interactive: a.Interactive, w: w, nTurns: len(h.Turns), reply: reply}
-	if len(h.Turns) > 0 {
-		k.turns = &h.Turns[0]
-	}
-	if histCache.lines != nil && histCache.key == k {
-		return histCache.lines, histCache.top
-	}
-	defer func() { histCache.key, histCache.lines, histCache.top = k, out, top }()
-	lastDay := ""
-	for i := max(0, len(h.Turns)-maxTurns); i < len(h.Turns); i++ {
-		t := h.Turns[i]
-		start := t.LastAt
-		if t.User != nil {
-			start = t.User.At
-		} else if len(t.Results) > 0 {
-			start = t.Results[0].At
-		}
-		if d := dayLabel(start); d != lastDay {
-			lastDay = d
-			if len(out) > 0 {
-				out = append(out, "")
-			}
-			out = append(out, stDim.Render(trunc("── "+d+" "+strings.Repeat("─", w), w)))
-		}
-		if t.User != nil {
-			pre := lipgloss.NewStyle().Foreground(cAccent).Bold(true).Render("▸ you ") + stDim.Render(clock(t.User.At)+"  ")
-			rep := ""
-			if t.Repeats > 0 {
-				rep = stDim.Render(fmt.Sprintf("  ×%d", t.Repeats+1))
-			}
-			out = append(out, pre+stYou.Render(trunc(claude.Tidy(t.User.Detail), w-lipgloss.Width(pre)-lipgloss.Width(rep)))+rep)
-		} else {
-			out = append(out, stDim.Render("▸ earlier activity"))
-		}
-		for j, res := range t.Results {
-			rg, rc := glyph(&claude.Agent{State: res.State})
-			tail := ""
-			if j == len(t.Results)-1 && t.Steps > 0 {
-				tail = stDim.Render(fmt.Sprintf("  ·%d step%s", t.Steps, plural(t.Steps)))
-			}
-			pre := "    " + lipgloss.NewStyle().Foreground(rc).Render(rg) + " " + stDim.Render(clock(res.At)+"  ")
-			out = append(out, pre+trunc(res.Detail, w-lipgloss.Width(pre)-lipgloss.Width(tail))+tail)
-		}
-		latest := i == len(h.Turns)-1
-		if len(t.Results) == 0 && (t.Steps > 0 || latest) {
-			msg := fmt.Sprintf("%d step%s, no result", t.Steps, plural(t.Steps))
-			if latest && a.State == "busy" && a.Detail != "" {
-				msg = "now: " + a.Detail
-			}
-			out = append(out, "    "+lipgloss.NewStyle().Foreground(cBusy).Render("◆ ")+stDim.Render(trunc(msg, w-6)))
-		}
-	}
-	if len(h.Turns) == 0 && !a.Interactive {
-		out = append(out, stDim.Render("no history yet"))
-	}
-	// ── the latest reply in full, right above the card: what you'd attach to read
-	if reply != nil {
-		top = len(out)
-		out = append(out, replyLines(reply, w, len(out) > 0)...)
-	}
-	if out == nil {
-		out = []string{}
-	}
-	return out, top
-}
-
-// maxTurns caps how far back the panel scrolls (the transcript has them all).
-const maxTurns = 300
 
 func clock(t time.Time) string { return t.Local().Format("15:04") }
 

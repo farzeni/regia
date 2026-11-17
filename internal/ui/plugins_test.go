@@ -32,7 +32,7 @@ func TestTabbedBox(t *testing.T) {
 	m.agents["done0001"].Unhealthy = "no output for 20m" // a context line (the fixture has no task, git or status)
 
 	boxOf := func() []string {
-		_, card, _, _ := m.agentDetail(m.selected(), 70)
+		_, card, _ := m.agentDetail(m.selected(), 70)
 		var b []string
 		for _, l := range card {
 			if s := ansi.Strip(l); strings.HasPrefix(s, "╭") || strings.HasPrefix(s, "│") || strings.HasPrefix(s, "╰") {

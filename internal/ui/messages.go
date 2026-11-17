@@ -2,8 +2,7 @@ package ui
 
 import (
 	"strings"
-
-	"github.com/mattn/go-runewidth"
+	"time"
 
 	"github.com/farzeni/regia/internal/claude"
 )
@@ -37,66 +36,46 @@ func yours(msg claude.Msg, w int) []string {
 	return out
 }
 
-// latestReply is the agent's last text message, unless you wrote after it
-// (then it's working on yours, and its last reply is old news).
-func latestReply(a *claude.Agent) *claude.Msg {
-	msgs := claude.Messages(claude.TranscriptPath(a))
-	for i := len(msgs) - 1; i >= 0; i-- {
-		switch msgs[i].Role {
-		case claude.RoleAgent:
-			return &msgs[i]
-		case claude.RoleYou:
-			return nil
-		}
-	}
-	return nil
-}
-
-// replyLines is the latest reply in full, for under the compact history:
-// below a divider when there's history above it (after), else just its head.
-func replyLines(msg *claude.Msg, w int, after bool) []string {
-	const label = "latest reply · t: whole conversation"
-	var out []string
-	if after {
-		rule := "── " + label + " "
-		rule += strings.Repeat("─", max(0, w-runewidth.StringWidth(rule)))
-		out = []string{"", stDim.Render(trunc(rule, w)), messageHead(*msg, true)}
-	} else {
-		out = []string{"", messageHead(*msg, true) + stDim.Render("   "+label)}
-	}
-	lines, _ := messageLines(*msg, max(10, w-2))
-	for _, l := range lines {
-		out = append(out, "  "+l)
-	}
-	return out
-}
-
-// maxMessages caps how far back the whole conversation goes in the panel.
+// maxMessages caps how far back the conversation goes in the panel.
 const maxMessages = 300
 
 type convKey struct {
-	path string
-	n, w int
+	path, day string
+	n, w      int
 }
 
-var convCache struct {
+// convCache keeps the last few agents' rendered conversations: the panel is
+// drawn 8 times a second while an agent works, and going back and forth
+// between a few agents shouldn't render their markdown again.
+var convCache [4]struct {
 	key   convKey
 	lines []string
-	top   int
 }
+var convNext int
 
-// conversationLines is the whole conversation (t): your messages and the
-// agent's replies, tool calls left out, oldest first, with day separators.
-// top is where the agent's last message starts (0 if none). Cached until the
-// transcript grows or the width changes.
-func conversationLines(a *claude.Agent, w int) (lines []string, top int) {
+// conversationLines is the agent panel's body: your messages and the agent's
+// replies, tool calls left out, oldest first, with day separators. Cached
+// until the transcript grows or the width or the day changes.
+func conversationLines(a *claude.Agent, w int) []string {
 	path := claude.TranscriptPath(a)
 	msgs := claude.Messages(path)
-	k := convKey{path, len(msgs), w}
-	if convCache.key == k && convCache.lines != nil {
-		return convCache.lines, convCache.top
+	n := 0 // messages shown: a busy agent's tool calls don't render it again
+	for _, msg := range msgs {
+		if msg.Role != claude.RoleTool {
+			n++
+		}
 	}
-	var conv []claude.Msg
+	k := convKey{path, time.Now().Format(time.DateOnly), n, w}
+	slot := -1
+	for i, c := range convCache {
+		if c.key == k && c.lines != nil {
+			return c.lines
+		}
+		if c.key.path == path && c.key.w == w {
+			slot = i // this agent's stale render: replace it
+		}
+	}
+	conv := make([]claude.Msg, 0, n)
 	for _, msg := range msgs {
 		if msg.Role != claude.RoleTool {
 			conv = append(conv, msg)
@@ -113,9 +92,6 @@ func conversationLines(a *claude.Agent, w int) (lines []string, top int) {
 			}
 			out = append(out, stDim.Render(trunc("── "+d+" "+strings.Repeat("─", w), w)))
 		}
-		if msg.Role == claude.RoleAgent {
-			top = len(out)
-		}
 		out = append(out, "", messageHead(msg, msg.Role == claude.RoleYou))
 		var lines []string
 		if msg.Role == claude.RoleYou {
@@ -128,8 +104,11 @@ func conversationLines(a *claude.Agent, w int) (lines []string, top int) {
 		}
 	}
 	if len(out) == 0 {
-		out, top = []string{stDim.Render("no conversation found")}, 0
+		out = []string{stDim.Render("no conversation yet")}
 	}
-	convCache.key, convCache.lines, convCache.top = k, out, top
-	return out, top
+	if slot < 0 {
+		slot, convNext = convNext, (convNext+1)%len(convCache)
+	}
+	convCache[slot].key, convCache[slot].lines = k, out
+	return out
 }
