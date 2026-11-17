@@ -348,12 +348,19 @@ func yourBubble(msg *claude.Msg, w int) []string {
 	return out
 }
 
-// agentLines is one of the agent's replies: the head, then its markdown
-// (paths and URLs linked when links are on; relative paths are in dir).
+// agentLines is one of the agent's replies: its markdown (paths and URLs
+// linked when links are on; relative paths are in dir), then its time, dim
+// (the day separators carry the date).
 func agentLines(msg *claude.Msg, w int, dir string) []string {
-	out := []string{messageHead(*msg, false)}
+	var out []string
 	for _, l := range agentMarkdown(msg.Text, max(10, w-2), dir) {
 		out = append(out, "  "+l)
+	}
+	for len(out) > 0 && strings.TrimSpace(ansi.Strip(out[len(out)-1])) == "" {
+		out = out[:len(out)-1]
+	}
+	if !msg.At.IsZero() {
+		out = append(out, "  "+stDim.Render(clock(msg.At)))
 	}
 	return out
 }
