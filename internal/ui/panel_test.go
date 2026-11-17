@@ -101,9 +101,9 @@ func TestAgentPanelLayout(t *testing.T) {
 	if !strings.Contains(ls[n-2], "alpha") || !strings.Contains(ls[n-1], "aaaa1111") || !strings.HasPrefix(ls[n-3], "────") {
 		t.Fatalf("the foot should be at the bottom:\n%s", all)
 	}
-	// the body ends with the latest reply, its time on the line above, right
-	// above the foot
-	if !strings.Contains(ls[n-4], "Done: the panel shows the conversation now.") || !regexp.MustCompile(`^\s+\d\d:\d\d\s*$`).MatchString(ansi.Strip(ls[n-5])) {
+	// the body ends with the latest reply right above the foot, its time at
+	// the end of the run line above it
+	if !strings.Contains(ls[n-4], "Done: the panel shows the conversation now.") || !regexp.MustCompile(`^\s+▸ ⚙ .*\s\d\d:\d\d\s*$`).MatchString(ansi.Strip(ls[n-5])) {
 		t.Fatalf("the latest reply should sit right above the foot:\n%s", all)
 	}
 	if !strings.Contains(all, "fix the panel") || !strings.Contains(all, "earlier · pgup") {

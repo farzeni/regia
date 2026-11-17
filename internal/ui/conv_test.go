@@ -3,6 +3,7 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,34 @@ import (
 
 	"github.com/farzeni/regia/internal/claude"
 )
+
+// An unfolded run shows its steps in a box, the run line above it.
+func TestUnfoldedStepsBoxed(t *testing.T) {
+	m := convModel(t)
+	m.Update(tkey("o"))
+	selectWhere(t, m, bigRun)
+	m.Update(tkey("enter"))
+	ls := strings.Split(ansi.Strip(strings.Join(m.conversationLines(m.agents["aaaa1111"], 80), "\n")), "\n")
+	top := -1
+	for i, l := range ls {
+		if strings.Contains(l, "▾ ⚙ 7 steps") {
+			top = i + 1
+		}
+	}
+	if top < 0 || !strings.HasPrefix(strings.TrimSpace(ls[top]), "╭") {
+		t.Fatalf("the box should open under the run line:\n%s", strings.Join(ls, "\n"))
+	}
+	bot := top + 1
+	for ; bot < len(ls) && !strings.HasPrefix(strings.TrimSpace(ls[bot]), "╰"); bot++ {
+		if l := strings.TrimSpace(ls[bot]); !strings.HasPrefix(l, "│") || !strings.HasSuffix(l, "│") || ansi.StringWidth(ls[bot]) != 80 {
+			t.Fatalf("a step line should sit inside the box, 80 wide: %q", ls[bot])
+		}
+	}
+	if bot-top-1 != 7 {
+		t.Fatalf("7 steps in the box, got %d:\n%s", bot-top-1, strings.Join(ls[top:bot+1], "\n"))
+	}
+	t.Log("\n" + strings.Join(ls[top-1:bot+2], "\n"))
+}
 
 // convModel: alpha's transcript is internal/claude/testdata/steps.jsonl ("fix
 // the parser", a thought, a reply, then Read, Edit, a failed Bash, Write, a
@@ -225,13 +254,14 @@ func TestRunLineBetweenMessages(t *testing.T) {
 			mine = true
 		case mine && strings.Contains(l, "╰"): // your message's box closes
 			in, mine = true, false
-		case strings.HasSuffix(strings.TrimSpace(l), " 10:02"), strings.Contains(l, "Checks done."): // the agent's reply: its time, its text
+		case strings.Contains(l, "Checks done."): // the agent's reply
 			in = false
 		case in && strings.TrimSpace(strings.SplitN(l, "│", 2)[len(strings.SplitN(l, "│", 2))-1]) != "":
 			between = append(between, strings.TrimSpace(strings.SplitN(l, "│", 2)[1]))
 		}
 	}
-	if len(between) != 1 || between[0] != "▸ ⚙ 3 steps · ran 3 commands · 1 error · 2m10s" {
+	// the run line, the reply's time at its end
+	if len(between) != 1 || !regexp.MustCompile(`^▸ ⚙ 3 steps · ran 3 commands · 1 error · 2m10s +\d\d:\d\d$`).MatchString(between[0]) {
 		t.Fatalf("one run line between the messages, got %q:\n%s", between, s)
 	}
 	if strings.Contains(s, "go vet") {
