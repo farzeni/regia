@@ -101,8 +101,9 @@ func TestAgentPanelLayout(t *testing.T) {
 	if !strings.Contains(ls[n-2], "alpha") || !strings.Contains(ls[n-1], "aaaa1111") || !strings.HasPrefix(ls[n-3], "────") {
 		t.Fatalf("the foot should be at the bottom:\n%s", all)
 	}
-	// the body ends with the latest reply and its time, right above the foot
-	if !strings.Contains(ls[n-5], "Done: the panel shows the conversation now.") || !regexp.MustCompile(`^\s+\d\d:\d\d\s*$`).MatchString(ansi.Strip(ls[n-4])) {
+	// the body ends with the latest reply, its time on the line above, right
+	// above the foot
+	if !strings.Contains(ls[n-4], "Done: the panel shows the conversation now.") || !regexp.MustCompile(`^\s+\d\d:\d\d\s*$`).MatchString(ansi.Strip(ls[n-5])) {
 		t.Fatalf("the latest reply should sit right above the foot:\n%s", all)
 	}
 	if !strings.Contains(all, "fix the panel") || !strings.Contains(all, "earlier · pgup") {
@@ -149,7 +150,7 @@ func TestCoordinatorPanelWithoutBlackboard(t *testing.T) {
 	if strings.Contains(all, "NOTE FOR THE TEAM") || strings.Contains(all, "blackboard") {
 		t.Fatalf("a coordinator's panel should not show the blackboard:\n%s", all)
 	}
-	if n := len(ls); !strings.Contains(ls[n-5], "Started beta on the panel.") || !strings.Contains(ls[n-2], "alpha") {
+	if n := len(ls); !strings.Contains(ls[n-4], "Started beta on the panel.") || !strings.Contains(ls[n-2], "alpha") {
 		t.Fatalf("a coordinator's panel is an agent's: conversation, then the foot:\n%s", all)
 	}
 	// N still opens it

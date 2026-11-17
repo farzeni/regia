@@ -225,7 +225,7 @@ func TestRunLineBetweenMessages(t *testing.T) {
 			mine = true
 		case mine && strings.Contains(l, "╰"): // your message's box closes
 			in, mine = true, false
-		case strings.Contains(l, "Checks done."): // the agent's reply
+		case strings.HasSuffix(strings.TrimSpace(l), " 10:02"), strings.Contains(l, "Checks done."): // the agent's reply: its time, its text
 			in = false
 		case in && strings.TrimSpace(strings.SplitN(l, "│", 2)[len(strings.SplitN(l, "│", 2))-1]) != "":
 			between = append(between, strings.TrimSpace(strings.SplitN(l, "│", 2)[1]))
