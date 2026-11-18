@@ -499,12 +499,14 @@ defaults; `regia openers show` says which line.
 With `osc8` on, URLs and file paths in the agent's replies (`/abs/x.go:12`,
 `internal/ui/open.go`, `x.go:7`) are links: ctrl+click (a plain click in
 some terminals) opens URLs in the browser and files where the preset's `link`
-points. `auto` turns them on when the terminal says it supports them:
+points. regia acts on a click when the button comes up, so a terminal that
+opens the link then (Ghostty) gets it before regia selects or moves anything.
+`auto` turns links on when the terminal says it supports them:
 
 | terminal | links |
 |---|---|
 | Tilix, GNOME Terminal, Ptyxis (VTE ≥ 0.50) | yes, ctrl+click |
-| Ghostty, Kitty, WezTerm | yes (Kitty: plain click, asks first) |
+| Ghostty, Kitty, WezTerm | yes (Ghostty: ctrl+click, cmd+click on macOS; Kitty: plain click, asks first) |
 | iTerm2 | yes, cmd+click |
 | VS Code terminal, Windows Terminal | yes |
 | xterm, the Linux console, others | off (they'd ignore them anyway) |

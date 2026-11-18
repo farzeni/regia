@@ -40,13 +40,27 @@ func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 		} else {
 			m.scrollConv(-3)
 		}
+	case e.Action == tea.MouseActionRelease:
+		// A click in the panel acts on the release, where it went down (not
+		// after a drag): a terminal opening a link on cmd/ctrl+click swallows
+		// that release (Ghostty does), while it still sends the press. Acting on
+		// the press would select, unfold or scroll, moving the link away from
+		// the pointer before the terminal opened it.
+		if m.pressed {
+			m.pressed = false
+			if e.X == m.pressX && e.Y == m.pressY {
+				return m.clickPanel(e.X-(padX+m.lw+gap), e.Y-listTop)
+			}
+		}
 	case e.Button == tea.MouseButtonLeft && e.Action == tea.MouseActionPress:
+		m.pressed = false
 		if e.X >= divider-1 && e.X <= divider+1 && e.Y >= listTop {
 			m.dragging = true
 			return nil
 		}
-		if !onList {
-			return m.clickPanel(e.X-(padX+m.lw+gap), e.Y-listTop)
+		if !onList { // the click happens on the release
+			m.pressed, m.pressX, m.pressY = true, e.X, e.Y
+			return nil
 		}
 		if rh := m.rowHeight(); onList && e.Y >= listTop && e.Y < listTop+m.vis*rh {
 			if i := m.offset + (e.Y-listTop)/rh; i < len(m.rows) {

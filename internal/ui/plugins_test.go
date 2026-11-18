@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/farzeni/regia/internal/plugins"
@@ -87,8 +86,8 @@ func TestTabbedBox(t *testing.T) {
 	if len(m.tabHits) != 3 {
 		t.Fatalf("tab hits %+v", m.tabHits)
 	}
-	x := padX + m.lw + gap + m.tabHits[0].x0
-	m.Update(tea.MouseMsg{X: x, Y: listTop + m.tabRow, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+
+	clickPanelAt(m, m.tabHits[0].x0, m.tabRow)
 	if m.panelTab != "agent" {
 		t.Fatalf("click on the agent tab: %q", m.panelTab)
 	}
