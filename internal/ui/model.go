@@ -94,6 +94,10 @@ type model struct {
 	// geometry of the last frame, for the mouse
 	lw, vis  int
 	dragging bool // dragging the divider to resize the list
+	// where the left button went down in the panel; the click happens on its
+	// release there (see updateMouse)
+	pressed        bool
+	pressX, pressY int
 
 	// the agent panel's conversation (conv.go): fold state and cursor by
 	// agent, whether it has the keys (o), what the last frame drew of it

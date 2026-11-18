@@ -9,9 +9,12 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// clickPanelAt clicks column x, row y of the panel.
+// clickPanelAt clicks column x, row y of the panel: press, then release.
 func clickPanelAt(m *model, x, y int) tea.Cmd {
-	_, cmd := m.Update(tea.MouseMsg{X: padX + m.lw + gap + x, Y: listTop + y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	e := tea.MouseMsg{X: padX + m.lw + gap + x, Y: listTop + y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	m.Update(e)
+	e.Action = tea.MouseActionRelease
+	_, cmd := m.Update(e)
 	return cmd
 }
 
@@ -70,6 +73,33 @@ func TestRunAndReplyOneItem(t *testing.T) {
 	clickPanelAt(m, 10, y)
 	if s := convScreen(m); !m.convFocus || !bigRun(m.conv.blocks[m.convSel()]) || strings.Contains(s, "▾ ⚙ 7 steps") {
 		t.Fatalf("clicks on the reply's text select the item and fold nothing:\n%s", s)
+	}
+}
+
+// A click in the panel acts on its release: a terminal that opens a link on
+// cmd/ctrl+click (Ghostty) sends the press and swallows the release, and the
+// press alone must not select, unfold or scroll the link away. A drag (the
+// release elsewhere) is no click either.
+func TestPanelClickOnRelease(t *testing.T) {
+	m := convModel(t)
+	y, _ := rowOfBlock(t, m, bigRun)
+	press := tea.MouseMsg{X: padX + m.lw + gap + 10, Y: listTop + y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	m.Update(press)
+	if s := convScreen(m); m.convFocus || strings.Contains(s, "▾ ⚙ 7 steps") {
+		t.Fatalf("the press alone does nothing:\n%s", s)
+	}
+	m.Update(press) // the next press: the swallowed release left nothing pending
+	rel := press
+	rel.Action, rel.Y = tea.MouseActionRelease, press.Y+1
+	m.Update(rel)
+	if m.convFocus {
+		t.Fatal("a release away from the press (a drag) is no click")
+	}
+	m.Update(press)
+	rel.Y = press.Y
+	m.Update(rel)
+	if s := convScreen(m); !m.convFocus || !strings.Contains(s, "▾ ⚙ 7 steps") {
+		t.Fatalf("press + release on the steps line: selected and unfolded:\n%s", s)
 	}
 }
 
