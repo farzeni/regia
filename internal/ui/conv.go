@@ -386,7 +386,7 @@ var convNext int
 
 // conversationLines is the agent panel's body (see the top of this file),
 // oldest first, with day separators. In focus, the selected block is marked
-// with a bar in its first column.
+// with a faint background across its lines.
 func (m *model) conversationLines(a *claude.Agent, w int) []string {
 	lines, blocks := m.renderConv(a, w)
 	m.conv.id, m.conv.w, m.conv.blocks = a.ID, w, blocks
@@ -396,9 +396,8 @@ func (m *model) conversationLines(a *claude.Agent, w int) []string {
 	i := m.convSel()
 	b := blocks[i]
 	out := append([]string(nil), lines...)
-	bar := stCursor.Render("▌") // not the divider's purple: the two read apart
 	for j := b.top; j < b.top+b.n && j < len(out); j++ {
-		out[j] = bar + out[j][1:] // block lines start with a plain space
+		out[j] = bgBar(stCursor, out[j], w)
 	}
 	return out
 }
@@ -430,7 +429,7 @@ func (m *model) renderConv(a *claude.Agent, w int) ([]string, []convBlock) {
 const maxMessages = 300
 
 // drawConv lays the entries out as blocks, w wide: every block line starts
-// with a one-column gutter (a space; the cursor's bar in focus).
+// with a one-column gutter (a space).
 func drawConv(c stepCtx, es []claude.Entry, open map[string]bool, w int) ([]string, []convBlock) {
 	// from the maxMessages-th message from the end
 	start, n := 0, 0
