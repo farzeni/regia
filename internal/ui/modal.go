@@ -52,7 +52,7 @@ var helpSections = []helpSection{
 		{"pgup / pgdn", "scroll the conversation"},
 		{", / .", "agent box: previous / next tab"},
 		{"b", "next agent waiting for you"},
-		{"tab / shift+tab", "tree → inbox → search"},
+		{"tab / shift+tab", "agents → inbox → search"},
 		{"Z", "snooze a question"},
 		{"/", "filter: ↑↓ pick, enter opens, esc clears"},
 		{"h/l  space  z", "fold / unfold / all"},

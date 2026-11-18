@@ -116,7 +116,7 @@ func (m *model) setView(v viewKind) {
 	m.rebuild()
 }
 
-// cycleView is tab (d=1) and shift+tab (d=-1): tree → inbox → search.
+// cycleView is tab (d=1) and shift+tab (d=-1): agents → inbox → search.
 func (m *model) cycleView(d int) tea.Cmd {
 	m.setView(viewKind((int(m.view) + d + int(viewCount)) % int(viewCount)))
 	if m.view == viewSearch && m.srch.query != "" {

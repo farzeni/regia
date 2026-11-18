@@ -356,7 +356,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		m.moveCursor(-len(m.rows))
 	case "G", "end":
 		m.moveCursor(len(m.rows))
-	case "tab": // tree → inbox → search
+	case "tab": // agents → inbox → search
 		return m.cycleView(1)
 	case "shift+tab":
 		return m.cycleView(-1)
