@@ -247,7 +247,7 @@ func (m *model) header() string {
 			nbusy++
 		}
 	}
-	tabs := []string{"tree", "inbox", "search"}
+	tabs := []string{"agents", "inbox", "search"}
 	for i, t := range tabs {
 		if viewKind(i) == m.view {
 			tabs[i] = stAccent.Render("[" + t + "]")

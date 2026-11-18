@@ -70,9 +70,9 @@ regia uninstall  # remove the plugin and the binary
 regia openers    # list | show | test: what opens files, images, URLs and diffs (see Openers)
 ```
 
-The screen has three views: `tab` goes tree → inbox → search, `shift+tab` goes back.
+The screen has three views: `tab` goes agents → inbox → search, `shift+tab` goes back.
 
-- **tree** — every agent, organized. Each row shows state (● waiting for you,
+- **agents** — every agent, organized (as a tree). Each row shows state (● waiting for you,
   ✓ ready, ◆ busy, ✗ failed; see below), name and age; folded groups show how
   many agents are inside and how many are your turn. The right panel shows the selected agent
   in three parts: a card pinned at the top (task, git status, what it is
@@ -243,7 +243,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | Key | Action |
 |---|---|
 | `enter` | attach to the session (`←` inside it comes back) |
-| `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
+| `tab` / `shift+tab` | agents → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
 | `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `↑`/`↓` message to message over the steps, `shift+↑`/`↓` (`j`/`k`) every block, runs and steps too, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block in the input (and copy it), `i` to the input, `alt+enter` attach to its session, `g`/`G` top / bottom, `←`/`esc` back |
