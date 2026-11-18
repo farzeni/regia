@@ -276,4 +276,15 @@ func TestQuoteDragSelection(t *testing.T) {
 	if m.conv.drag.on {
 		t.Fatal("quoted: the selection is gone")
 	}
+	// a drag, then another key (moving to a block): r quotes the block
+	m.ta.SetValue("")
+	m.typing = false // out of the input: the release focuses the conversation
+	ev(tea.MouseActionPress, 7)
+	ev(tea.MouseActionMotion, 17)
+	ev(tea.MouseActionRelease, 17)
+	m.Update(tkey("shift+up"))
+	m.Update(tkey("r"))
+	if got := m.ta.Value(); got == "> tests fixed\n\n" || !strings.HasPrefix(got, "> ") {
+		t.Fatalf("after moving, r quotes the selected block, not the old drag: %q", got)
+	}
 }
