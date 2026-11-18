@@ -29,8 +29,8 @@ var (
 	stDim      = lipgloss.NewStyle().Foreground(cDim)
 	stBold     = lipgloss.NewStyle().Bold(true)
 	stAccent   = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
-	stCursor   = lipgloss.NewStyle().Foreground(lipgloss.Color("81")) // the conversation's block cursor: not the divider's purple
-	stDragSel  = lipgloss.NewStyle().Reverse(true)                    // text dragged over in the panel
+	stCursor   = lipgloss.NewStyle().Background(lipgloss.Color("235")) // the conversation's block cursor: a faint gray, so the text stays readable
+	stDragSel  = lipgloss.NewStyle().Reverse(true)                     // text dragged over in the panel
 	stSel      = lipgloss.NewStyle().Background(lipgloss.Color("237"))
 	stSelFocus = lipgloss.NewStyle().Background(cAccent).Foreground(lipgloss.Color("16")) // the selected agent while its panel has the keys
 	stYou      = lipgloss.NewStyle().Foreground(lipgloss.Color("183"))                    // your messages in the history: a light tint of the accent

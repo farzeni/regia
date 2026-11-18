@@ -9,7 +9,9 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/muesli/termenv"
 
 	"github.com/farzeni/regia/internal/claude"
 )
@@ -21,9 +23,6 @@ func TestUnfoldedStepsBoxed(t *testing.T) {
 	selectWhere(t, m, bigRun)
 	m.Update(tkey("enter"))
 	ls := strings.Split(ansi.Strip(strings.Join(m.conversationLines(m.agents["aaaa1111"], 80), "\n")), "\n")
-	for i, l := range ls { // the cursor's bar marks the whole item, box included
-		ls[i] = strings.Replace(l, "▌", " ", 1)
-	}
 	if !strings.Contains(strings.Join(ls, "\n"), "steps") {
 		t.Fatal("no run")
 	}
@@ -184,9 +183,18 @@ func TestFocusMovesAndFollows(t *testing.T) {
 	if s := convScreen(m); !strings.Contains(s, "running") {
 		t.Fatalf("G goes back to the end:\n%s", s)
 	}
-	// the cursor's bar marks the selected block
-	if !strings.Contains(convScreen(m), "▌") {
-		t.Fatal("the selected block should be marked")
+	// a faint background marks the selected block's lines, and only them
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.ANSI256)
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+	r := stCursor.Render("x")
+	bg := r[:strings.Index(r, "x")]
+	ls := m.conversationLines(m.agents["aaaa1111"], 80)
+	b := m.conv.blocks[m.convSel()]
+	for j, l := range ls {
+		if in := j >= b.top && j < b.top+b.n; in != strings.HasPrefix(l, bg) {
+			t.Fatalf("line %d (selected %v) has the wrong background: %q", j, in, l)
+		}
 	}
 }
 
