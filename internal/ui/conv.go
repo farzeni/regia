@@ -726,6 +726,9 @@ func (m *model) updateConv(k tea.KeyMsg) tea.Cmd {
 		m.convFocus = false
 		return m.updateNormal(k)
 	}
+	if k.String() != "r" { // the dragged text is r's only right after the drag
+		m.conv.drag.on = false
+	}
 	i := m.convSel()
 	b := m.conv.blocks[i]
 	page := max(1, m.bodyHeight()/2)
