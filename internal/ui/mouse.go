@@ -11,7 +11,8 @@ const listTop = 2
 // the pointer), a click selects a row, a tab of the agent box, a file of the
 // changes tab or a block of the conversation (a click on the selected one
 // opens it, or folds / unfolds it), and dragging the divider resizes the
-// list. (Holding shift lets the terminal select text as usual.)
+// list. A drag in the panel selects its text and copies it (drag.go).
+// (Holding shift lets the terminal select text as usual.)
 func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 	if m.help || m.mode != modeNormal {
 		return nil
@@ -40,6 +41,11 @@ func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 		} else {
 			m.scrollConv(-3)
 		}
+	case e.Action == tea.MouseActionMotion && m.pressed: // a drag in the panel selects text
+		if e.X != m.pressX || e.Y != m.pressY || m.conv.drag.on {
+			x0 := padX + m.lw + gap
+			m.dragTo(m.pressX-x0, m.pressY-listTop, e.X-x0, e.Y-listTop)
+		}
 	case e.Action == tea.MouseActionRelease:
 		// A click in the panel acts on the release, where it went down (not
 		// after a drag): a terminal opening a link on cmd/ctrl+click swallows
@@ -48,12 +54,16 @@ func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 		// the pointer before the terminal opened it.
 		if m.pressed {
 			m.pressed = false
+			if m.conv.drag.on { // a drag: copy what it selected
+				m.endDrag()
+				return nil
+			}
 			if e.X == m.pressX && e.Y == m.pressY {
 				return m.clickPanel(e.X-(padX+m.lw+gap), e.Y-listTop)
 			}
 		}
 	case e.Button == tea.MouseButtonLeft && e.Action == tea.MouseActionPress:
-		m.pressed = false
+		m.pressed, m.conv.drag.on = false, false
 		if e.X >= divider-1 && e.X <= divider+1 && e.Y >= listTop {
 			m.dragging = true
 			return nil
