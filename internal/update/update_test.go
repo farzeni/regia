@@ -12,6 +12,18 @@ const (
 	fresh = "v0.0.0-20261114161559-a6f467d80c5b"
 )
 
+func TestParseHead(t *testing.T) {
+	h := "5f979175214470582b093c6396a5e144940b7dcd"
+	if got, err := parseHead(h + "\trefs/heads/main\n"); err != nil || got != h {
+		t.Fatalf("parseHead = %q, %v", got, err)
+	}
+	for _, bad := range []string{"", "\n", "nothex\trefs/heads/main", "5f97917\trefs/heads/main"} {
+		if _, err := parseHead(bad); err == nil {
+			t.Fatalf("parseHead(%q) accepted", bad)
+		}
+	}
+}
+
 func TestNewer(t *testing.T) {
 	for _, c := range []struct {
 		latest, cur string
