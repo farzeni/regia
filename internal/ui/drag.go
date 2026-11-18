@@ -108,12 +108,18 @@ func (m *model) endDrag() {
 		m.flash("clipboard: %v", err)
 		return
 	}
-	n := strings.Count(t, "\n") + 1
-	if n == 1 {
-		m.flash("copied %d characters", len([]rune(t)))
-	} else {
-		m.flash("copied %d lines", n)
+	// the conversation takes the keys, as after a click: r quotes the selection
+	if m.conv.id != "" && m.conv.id == m.panelFor {
+		if i := m.blockAtLine(s.from.line); i >= 0 { // no reveal: the view stays put
+			m.convOf(m.conv.id).sel = m.conv.blocks[i].key
+		}
+		m.convFocus, m.chg.focus = true, false
 	}
+	n, what := strings.Count(t, "\n")+1, "lines"
+	if n == 1 {
+		n, what = len([]rune(t)), "characters"
+	}
+	m.flash("copied %d %s · r quote it in the input", n, what)
 }
 
 // highlightDrag shows the selection on the history lines in view (line start

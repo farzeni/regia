@@ -63,7 +63,7 @@ var helpSections = []helpSection{
 		{"↑↓  ctrl+↑↓", "message to message / your messages"},
 		{"shift+↑↓ j/k  ctrl+d/u", "every block, steps too / half page"},
 		{"enter space  alt+enter", "fold, unfold, open a step; or click / attach"},
-		{"c r i  ← esc", "copy / quote in the input / input / back"},
+		{"c r i  ← esc", "copy / quote in the input (or the drag) / input / back"},
 	}},
 	{"new agent", [][2]string{
 		{"type + enter", "start it at the selection"},

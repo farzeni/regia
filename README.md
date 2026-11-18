@@ -90,7 +90,7 @@ The screen has three views: `tab` goes agents → inbox → search, `shift+tab` 
   move message to message, `shift+↑`/`↓` (`j`/`k`) through every block,
   runs and steps too, `enter`/`space` unfold a run into one
   line per step (`✗` failed) and a step into its detail, `c` copies the
-  selected block, `r` quotes it (`> ` lines) in the input box, also on the
+  selected block, `r` quotes it (or the text you last dragged over) as `> ` lines in the input box, also on the
   clipboard, with the cursor two lines below and the input focused, `i` goes
   to the input, `g`/`G` go to the top / bottom, `←`/`esc` give the keys back
   to the list. What's
@@ -246,7 +246,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `tab` / `shift+tab` | agents → inbox → search / back (see [search](#usage)) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
-| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `↑`/`↓` message to message over the steps, `shift+↑`/`↓` (`j`/`k`) every block, runs and steps too, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block in the input (and copy it), `i` to the input, `alt+enter` attach to its session, `g`/`G` top / bottom, `←`/`esc` back |
+| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `↑`/`↓` message to message over the steps, `shift+↑`/`↓` (`j`/`k`) every block, runs and steps too, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block, or the text you dragged over, in the input (and copy it), `i` to the input, `alt+enter` attach to its session, `g`/`G` top / bottom, `←`/`esc` back |
 | `b` | jump to the next agent whose turn is yours (waiting on a question) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |
@@ -277,7 +277,8 @@ The mouse works too: the wheel scrolls the list or the panel's conversation
 box, a file of the changes tab or a block of the conversation (a second click
 on the selected one opens it, or folds / unfolds it), and dragging the
 divider resizes the list. Dragging over the panel selects its text (the list
-stays out of it) and copies it when you let go; a click clears it. Hold
+stays out of it) and copies it when you let go, focusing the conversation:
+`r` then quotes just that text in the input. A click clears it. Hold
 `shift` while dragging to select with the terminal instead, across the screen.
 
 The input takes the usual readline keys (`ctrl+a`/`ctrl+e`, `ctrl+w`,
