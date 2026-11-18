@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/muesli/termenv"
 )
 
 // clickPanelAt clicks column x, row y of the panel: press, then release.
@@ -196,5 +198,52 @@ func TestWheelScrollsKeepsCursor(t *testing.T) {
 	}
 	if m.convSel() == len(m.conv.blocks)-1 {
 		t.Fatal("the cursor should have moved up with the view")
+	}
+}
+
+// A drag in the panel selects text there only (not the list's), highlights
+// it and copies it on the release.
+func TestPanelDragSelectsText(t *testing.T) {
+	prevP := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.ANSI256) // the highlight shows
+	t.Cleanup(func() { lipgloss.SetColorProfile(prevP) })
+	m := convModel(t)
+	var got string
+	prev := copyText
+	copyText = func(s string) error { got = s; return nil }
+	t.Cleanup(func() { copyText = prev })
+	y := -1
+	for row, l := range strings.Split(convScreen(m), "\n") {
+		if strings.Contains(l, "Done: tests fixed.") {
+			y = row - listTop
+		}
+	}
+	if y < 0 {
+		t.Fatalf("no reply on screen:\n%s", convScreen(m))
+	}
+	x0 := padX + m.lw + gap
+	ev := func(a tea.MouseAction, x, y int) {
+		m.Update(tea.MouseMsg{X: x0 + x, Y: listTop + y, Button: tea.MouseButtonLeft, Action: a})
+	}
+	ev(tea.MouseActionPress, 1, y)
+	ev(tea.MouseActionMotion, 3, y)
+	ev(tea.MouseActionMotion, 4, y)
+	if s := m.View(); !strings.Contains(s, stDragSel.Render("Done")) {
+		t.Fatalf("the dragged text is highlighted:\n%s", convScreen(m))
+	}
+	ev(tea.MouseActionRelease, 4, y)
+	if got != "Done" || m.convFocus {
+		t.Fatalf("the release copies the text, and clicks nothing: %q (focus %v)", got, m.convFocus)
+	}
+	// two lines: from the line above to the reply's end
+	ev(tea.MouseActionPress, 0, y-1)
+	ev(tea.MouseActionMotion, 60, y)
+	ev(tea.MouseActionRelease, 60, y)
+	if !strings.HasSuffix(got, "Done: tests fixed.") || !strings.Contains(got, "\n") || strings.Contains(got, "regia") {
+		t.Fatalf("the lines dragged over, the panel's only: %q", got)
+	}
+	ev(tea.MouseActionPress, 1, y) // a new press clears it
+	if strings.Contains(m.View(), stDragSel.Render("Done")) {
+		t.Fatalf("a press clears the selection: %+v\n%q", m.conv.drag, m.View())
 	}
 }

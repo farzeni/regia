@@ -91,6 +91,8 @@ type convShown struct {
 	blocks []convBlock
 	// where its lines landed in the panel: line histStart at panel row histRow
 	histRow, histStart, histEnd int
+	hist                        []string // all its lines, for the text a drag selects
+	drag                        textSel
 }
 
 // --- step kinds --------------------------------------------------------------

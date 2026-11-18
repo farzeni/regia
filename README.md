@@ -276,8 +276,9 @@ The mouse works too: the wheel scrolls the list or the panel's conversation
 (whichever is under the pointer), a click selects a row, a tab of the agent
 box, a file of the changes tab or a block of the conversation (a second click
 on the selected one opens it, or folds / unfolds it), and dragging the
-divider resizes the list. Hold `shift` while dragging to select text with the
-mouse as usual (regia captures the mouse, so plain dragging doesn't select).
+divider resizes the list. Dragging over the panel selects its text (the list
+stays out of it) and copies it when you let go; a click clears it. Hold
+`shift` while dragging to select with the terminal instead, across the screen.
 
 The input takes the usual readline keys (`ctrl+a`/`ctrl+e`, `ctrl+w`,
 `alt+←/→`, `ctrl+k`/`ctrl+u`, …), and so do names and notes edited in place. `alt+enter`, `ctrl+j`, or `\` then `enter`

@@ -30,6 +30,7 @@ var (
 	stBold     = lipgloss.NewStyle().Bold(true)
 	stAccent   = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
 	stCursor   = lipgloss.NewStyle().Foreground(lipgloss.Color("81")) // the conversation's block cursor: not the divider's purple
+	stDragSel  = lipgloss.NewStyle().Reverse(true)                    // text dragged over in the panel
 	stSel      = lipgloss.NewStyle().Background(lipgloss.Color("237"))
 	stSelFocus = lipgloss.NewStyle().Background(cAccent).Foreground(lipgloss.Color("16")) // the selected agent while its panel has the keys
 	stYou      = lipgloss.NewStyle().Foreground(lipgloss.Color("183"))                    // your messages in the history: a light tint of the accent
@@ -624,6 +625,8 @@ func (m *model) placePanel(p panel, h, w int) []string {
 		out = append(out, "")
 	}
 	m.conv.histRow, m.conv.histStart, m.conv.histEnd = len(out), start, end // for clicks
+	m.conv.hist = p.hist
+	m.highlightDrag(view, start)
 	return append(append(out, view...), foot...)
 }
 
