@@ -687,10 +687,22 @@ func blockText(c stepCtx, b convBlock) string {
 	return strings.Join(ls, "\n")
 }
 
-// quoteReply is r: the selected block quoted in the input box (and on the
-// clipboard), the cursor two lines below it, ready for your words.
+// quoteReply is r: the text dragged over in the panel, or else the selected
+// block, quoted in the input box (and on the clipboard), the cursor two lines
+// below it, ready for your words.
 func (m *model) quoteReply(b convBlock) {
-	text := strings.TrimSpace(blockText(stepCtx{m, m.agents[m.conv.id]}, b))
+	if s := m.conv.drag; s.on && s.id == m.panelFor { // the text dragged over, rather than the block
+		m.conv.drag.on = false
+		m.quoteText(m.dragText())
+		return
+	}
+	m.quoteText(blockText(stepCtx{m, m.agents[m.conv.id]}, b))
+}
+
+// quoteText puts text in the input as a > quote, below the draft, and goes
+// there.
+func (m *model) quoteText(text string) {
+	text = strings.TrimSpace(text)
 	if text == "" {
 		return
 	}

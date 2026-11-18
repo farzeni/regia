@@ -232,8 +232,8 @@ func TestPanelDragSelectsText(t *testing.T) {
 		t.Fatalf("the dragged text is highlighted:\n%s", convScreen(m))
 	}
 	ev(tea.MouseActionRelease, 4, y)
-	if got != "Done" || m.convFocus {
-		t.Fatalf("the release copies the text, and clicks nothing: %q (focus %v)", got, m.convFocus)
+	if got != "Done" || !m.convFocus {
+		t.Fatalf("the release copies the text and focuses the conversation: %q (focus %v)", got, m.convFocus)
 	}
 	// two lines: from the line above to the reply's end
 	ev(tea.MouseActionPress, 0, y-1)
@@ -245,5 +245,35 @@ func TestPanelDragSelectsText(t *testing.T) {
 	ev(tea.MouseActionPress, 1, y) // a new press clears it
 	if strings.Contains(m.View(), stDragSel.Render("Done")) {
 		t.Fatalf("a press clears the selection: %+v\n%q", m.conv.drag, m.View())
+	}
+	ev(tea.MouseActionRelease, 1, y)
+}
+
+// r after a drag quotes the text dragged over, not the whole block; then r
+// quotes blocks again.
+func TestQuoteDragSelection(t *testing.T) {
+	m := convModel(t)
+	prev := copyText
+	copyText = func(string) error { return nil }
+	t.Cleanup(func() { copyText = prev })
+	y := -1
+	for row, l := range strings.Split(convScreen(m), "\n") {
+		if strings.Contains(l, "Done: tests fixed.") {
+			y = row - listTop
+		}
+	}
+	x0 := padX + m.lw + gap
+	ev := func(a tea.MouseAction, x int) {
+		m.Update(tea.MouseMsg{X: x0 + x, Y: listTop + y, Button: tea.MouseButtonLeft, Action: a})
+	}
+	ev(tea.MouseActionPress, 7)
+	ev(tea.MouseActionMotion, 17)
+	ev(tea.MouseActionRelease, 17)
+	m.Update(tkey("r"))
+	if got := m.ta.Value(); got != "> tests fixed\n\n" || !m.typing || m.convFocus {
+		t.Fatalf("r quotes the selection in the input: %q (typing %v)", got, m.typing)
+	}
+	if m.conv.drag.on {
+		t.Fatal("quoted: the selection is gone")
 	}
 }
