@@ -278,9 +278,9 @@ box, a file of the changes tab or a block of the conversation (a second click
 on the selected one opens it, or folds / unfolds it), and dragging the
 divider resizes the list. Dragging over the panel selects its text (the list
 stays out of it) and copies it when you let go, focusing the conversation:
-`r` right then quotes just that text in the input; a click or any other key
-clears it. Hold
-`shift` while dragging to select with the terminal instead, across the screen.
+`r` right then quotes just that text in the input; a click, any other key or
+moving to another agent clears it. Hold `shift` while dragging to select with
+the terminal instead, across the screen.
 
 The input takes the usual readline keys (`ctrl+a`/`ctrl+e`, `ctrl+w`,
 `alt+←/→`, `ctrl+k`/`ctrl+u`, …), and so do names and notes edited in place. `alt+enter`, `ctrl+j`, or `\` then `enter`

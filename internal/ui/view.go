@@ -592,6 +592,7 @@ func (m *model) placePanel(p panel, h, w int) []string {
 	fresh := m.panelFor != m.cursorID
 	if fresh {
 		m.panelFor, m.panelScroll = m.cursorID, 0
+		m.conv.drag.on = false // another row: the text dragged over is gone
 	}
 	rule := stDim.Render(strings.Repeat("─", w))
 	var foot []string
