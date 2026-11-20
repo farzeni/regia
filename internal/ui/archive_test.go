@@ -131,6 +131,9 @@ func TestSelectModeArchive(t *testing.T) {
 	if !m.marked["aaaa0001"] || m.cursorID != "aaaa0002" {
 		t.Fatalf("space: marked %v, cursor %s", m.marked, m.cursorID)
 	}
+	if s := ansi.Strip(m.View()); !strings.Contains(s, "1 marked") || !strings.Contains(s, "◐") {
+		t.Fatalf("a group partly marked should show ◐:\n%s", s)
+	}
 	goTo(t, m, m.layout.Parent["bbbb0001"])
 	m.Update(tkey(" ")) // a group: all of it
 	if !m.marked["bbbb0001"] {

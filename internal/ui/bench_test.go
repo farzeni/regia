@@ -110,3 +110,26 @@ func BenchmarkConv(b *testing.B) {
 		b.ReportMetric(float64(len(m.conversationLines(a, 100))), "lines")
 	})
 }
+
+// A frame in select mode (v), and space marking a row: every row's checkbox
+// counts the agents under it.
+func BenchmarkRealSelect(b *testing.B) {
+	m := benchModel(b)
+	m.Update(tkey("v"))
+	b.Run("frame", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			m.View()
+		}
+	})
+	b.Run("space", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			m.Update(tkey(" "))
+			m.View()
+			if m.cursor >= len(m.rows)-1 {
+				m.moveCursor(-len(m.rows))
+			}
+		}
+	})
+}
