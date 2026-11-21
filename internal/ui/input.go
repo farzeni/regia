@@ -360,7 +360,7 @@ func (m *model) inputBox() string {
 	label := "" // shown in the bottom border, on the right
 	if m.selecting {
 		border = cBlocked
-		lines = []string{lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("◉ select · %d marked", len(m.markedIDs()))) +
+		lines = []string{lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("◉ select · %d marked", m.markCounts()[""][1])) +
 			stDim.Render(" — space mark (group: all) · * all · e archive · x remove · f pin · esc done")}
 	} else if !m.typing {
 		lines = []string{stDim.Render("❯ i to type a new task")}

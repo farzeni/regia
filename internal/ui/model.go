@@ -80,8 +80,9 @@ type model struct {
 
 	selectID string // just started: select it as soon as it's listed
 
-	selecting bool            // select mode (v): space marks rows for e / x
-	marked    map[string]bool // agent ids marked in select mode
+	selecting bool              // select mode (v): space marks rows for e / x
+	marked    map[string]bool   // agent ids marked in select mode
+	markCount map[string][2]int // markCounts, built once a frame
 
 	removing map[string]*pendingRemoval // taken off the list while claude rm runs
 

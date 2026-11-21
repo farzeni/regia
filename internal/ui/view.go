@@ -122,7 +122,8 @@ func (m *model) View() string {
 	if m.w == 0 {
 		return ""
 	}
-	m.sizeInput() // the input box grows with the draft; the list gets the rest
+	m.markCount = nil // marks or the tree may have changed since the last frame
+	m.sizeInput()     // the input box grows with the draft; the list gets the rest
 	bh := m.bodyHeight()
 	iw := m.w - 2*padX
 	lw := m.sidebarWidth(iw)
