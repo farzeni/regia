@@ -237,6 +237,10 @@ The user's `swarm` skill should point to it for briefs.
   agent outside any group gets a short intro too. Workers aren't told about the tools.
 - `internal/mcp` depends on `group`. The test drives the server with the SDK's in-memory transports and a real
   client instead of a recorded exchange.
+- Added after v1: `inbox`, `timeline` and `changes` (reads, same scope as `tree`) and `rename_agent`, `pin`,
+  `unpin` (writes, logged and undoable like the rest; an organizer may also rename or pin itself). The
+  timeline's commit attribution (`group.LogKeys`, `Committer`) and the edit summing (`claude.ChangedFiles`)
+  moved out of `ui` so the TUI and the server share them.
 - `regia setup` also refreshes the marketplace and updates the plugin, so a machine that already had it gets
   the server and the skill.
 

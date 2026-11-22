@@ -6,6 +6,7 @@ package mcp
 
 import (
 	"context"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -13,7 +14,7 @@ import (
 )
 
 // instructions is what the model is told about the server as a whole.
-const instructions = `regia is the control room the user runs Claude Code agents from: a tree of groups and agents, where a coordinator holds the agents it started. These tools read that tree and, if you may, organize it. Call whoami first: a worker can only read its group; a coordinator organizes the agents under it; an orchestrator organizes the group the user granted it. A refusal is final: don't work around it. Every change is shown to the user and can be undone in regia. The regia:organize skill explains how to use these tools well.`
+const instructions = `regia is the control room the user runs Claude Code agents from: a tree of groups and agents, where a coordinator holds the agents it started. These tools read that tree and, if you may, organize it. Call whoami first; inbox says who needs the user, timeline what happened lately, changes which files an agent edited. A worker can only read its group; a coordinator organizes the agents under it; an orchestrator organizes the group the user granted it. A refusal is final: don't work around it. Every change is shown to the user and can be undone in regia. The regia:organize skill explains how to use these tools well.`
 
 type noArgs struct{}
 
@@ -48,6 +49,21 @@ type moveArgs struct {
 
 type agentsArgs struct {
 	Agents []string `json:"agents" jsonschema:"ids of the agents"`
+}
+
+type timelineArgs struct {
+	ID    string  `json:"id,omitempty" jsonschema:"a group's or agent's id (an agent includes the agents under it); empty for everything you may read"`
+	Hours float64 `json:"hours,omitempty" jsonschema:"how far back, in hours (default 24)"`
+}
+
+type renameAgentArgs struct {
+	ID   string `json:"id" jsonschema:"the agent's id"`
+	Name string `json:"name" jsonschema:"the name regia shows for it; empty to go back to its own name"`
+}
+
+// inboxOut wraps the inbox: a tool's structured result must be an object.
+type inboxOut struct {
+	Agents []group.InboxItem `json:"agents"`
 }
 
 // done is what a write tool returns.
@@ -94,6 +110,52 @@ func NewServer(self, version string) *mcp.Server {
 		func(_ context.Context, _ *mcp.CallToolRequest, a agentArgs) (*mcp.CallToolResult, any, error) {
 			out, err := group.AgentInfo(self, a.ID)
 			return nil, out, err
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "inbox", Annotations: ro("Who needs the user"),
+		Description: "The agents you may read that need the user: waiting on a question (with the question), looking stuck (with why), or failed; the longest waiting first. Start a triage or a status report here."},
+		func(context.Context, *mcp.CallToolRequest, noArgs) (*mcp.CallToolResult, any, error) {
+			as, err := group.Inbox(self)
+			if as == nil {
+				as = []group.InboxItem{}
+			}
+			return nil, inboxOut{as}, err
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "timeline", Annotations: ro("What happened"),
+		Description: "What happened in a group (or under an agent) lately, oldest first: agents started, waiting, back to work, done or failed, the PRs they opened and the commits on their branches. For 'what happened while I was away' and status reports."},
+		func(_ context.Context, _ *mcp.CallToolRequest, a timelineArgs) (*mcp.CallToolResult, any, error) {
+			h := a.Hours
+			if h <= 0 {
+				h = 24
+			}
+			out, err := group.Timeline(self, a.ID, time.Now().Add(-time.Duration(h*float64(time.Hour))))
+			return nil, out, err
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "changes", Annotations: ro("Files an agent changed"),
+		Description: "The files an agent edited in its conversation, the most recent first, with lines added and removed. Compare siblings' files to spot overlapping work before it conflicts."},
+		func(_ context.Context, _ *mcp.CallToolRequest, a agentArgs) (*mcp.CallToolResult, any, error) {
+			out, err := group.Changes(self, a.ID)
+			return nil, out, err
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "rename_agent", Annotations: rw("Rename an agent", false),
+		Description: "Set the name regia shows for an agent inside what you may organize (or yourself), so the tree reads well; empty goes back to its own name. Claude Code is not touched."},
+		func(_ context.Context, _ *mcp.CallToolRequest, a renameAgentArgs) (*mcp.CallToolResult, any, error) {
+			return wrote(group.RenameAgent(self, a.ID, a.Name))
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "pin", Annotations: rw("Pin agents", false),
+		Description: "Keep agents listed in regia when they are done (the user hides finished ones otherwise): for work the user should still look at. Inside what you may organize, or yourself."},
+		func(_ context.Context, _ *mcp.CallToolRequest, a agentsArgs) (*mcp.CallToolResult, any, error) {
+			return wrote(group.Pin(self, a.Agents, true))
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "unpin", Annotations: rw("Unpin agents", false),
+		Description: "Let finished agents be hidden again (undoes pin)."},
+		func(_ context.Context, _ *mcp.CallToolRequest, a agentsArgs) (*mcp.CallToolResult, any, error) {
+			return wrote(group.Pin(self, a.Agents, false))
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "create_group", Annotations: rw("Create a group", false),

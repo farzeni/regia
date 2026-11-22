@@ -418,8 +418,13 @@ out", "check what your siblings are doing". The plugin starts `regia mcp`, a
 small MCP server, in every session (no daemon: it lives and dies with the
 session), and ships the `regia:organize` skill that tells agents how to use it.
 
-Tools: `whoami`, `tree`, `agent` (read); `create_group`, `rename_group`,
-`delete_group`, `move`, `archive`, `unarchive` (change).
+Tools:
+
+- read: `whoami`, `tree`, `agent`; `inbox` (who is waiting, stuck or failed),
+  `timeline` (what happened in a group in the last hours: the same feed as
+  `T`), `changes` (the files an agent edited, as in the changes tab);
+- change: `create_group`, `rename_group`, `delete_group`, `move`, `archive`,
+  `unarchive`, `rename_agent` (the name regia shows), `pin`, `unpin`.
 
 What an agent may do is decided by regia, from who it is (the server knows the
 calling session), never by the agent:
@@ -427,7 +432,7 @@ calling session), never by the agent:
 | Role | Who | Reads | Organizes |
 |---|---|---|---|
 | worker | any agent | its group | nothing |
-| coordinator | an agent with agents under it | the agents under it | the agents under it (not itself) |
+| coordinator | an agent with agents under it | the agents under it | the agents under it (itself only to rename or pin) |
 | orchestrator | an agent you pressed `O` on | what it was granted | its group, or the whole tree (`O` again) |
 
 Muted groups (`M`) are out of reach unless an agent has the whole tree. A grant

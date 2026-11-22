@@ -12,6 +12,7 @@ import (
 
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/gitinfo"
+	"github.com/farzeni/regia/internal/group"
 	"github.com/farzeni/regia/internal/layout"
 )
 
@@ -45,34 +46,8 @@ func (m *model) timelineAgents(container string) []*claude.Agent {
 	return as
 }
 
-// logKeys groups the agents by the log that covers their work: their
-// directory and branch, read since the first of them started.
-func logKeys(as []*claude.Agent) map[gitinfo.LogKey][]*claude.Agent {
-	type dr struct{ dir, ref string }
-	by := map[dr][]*claude.Agent{}
-	for _, a := range as {
-		if a.Interactive || a.Cwd == "" {
-			continue
-		}
-		ref := a.Branch
-		if ref == "" {
-			ref = "HEAD"
-		}
-		k := dr{a.Cwd, ref}
-		by[k] = append(by[k], a)
-	}
-	out := map[gitinfo.LogKey][]*claude.Agent{}
-	for k, ag := range by {
-		since := ag[0].StartedAt // sorted by start
-		for _, a := range ag {
-			if a.StartedAt.Before(since) {
-				since = a.StartedAt
-			}
-		}
-		out[gitinfo.LogKey{Dir: k.dir, Ref: k.ref, Since: since.Truncate(time.Minute)}] = ag
-	}
-	return out
-}
+// logKeys and committer put commits down to agents (shared with regia mcp).
+var logKeys, committer = group.LogKeys, group.Committer
 
 // timelineItems gathers container's feed, oldest first.
 func (m *model) timelineItems(container string) []tlItem {
@@ -139,18 +114,6 @@ func (m *model) timelineItems(container string) []tlItem {
 		}
 	}
 	return items
-}
-
-// committer is the agent a commit is put down to: of those sharing the
-// branch, the last one started before it.
-func committer(ag []*claude.Agent, at time.Time) *claude.Agent {
-	who := ag[0]
-	for _, a := range ag {
-		if !a.StartedAt.After(at) {
-			who = a
-		}
-	}
-	return who
 }
 
 func prefix(what, detail string) string {

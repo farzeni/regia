@@ -75,7 +75,7 @@ func TestToolsListed(t *testing.T) {
 	for _, tl := range res.Tools {
 		names = append(names, tl.Name)
 		readOnly := tl.Annotations != nil && tl.Annotations.ReadOnlyHint
-		if want := slices.Contains([]string{"whoami", "tree", "agent"}, tl.Name); readOnly != want {
+		if want := slices.Contains([]string{"whoami", "tree", "agent", "inbox", "timeline", "changes"}, tl.Name); readOnly != want {
 			t.Errorf("%s: read-only %v", tl.Name, readOnly)
 		}
 		if tl.Description == "" || tl.InputSchema == nil {
@@ -83,7 +83,7 @@ func TestToolsListed(t *testing.T) {
 		}
 	}
 	slices.Sort(names)
-	if strings.Join(names, " ") != "agent archive create_group delete_group move rename_group tree unarchive whoami" {
+	if strings.Join(names, " ") != "agent archive changes create_group delete_group inbox move pin rename_agent rename_group timeline tree unarchive unpin whoami" {
 		t.Fatalf("tools: %v", names)
 	}
 	if !strings.Contains(cs.InitializeResult().Instructions, "Call whoami first") {
