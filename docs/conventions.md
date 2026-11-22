@@ -37,7 +37,8 @@ Update this file when a rule changes.
   `cFailed` 196, `stYou` 183 for your messages, `stSel` background 237 for the selection); a feature's own styles
   sit at the top of its file (e.g. `stStderr` in steps.go). Reuse before adding.
 - Width math with the package's helpers (`wrap`, `trunc`, `ansi.StringWidth`), never `len()` on rendered strings.
-- Every key is documented twice: the help modal (internal/ui/modal.go) and README "Keys"/feature sections.
+- Every key is documented twice: the help modal (internal/ui/modal.go) and the docs site (docs/reference/keys.md,
+  and the guide page of the feature in docs/guide/).
   Change both in the same commit.
 - Mouse capture is on (`tea.WithMouseCellMotion`, run.go); mouse handling lives in mouse.go. Shift+drag selects text.
 - Side effects go through package-level `var` funcs so tests can replace them: `spawnAgent`, `copyText`

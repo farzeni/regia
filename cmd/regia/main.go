@@ -27,7 +27,7 @@ const usage = `regia — terminal control room for Claude Code background agents
   regia uninstall  remove the plugin and the binary (--purge: also your layout)
   regia --dump     print the tree and inbox as plain text
   regia plugin     list | new | input | run: your own scripts on the agent panel (docs/plugins.md)
-  regia openers    list | show | test: what opens files, images, URLs and diffs (README "Openers")
+  regia openers    list | show | test: what opens files, images, URLs and diffs (docs/guide/openers.md)
 
   group awareness (agents in a hand-made group or under a coordinator):
   regia context    run by an agent: its group, coordinator and siblings with what they are doing
