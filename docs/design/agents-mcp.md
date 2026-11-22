@@ -1,13 +1,13 @@
 # Design: agents that act on regia (`regia mcp`)
 
-Status: proposal, not implemented. Decisions still open are marked **Decision**.
+Status: proposal, not implemented. Decisions are listed at the end.
 
 ## Goal
 
 Agents already *know* they run under regia: the plugin's group hook tells a grouped agent about its group,
 coordinator and siblings, and `regia context` shows what the group is doing.
 
-The blackboard (`regia note`, group notes) is deliberately not part of this design: in practice agents don't
+The blackboard (`regia note`, group notes) is removed from regia: in practice agents don't
 use it well (they rarely write useful notes and rarely act on the ones they read). Nothing here builds on it.
 
 This design lets some agents also *act* on regia's structure, the same tree the user organizes in the TUI:
@@ -92,10 +92,9 @@ Rules inside the scope:
 - **Hand placements** (`Pinned`: placed by the user in the TUI) can be moved by an orchestrator but not by a
   coordinator. A coordinator's request to move one fails with "placed by the user in regia".
 
-**Decision: storing the grant.** Proposed: a new `layout.json` field `Grants map[agentID]string`
-(value: a group id, or `"*"` for the whole tree), set and revoked with a new key in the TUI on the selected
-agent, shown as a mark next to its name. An alternative is a grant that expires when the agent goes idle;
-it is safer, but surprising when an agent resumes.
+**The grant** is a new `layout.json` field `Grants map[agentID]string` (value: a group id, or `"*"` for the
+whole tree), set and revoked with a new key in the TUI on the selected agent, shown as a mark next to its
+name. It lasts until revoked.
 
 Muted groups (`M` in the TUI) remain invisible to group awareness, and they are also outside every scope
 except a whole-tree orchestrator's.
@@ -151,7 +150,7 @@ anything in `~/.claude`.
   2. a regia tool that sends text into a session (as typing it in `claude attach` would). This is the most
      direct, but it puts words in another agent's mouth, so it needs the strongest scoping.
 
-**Decision:** v1 covers reading status only. Check option 1 first: if it reaches background sessions, regia
+**v1 covers reading status only.** Check option 1 first: if it reaches background sessions, regia
 adds the id mapping and the scope; only if it doesn't, design option 2.
 
 ## Safe concurrent writes (prerequisite)
@@ -199,13 +198,11 @@ The user's `swarm` skill should point to it for briefs.
 
 ## Implementation notes
 
-- `cmd/regia/mcp.go` (the command) and a new standalone package, `internal/mcp`, which holds JSON-RPC over
-  stdio (`initialize`, `tools/list`, `tools/call`) and depends on nothing in regia. The tools live in
+- `cmd/regia/mcp.go` (the command) and a new standalone package, `internal/mcp`, which wires the SDK's stdio
+  server and depends on nothing else in regia. The tools live in
   `internal/group` (`group/tools.go`) next to `Context`, because they need `Tree` and `Position`.
-- **Decision: the MCP library.** Conventions say no new modules without asking. The subset needed (stdio, the
-  three methods, text and JSON results) is about 200 lines by hand. The official Go SDK
-  (`github.com/modelcontextprotocol/go-sdk`) would track protocol changes for us. Proposed: by hand, with a
-  test that replays a recorded `initialize` / `tools/list` / `tools/call` exchange.
+- **The MCP library** is the official Go SDK (`github.com/modelcontextprotocol/go-sdk`, approved), over
+  stdio. A test replays a recorded `initialize` / `tools/list` / `tools/call` exchange.
 - `.mcp.json` at the plugin root: `{"mcpServers": {"regia": {"command": "regia", "args": ["mcp"]}}}`.
   If `regia` is not on PATH, the server shows as failed in `/mcp` and the session is otherwise unaffected.
 - `regia group off` / `REGIA_GROUP=off`: the server still starts, but every tool answers "group awareness is
@@ -224,10 +221,14 @@ The user's `swarm` skill should point to it for briefs.
 5. The skill, the hook's intro line, README and help modal.
 6. Sibling messaging, after checking `SendMessage`.
 
-## Open questions
+## Decisions taken
 
-- Grant storage and lifetime (see Roles).
-- MCP library: by hand or the official SDK (see Implementation notes).
-- Should a coordinator be allowed to archive agents it did not start but that the user moved under it?
-  (Proposed: yes, archive is reversible and logged.)
-- Undo in the TUI: one key that reverts the last agent action, or a list of actions to pick from?
+- **Grants last until revoked.** `Grants map[agentID]string` in `layout.json` (a group id or `"*"`), set and
+  revoked with one key in the TUI, shown as a mark next to the agent.
+- **MCP library: the official Go SDK** (`github.com/modelcontextprotocol/go-sdk`), approved as a new module.
+- **A coordinator may archive anything under it**, including agents the user moved there by hand: archive is
+  reversible and logged.
+- **Undo is a list of actions**: a key opens a modal of recent agent actions (who, what, when); enter reverts
+  the selected one when the tree still allows it, otherwise it says why not.
+- **The blackboard is removed from regia** (`regia note`, notes in `regia context` and the hook, `N` in the
+  TUI). See "Goal".
