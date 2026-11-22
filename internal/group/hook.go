@@ -218,14 +218,18 @@ func intro(t *Tree, pos Position, name func(string) string) string {
 		b.WriteString("[regia] You run under regia, the control room where the user watches and organizes their agents.\n")
 	}
 	// Agents that may organize the tree are told how; workers aren't.
-	tools := "the regia MCP tools (whoami, tree, agent, create_group, move, archive…); the regia:organize skill explains how"
+	tools := "the regia MCP tools (whoami, tree, inbox, timeline, create_group, move, archive…); the regia:organize skill explains how"
 	switch g := t.L.Grants[pos.Self]; {
+	case t.L.Claims[pos.Self] != "":
+		b.WriteString("- You claimed part of regia's tree: organize it with " + tools + ", and release it when you're done.\n")
 	case g == Everything:
 		b.WriteString("- The user granted you the whole tree: you can read and organize it with " + tools + ".\n")
 	case g != "":
 		fmt.Fprintf(&b, "- The user granted you group %q: you can read and organize it with %s.\n", t.Title(g, name), tools)
 	case pos.Family:
 		b.WriteString("- You can organize the agents under you with " + tools + ".\n")
+	default:
+		b.WriteString("- When the user asks you to look at or organize regia's tree, use " + tools + ".\n")
 	}
 	if pos.Grouped() {
 		b.WriteString("A line like this one tells you when you are moved to another group.")

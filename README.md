@@ -261,7 +261,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `>` / `<` | nest under the agent above (it becomes the coordinator) / un-nest |
 | `m`, then `p` / `P` | move: `p` puts it into the group under the cursor (at the top), or right after the agent; `P` puts it after the group, or under the agent (as its coordinator) |
 | `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up); the name is typed right in the row (`enter` saves, `esc` cancels) |
-| `O` | let the agent organize part of the tree through regia's MCP tools: its group, then the whole tree, then nothing (marked ✦); see [Agents that organize regia](#agents-that-organize-regia) |
+| `O` | let the agent organize part of the tree through regia's MCP tools: its group, then the whole tree, then nothing (marked ✦); on an agent's own claim, takes it back; see [Agents that organize regia](#agents-that-organize-regia) |
 | `U` | what agents changed in the tree, newest first: a key undoes that change |
 | `T` | a group's or coordinator's panel shows its timeline / back (on an agent: its group's); see [Group awareness](#group-awareness) |
 | `w` | set the directory new agents in the group start in (on an agent: its group's); see [Where a new agent starts](#where-a-new-agent-starts) |
@@ -424,20 +424,31 @@ Tools:
   `timeline` (what happened in a group in the last hours: the same feed as
   `T`), `changes` (the files an agent edited, as in the changes tab);
 - change: `create_group`, `rename_group`, `delete_group`, `move`, `archive`,
-  `unarchive`, `rename_agent` (the name regia shows), `pin`, `unpin`.
+  `unarchive`, `rename_agent` (the name regia shows), `pin`, `unpin`;
+- `claim` / `release`: take or give back a part of the tree to organize.
 
-What an agent may do is decided by regia, from who it is (the server knows the
-calling session), never by the agent:
+What an agent may do follows from where it is (the server knows the calling
+session) and what it claimed:
 
 | Role | Who | Reads | Organizes |
 |---|---|---|---|
-| worker | any agent | its group | nothing |
+| worker | any agent | its group | nothing, until it claims |
 | coordinator | an agent with agents under it | the agents under it | the agents under it (itself only to rename or pin) |
-| orchestrator | an agent you pressed `O` on | what it was granted | its group, or the whole tree (`O` again) |
+| orchestrator | an agent that claimed its group or the whole tree, or that you pressed `O` on | what it claimed or was granted | the same |
 
-Muted groups (`M`) are out of reach unless an agent has the whole tree. A grant
-lasts until you take it back (`O` until the ✦ is gone) and is kept in
-`layout.json`. `archive` only hides an agent in regia; it never stops one.
+An agent asked to organize more than its own agents first **claims** its group
+or the whole tree, with a reason. Nothing stops it from claiming: the point is
+that you see it. The agent is marked ✦ in the tree, its box says what it claimed
+and why ("claims ✦ the whole tree: morning triage"), the claim shows in the
+status line and in `U`. A claim ends when the agent releases it, when it is
+done, or when you press `O` on it.
+
+You can also grant an agent part of the tree yourself with `O` (its group, then
+the whole tree, then nothing); a grant lasts until you take it back.
+
+Muted groups (`M`) are out of reach to claims: mute what agents must leave
+alone. Only a whole-tree grant you gave reaches them. `archive` only hides an
+agent in regia; it never stops one.
 
 Every change appears in the status line as it happens ("orchestrator: moved 2
 items into backend · U to undo"). `U` lists the agents' changes, newest first;

@@ -14,11 +14,13 @@ import (
 
 // What agents can do to regia's tree through `regia mcp`, scoped by who is
 // asking (see docs/design/agents-mcp.md):
-//   - a worker reads its group and changes nothing;
+//   - a worker reads its group and changes nothing until it claims;
 //   - a coordinator (an agent with agents under it) organizes what is under
 //     it: groups among its agents, moves between them, archive;
-//   - an orchestrator (an agent you granted it to in regia, O) does the same
-//     under the granted group, or anywhere with a whole-tree grant.
+//   - an orchestrator does the same under its group, or anywhere: it claimed
+//     that itself (claim, with a reason, shown in regia as ✦) or you granted
+//     it (O). A claim never reaches muted parts and ends when the agent is
+//     done; your grant of the whole tree reaches everything.
 // The tree is the one you see in regia. Every change is recorded (Action) so
 // you can undo it, and nothing here touches Claude Code itself.
 
@@ -39,6 +41,7 @@ type Caller struct {
 	Role  string `json:"role"`
 	Scope string `json:"scope,omitempty"` // what it may organize: its own id, a group id, or "*"; "" for a worker
 	Group string `json:"group,omitempty"` // the group or coordinator it is in, "" when none
+	Claim string `json:"claim,omitempty"` // why it claimed its scope itself; "" when the user granted it
 }
 
 // state is the tree as the tools read it: the layout with every listed agent
@@ -115,7 +118,7 @@ func (w *world) who(self string) Caller {
 	}
 	switch g := w.l.Grants[self]; {
 	case g == Everything || (g != "" && w.exists(g)):
-		c.Role, c.Scope = RoleOrchestrator, g
+		c.Role, c.Scope, c.Claim = RoleOrchestrator, g, w.l.Claims[self]
 	case len(w.kids(self)) > 0:
 		c.Role, c.Scope = RoleCoordinator, self
 	}
@@ -147,14 +150,14 @@ func (c Caller) canRead(w *world, id string) bool {
 func (c Caller) canChange(w *world, id string) string {
 	switch {
 	case c.Scope == "":
-		return "you are a worker: only a coordinator (an agent with agents under it) or an agent the user granted it to in regia can organize the tree"
+		return "you haven't claimed any part of the tree: call claim (your group, or the whole tree) with the reason, then try again"
 	case !w.exists(id):
 		return fmt.Sprintf("%s is not in regia's tree", id)
 	case id == c.ID:
 		return "you can't move or archive yourself"
 	case !w.under(id, c.Scope):
-		return fmt.Sprintf("%s (%s) is outside what you may organize (%s)", w.title(id), id, c.scopeWords(w))
-	case c.Scope != Everything && w.mutedBetween(id, c.Scope):
+		return fmt.Sprintf("%s (%s) is outside what you may organize (%s): claim %s first", w.title(id), id, c.scopeWords(w), c.wider())
+	case (c.Scope != Everything || c.Claim != "") && w.mutedBetween(id, c.Scope):
 		return fmt.Sprintf("%s is in a part of the tree the user muted", w.title(id))
 	}
 	return ""
@@ -173,6 +176,14 @@ func (c Caller) canPutInto(w *world, parent string) string {
 		return fmt.Sprintf("%s is not in regia's tree", parent)
 	}
 	return c.canChange(w, parent)
+}
+
+// wider is what c would claim to reach further.
+func (c Caller) wider() string {
+	if c.Group != "" && c.Scope != c.Group && c.Scope != Everything {
+		return "your group or the whole tree"
+	}
+	return "the whole tree"
 }
 
 func (c Caller) scopeWords(w *world) string {
@@ -207,10 +218,15 @@ func Whoami(self string) (WhoamiOut, error) {
 	}
 	switch c.Role {
 	case RoleWorker:
-		out.Can = "read your group (tree, agent); you can't change the tree"
+		out.Can = "read your group (tree, agent, inbox, timeline, changes); to change the tree, claim your group or the whole tree first"
 	default:
 		out.ScopeTitle = c.scopeWords(w)
-		out.Can = "read and organize " + out.ScopeTitle + ": create_group, rename_group, delete_group, move, archive, unarchive"
+		out.Can = "read and organize " + out.ScopeTitle + ": create_group, rename_group, delete_group, move, archive, unarchive, rename_agent, pin"
+		if c.Role == RoleCoordinator {
+			out.Can += "; to reach beyond your agents, claim " + c.wider()
+		} else if c.Claim != "" {
+			out.Can += "; release when you're done"
+		}
 	}
 	return out, nil
 }

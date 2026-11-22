@@ -37,7 +37,7 @@ var helpSections = []helpSection{
 		{"m, then P", "the other way round"},
 		{"n  r  d", "new / rename / remove group"},
 		{"M", "mute group awareness"},
-		{"O / U", "agent may organize / undo its changes"},
+		{"O / U", "grant, end a claim ✦ / undo agents"},
 		{"T", "group timeline"},
 		{"w", "group's dir for new agents"},
 	}},

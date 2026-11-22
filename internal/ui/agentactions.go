@@ -10,10 +10,13 @@ import (
 	"github.com/farzeni/regia/internal/layout"
 )
 
-// Agents that organize the tree (regia mcp): O grants the selected agent its
-// group, then the whole tree, then nothing; U lists what agents changed,
-// newest first, and undoes the one you pick. A new action is announced in the
-// status line as it happens.
+// Agents that organize the tree (regia mcp): an agent claims its group or
+// the whole tree itself, with a reason (claim), or you grant it with O: its
+// group, then the whole tree, then nothing (O on a claim takes it back).
+// Either way the agent is marked ✦ and the agent box says what and why. A
+// claim ends when its agent is done (releaseDone). U lists what agents
+// changed, newest first, and undoes the one you pick. A new action is
+// announced in the status line as it happens.
 
 // grantGlyph marks an agent the user let organize part of the tree.
 const grantGlyph = "✦"
@@ -52,11 +55,13 @@ func (m *model) grantKey(r *layout.Row) tea.Cmd {
 	id, cur, g := r.ID, m.layout.Grants[r.ID], m.grantGroup(r.ID)
 	next := ""
 	switch {
+	case m.layout.Claims[id] != "": // its own claim: taken back
 	case cur == "" && g != "":
 		next = g
 	case cur == "" || cur == g:
 		next = group.Everything
 	}
+	delete(m.layout.Claims, id)
 	if next == "" {
 		delete(m.layout.Grants, id)
 		m.flash("%s organizes nothing any more", m.titleOf(id))
@@ -66,6 +71,46 @@ func (m *model) grantKey(r *layout.Row) tea.Cmd {
 	}
 	m.saveLayout()
 	return nil
+}
+
+// releaseDone ends the claims of agents that are done or failed: a claim is
+// for the work at hand (run on refresh).
+func (m *model) releaseDone() {
+	var done []string
+	for id := range m.layout.Claims {
+		if a := m.agents[id]; a != nil && (a.State == "done" || a.State == "failed") {
+			done = append(done, id)
+		}
+	}
+	if len(done) == 0 {
+		return
+	}
+	// only what finished after its claim: a state file lagging behind the
+	// turn that claimed doesn't end it
+	claimed := map[string]time.Time{}
+	for _, ac := range group.Actions() {
+		if ac.Tool == "claim" {
+			claimed[ac.By] = ac.At
+		}
+	}
+	var gone []string
+	for _, id := range done {
+		if at := m.agents[id].UpdatedAt; at.IsZero() || at.After(claimed[id]) {
+			gone = append(gone, id)
+		}
+	}
+	if len(gone) == 0 {
+		return
+	}
+	m.syncLayout()
+	for _, id := range gone {
+		delete(m.layout.Claims, id)
+		delete(m.layout.Grants, id)
+	}
+	m.saveLayoutQuiet()
+	if len(gone) == 1 {
+		m.flash("%s is done: its claim on the tree ended", m.titleOf(gone[0]))
+	}
 }
 
 // actionLine is "14:05 orchestrator · moved 2 items into backend".

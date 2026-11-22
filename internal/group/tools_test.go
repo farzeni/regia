@@ -66,7 +66,7 @@ func TestWorkerReadsOnly(t *testing.T) {
 	_, err = AgentInfo("w1", "lonely")
 	refused(t, err, "outside what you may read")
 	_, err = Move("w1", []string{"w2"}, "coord", "")
-	refused(t, err, "you are a worker")
+	refused(t, err, "call claim")
 	if len(Actions()) != 0 {
 		t.Fatal("a refused action is not recorded")
 	}
@@ -189,8 +189,8 @@ func TestIntroMentionsTools(t *testing.T) {
 	toolsFixture(t)
 	tr := LoadTree()
 	now := time.Now()
-	if msg := Check(tr, "w1", "SessionStart", now, names); strings.Contains(msg, "MCP") {
-		t.Fatalf("a worker isn't told about the tools:\n%s", msg)
+	if msg := Check(tr, "w1", "SessionStart", now, names); !strings.Contains(msg, "When the user asks you to look at or organize") {
+		t.Fatalf("a worker is told the tools are there when asked:\n%s", msg)
 	}
 	if msg := Check(tr, "coord", "SessionStart", now, names); !strings.Contains(msg, "organize the agents under you") || !strings.Contains(msg, "regia:organize") {
 		t.Fatalf("a coordinator is told:\n%s", msg)

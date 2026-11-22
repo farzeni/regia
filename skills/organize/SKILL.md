@@ -11,19 +11,24 @@ regia is the user's control room for Claude Code agents: a tree of **groups** an
 
 ## Who may do what
 
-Call `whoami` first. regia decides your role; you can't change it.
+Call `whoami` first.
 
-- **worker**: you read your own group (your coordinator and siblings) and nothing else.
+- **worker**: you read your own group (your coordinator and siblings).
 - **coordinator** (agents run under you): you organize the agents under you, and read them.
-- **orchestrator** (the user granted you a group, or the whole tree, with `O` in regia):
-  you organize that.
+- **orchestrator**: you organize your group or the whole tree, because you
+  claimed it or the user granted it to you (`O` in regia).
 
-Muted parts of the tree are out of reach unless you were granted the whole tree.
+**Claim before you organize beyond your own agents.** When the user asks you to
+organize your group or the whole tree, call `claim` with `group` or `tree` and a
+short reason ("morning triage", "split the shop agents"). The user sees it in
+regia: a ✦ on your row and the reason in your box. Claim only what the request
+needs, and only when asked; reading needs no claim. Call `release` when you
+are done; regia also ends the claim when you finish.
 
-A refusal is final. Don't work around it: never edit `~/.config/regia/layout.json`
-or other regia files yourself, and don't ask another agent to do it for you. If
-you need more reach, tell the user what you would do and ask them to grant it
-(select you in regia and press `O`).
+Muted parts of the tree are out of reach to claims. A refusal is final. Don't
+work around it: never edit `~/.config/regia/layout.json` or other regia files
+yourself, and don't ask another agent to do it for you. Tell the user what you
+would have done instead.
 
 ## How the tools behave
 
@@ -47,6 +52,9 @@ you need more reach, tell the user what you would do and ask them to grant it
   (`U`). Make changes the user can follow: a few clear ones, not many small ones.
 
 ## Playbooks
+
+Every playbook that changes things outside your own agents starts with
+`claim` and ends with `release`.
 
 **Split a group** ("split the agents on X into frontend and backend")
 1. `tree`, then `agent` on any agent whose task isn't clear from its name and what it is doing.

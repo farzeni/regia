@@ -241,6 +241,13 @@ The user's `swarm` skill should point to it for briefs.
   `unpin` (writes, logged and undoable like the rest; an organizer may also rename or pin itself). The
   timeline's commit attribution (`group.LogKeys`, `Committer`) and the edit summing (`claude.ChangedFiles`)
   moved out of `ui` so the TUI and the server share them.
+- **Claims replace the grant as the gate** (decided after using v1): an agent claims its group or the whole
+  tree itself (`claim` with a reason, `release`), so it needs no key press from the user. It protects nothing
+  (any agent can claim); its value is visibility: the ✦, the reason in the agent box, the status line and
+  `U`. Claims never reach muted parts, so `M` is how the user keeps agents out; they end when the agent is
+  done (only if it finished after its claim, so a lagging state file doesn't end a fresh one) or with `O`.
+  The user's `O` grant stays, lasts until revoked, and a whole-tree grant still reaches muted parts.
+  Coordinators organize their own agents without claiming.
 - `regia setup` also refreshes the marketplace and updates the plugin, so a machine that already had it gets
   the server and the skill.
 
