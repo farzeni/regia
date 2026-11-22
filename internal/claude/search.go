@@ -49,6 +49,7 @@ type msgCache struct {
 	mu   sync.Mutex
 	size int64
 	msgs []Msg
+	meta SessionMeta
 }
 
 var (
@@ -80,7 +81,7 @@ func Messages(path string) []Msg {
 		return c.msgs
 	}
 	if fi.Size() < c.size { // rewritten: start over
-		c.size, c.msgs = 0, nil
+		c.size, c.msgs, c.meta = 0, nil, SessionMeta{}
 	}
 	f, err := os.Open(path)
 	if err != nil {
@@ -97,6 +98,7 @@ func Messages(path string) []Msg {
 			break
 		}
 		c.msgs = appendMsgs(c.msgs, line, c.size)
+		c.meta.read(line)
 		c.size += int64(len(line))
 	}
 	return c.msgs

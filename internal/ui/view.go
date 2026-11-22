@@ -98,7 +98,7 @@ func pad(s string, w int) string {
 }
 
 func (m *model) bodyHeight() int {
-	return max(1, m.h-3-m.boxRows()-m.compRows()-m.dirPickRows()-m.modelPickRows())
+	return max(1, m.h-3-m.boxRows()-m.compRows()-m.dirPickRows()-m.modelPickRows()-m.scopePickRows())
 } // header + gap, status, popup, input box
 
 // boxRows is how many rows the input box takes with its border; none while
@@ -219,6 +219,9 @@ func (m *model) View() string {
 		b.WriteByte('\n')
 	}
 	b.WriteString(m.footer())
+	if m.help && m.view == viewSearch { // ? types into the query: ctrl+r opens the regex cheat sheet
+		return overlay(b.String(), regexHelpModal(m.w, m.h), m.w, m.h)
+	}
 	if m.help {
 		return overlay(b.String(), helpModal(m.w, m.h), m.w, m.h)
 	}
@@ -290,6 +293,8 @@ func (m *model) footer() string {
 		line1 = m.dirPickPrompt()
 	case modeModel:
 		line1 = m.modelPickPrompt()
+	case modeScope:
+		line1 = m.scopePickPrompt()
 	case modeConfirm:
 		line1 = lipgloss.NewStyle().Foreground(cBlocked).Render(m.confirmMsg)
 	default:
@@ -305,6 +310,8 @@ func (m *model) footer() string {
 		status += "\n" + m.dirPickView()
 	} else if m.modelPickRows() > 0 {
 		status += "\n" + m.modelPickView()
+	} else if m.scopePickRows() > 0 {
+		status += "\n" + m.scopePickView()
 	} else if pop := m.compView(); pop != "" {
 		status += "\n" + pop
 	}

@@ -32,13 +32,15 @@ type searchState struct {
 	tiOn    bool            // ti is set up
 	query   string          // ti's value
 	tools   bool            // also search tool calls and their output
+	scope   searchScope     // the listed sessions, or the whole history (ctrl+g)
 	typed   int             // bumped on every edit; a debounce tick only fires for the latest
 	gen     int             // bumped on every search; only the latest result is kept
 	running bool
 	ranQ    string // the query the results are for
 	results []claude.SessionHits
-	fold    map[string]bool         // sessions folded to their header
-	hits    map[string]searchHitRef // row id → its hit
+	fold    map[string]bool          // sessions folded to their header
+	past    map[string]*claude.Agent // sessions only the history has, by session id
+	hits    map[string]searchHitRef  // row id → its hit
 }
 
 // input is the query's text input, set up the first time it's used.
@@ -94,6 +96,7 @@ type searchDoneMsg struct {
 	gen  int
 	q    string
 	res  []claude.SessionHits
+	past map[string]*claude.Agent
 	took time.Duration
 }
 
@@ -159,10 +162,21 @@ func (m *model) runSearch() tea.Cmd {
 	m.srch.gen++
 	m.srch.running = true
 	gen, qs, tools, srcs := m.srch.gen, m.srch.query, m.srch.tools, m.searchSources()
+	if m.srch.scope == scopeHistory {
+		skip := map[string]bool{}
+		for _, a := range m.agents {
+			skip[a.SessionID] = true
+		}
+		return func() tea.Msg {
+			t0 := time.Now()
+			res, past := historySearch(srcs, skip, q, tools)
+			return searchDoneMsg{gen, qs, res, past, time.Since(t0)}
+		}
+	}
 	return func() tea.Msg {
 		t0 := time.Now()
 		res := claude.Search(srcs, q, tools, perSession)
-		return searchDoneMsg{gen, qs, res, time.Since(t0)}
+		return searchDoneMsg{gen, qs, res, nil, time.Since(t0)}
 	}
 }
 
@@ -172,7 +186,7 @@ func (m *model) searchDone(msg searchDoneMsg) {
 	}
 	m.srch.running = false
 	jump := msg.q != m.srch.ranQ // a new query: back to the top
-	m.srch.results, m.srch.ranQ = msg.res, msg.q
+	m.srch.results, m.srch.ranQ, m.srch.past = msg.res, msg.q, msg.past
 	if jump {
 		m.cursorID, m.cursor, m.offset = "", 0, 0
 	}
@@ -186,7 +200,7 @@ func (m *model) searchRows() {
 	m.rows = m.rows[:0]
 	for i := range m.srch.results {
 		s := &m.srch.results[i]
-		a := m.agents[s.ID]
+		a := m.searchAgent(s.ID)
 		if a == nil {
 			continue
 		}
@@ -195,8 +209,9 @@ func (m *model) searchRows() {
 			title = al
 		}
 		folded := m.srch.fold[s.ID]
+		past := a.State == pastState // dim like an archived one
 		m.rows = append(m.rows, layout.Row{ID: s.ID, Agent: a, Title: title, Count: s.Total, HasKids: true, Collapsed: folded,
-			Where: m.layout.Trail(a.ID, m.agents), Archived: m.layout.IsArchived(a.ID)})
+			Where: m.layout.Trail(a.ID, m.agents), Archived: past || m.layout.IsArchived(a.ID)})
 		if folded {
 			continue
 		}
@@ -280,6 +295,10 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 		m.srch.fold[r.Agent.ID] = fold
 		m.cursorID = r.Agent.ID
 		m.rebuild()
+	case "ctrl+g": // what to search: the listed sessions or the whole history
+		m.openScopePick()
+	case "ctrl+r": // the regex cheat sheet
+		m.help = true
 	case "ctrl+t":
 		m.srch.tools = !m.srch.tools
 		m.flash("tool calls and output %s", map[bool]string{true: "searched too", false: "left out"}[m.srch.tools])
@@ -288,6 +307,9 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 		r := m.selected()
 		if r == nil || r.Agent == nil {
 			return nil
+		}
+		if r.Agent.State == pastState {
+			return m.resumePast(r.Agent)
 		}
 		if r.Agent.Interactive {
 			m.flash("interactive session: open it in its own terminal (pid shown in `claude agents`)")
@@ -402,15 +424,23 @@ func (m *model) searchRowLine(r layout.Row, w int) string {
 func (m *model) searchEmpty() string {
 	switch {
 	case strings.TrimSpace(m.srch.query) == "":
-		return "type to search inside every session · /regex/ for a pattern"
+		if m.srch.scope == scopeHistory {
+			return "type to search every conversation on disk · /regex/ for a pattern · ctrl+r: regex help"
+		}
+		return "type to search inside every session · /regex/ for a pattern · ctrl+r: regex help · ctrl+g: whole history"
 	case claude.ParseQuery(m.srch.query).Err != nil:
-		return "bad pattern " + claude.ParseQuery(m.srch.query).Err.Error()
+		return "bad pattern " + claude.ParseQuery(m.srch.query).Err.Error() + " · ctrl+r: regex help"
 	case m.srch.running || m.srch.ranQ != m.srch.query:
 		return "searching…"
-	case m.srch.tools:
-		return "nothing found"
 	}
-	return "nothing found · ctrl+t searches tool output too"
+	more := []string{"nothing found"}
+	if !m.srch.tools {
+		more = append(more, "ctrl+t searches tool output too")
+	}
+	if m.srch.scope == scopeSessions {
+		more = append(more, "ctrl+g the whole history")
+	}
+	return strings.Join(more, " · ")
 }
 
 // searchLine is the status line while searching: the query and the counts.
@@ -437,8 +467,13 @@ func (m *model) searchLine(w int) string {
 	if time.Since(m.statusAt) < 6*time.Second && m.status != "" {
 		tools = m.status
 	}
-	hint := stDim.Render("  " + strings.Join(nonEmpty(info, "↑↓ enter attaches", tools, "esc clears"), " · "))
+	scope := "ctrl+g: whole history"
 	prompt := stAccent.Render("search › ")
+	if m.srch.scope == scopeHistory {
+		scope = "ctrl+g: listed sessions only"
+		prompt = stAccent.Render("search history › ")
+	}
+	hint := stDim.Render("  " + strings.Join(nonEmpty(info, "↑↓ enter attaches", tools, scope, "ctrl+r regex help", "esc clears"), " · "))
 	ti := m.srch.input()
 	ti.Width = max(1, w-lipgloss.Width(prompt)-1) // past that it scrolls sideways; -1: the cursor
 	q := strings.TrimRight(ti.View(), " ")        // the input pads to its width: the hint follows the text
@@ -462,7 +497,7 @@ func (m *model) searchPanel(w, h int) panel {
 	if s == nil {
 		return panel{}
 	}
-	a := m.agents[s.ID]
+	a := m.searchAgent(s.ID)
 	if a == nil {
 		return panel{}
 	}
@@ -476,6 +511,9 @@ func (m *model) searchPanel(w, h int) panel {
 	top = append(top, lipgloss.NewStyle().Foreground(c).Render(g)+" "+stBold.Render(trunc(title, w-2)))
 	where := strings.Join(m.layout.Trail(a.ID, m.agents), " › ")
 	meta := strings.Join(nonEmpty(where, tildify(a.Cwd), a.ID), " · ")
+	if a.State == pastState {
+		meta = strings.Join(nonEmpty("removed · enter resumes it", tildify(a.Cwd), a.SessionID), " · ")
+	}
 	top = append(top, stDim.Render(trunc(meta, w)))
 	top = append(top, stDim.Render(trunc(fmt.Sprintf("match %d of %d, newest first · %s %s · pgup/pgdn", indexOf(s, hit)+1, s.Total,
 		dayLabel(hit.Msg.At), clock(hit.Msg.At)), w)), stDim.Render(strings.Repeat("─", w)))

@@ -224,3 +224,41 @@ func TestTranscriptPathMoved(t *testing.T) {
 		t.Fatalf("existing path: %q", got)
 	}
 }
+
+// TestQueryCheatSheet: the examples in the search view's regex cheat sheet
+// (ctrl+r, internal/ui/regexhelp.go) match what it says they match.
+func TestQueryCheatSheet(t *testing.T) {
+	cases := []struct {
+		query   string
+		yes, no []string
+	}{
+		{"deploy failed", []string{"Failed to DEPLOY"}, []string{"deploy ok"}},
+		{`"deploy failed"`, []string{"the Deploy Failed again"}, []string{"failed to deploy"}},
+		{"/retr(y|ies)/", []string{"Retry later", "two retries"}, []string{"retro"}},
+		{`pr /#\d+/`, []string{"PR #42 merged"}, []string{"PR merged", "#42"}},
+		{"/a b/", []string{"a b"}, []string{"ab"}},
+		{`/\b[0-9a-f]{8}\b/`, []string{"job 3f2a9c1e done"}, []string{"3f2a9c1e5"}},
+		{`/https?:\/\/\S+/`, []string{"see https://x.dev/a"}, []string{"https:"}},
+		{`/\w+\.go:\d+/`, []string{"at view.go:212"}, []string{"view.go"}},
+		{"/(?-i)TODO/", []string{"a TODO"}, []string{"a todo"}},
+		{"/fail(ed|ure)?/", []string{"fail", "failure"}, []string{"fai"}},
+		{`/(?m)^ok$/`, []string{"first\nok\nlast"}, []string{"not ok here"}},
+		{`/^ok$/`, []string{"OK"}, []string{"first\nok"}},
+	}
+	for _, c := range cases {
+		q := ParseQuery(c.query)
+		if q.Err != nil {
+			t.Fatalf("%s: %v", c.query, q.Err)
+		}
+		for _, s := range c.yes {
+			if !q.Match(&Msg{Text: s, low: strings.ToLower(s)}) {
+				t.Errorf("%s should match %q", c.query, s)
+			}
+		}
+		for _, s := range c.no {
+			if q.Match(&Msg{Text: s, low: strings.ToLower(s)}) {
+				t.Errorf("%s should not match %q", c.query, s)
+			}
+		}
+	}
+}

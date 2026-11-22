@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -53,7 +52,7 @@ var helpSections = []helpSection{
 		{"pgup / pgdn", "scroll the conversation"},
 		{", / .", "agent box: previous / next tab"},
 		{"b", "next agent waiting for you"},
-		{"tab / shift+tab", "agents → inbox → search"},
+		{"tab / shift+tab", "agents → inbox → search (ctrl+g scope, ctrl+r regex)"},
 		{"Z", "snooze a question"},
 		{"/", "filter: ↑↓ pick, enter opens, esc clears"},
 		{"h/l  space  z", "fold / unfold / all"},
@@ -75,7 +74,10 @@ var helpSections = []helpSection{
 	}},
 }
 
-func renderSections(ss []helpSection) []string {
+func renderSections(ss []helpSection) []string { return renderSectionsW(ss, 16) }
+
+// renderSectionsW is renderSections with the key column kw wide.
+func renderSectionsW(ss []helpSection, kw int) []string {
 	var out []string
 	for i, s := range ss {
 		if i > 0 {
@@ -83,7 +85,7 @@ func renderSections(ss []helpSection) []string {
 		}
 		out = append(out, stHead.Render(s.title))
 		for _, k := range s.keys {
-			out = append(out, stAccent.Render(fmt.Sprintf("  %-16s", k[0]))+k[1])
+			out = append(out, stAccent.Render("  "+pad(k[0], kw))+k[1])
 		}
 	}
 	return out
