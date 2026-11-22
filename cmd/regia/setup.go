@@ -1,20 +1,23 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/farzeni/regia/internal/spawns"
+	"github.com/farzeni/regia/internal/update"
 )
 
 // defaultPluginSource is where `regia setup` installs the plugin (the hook)
 // from. The repo is public, so https needs no keys on a new machine.
 const defaultPluginSource = "https://github.com/farzeni/regia.git"
 
-// setup installs the regia Claude Code plugin (PostToolUse hook that records
-// which session spawned which) and backfills links from existing transcripts.
+// setup installs the regia Claude Code plugin (its hooks, the regia MCP server
+// and the regia:organize skill) and backfills links from existing transcripts.
 func setup(args []string) int {
 	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
 	source := fs.String("source", defaultPluginSource, "marketplace source: owner/repo, git or https URL, or a local path")
@@ -39,7 +42,18 @@ func setup(args []string) int {
 			fmt.Printf("! plugin install failed (%v)\n", err)
 			ok = false
 		} else {
-			fmt.Println("  new sessions record their spawns; running ones after a restart or /reload-plugins")
+			// install leaves an older copy as it is: bring it to the latest
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			_ = exec.CommandContext(ctx, "claude", "plugin", "marketplace", "update", "regia").Run()
+			if out, err := update.UpdatePlugin(ctx); err != nil {
+				fmt.Printf("! plugin update failed (%v): %s\n", err, out)
+			}
+			cancel()
+			fmt.Println("  the plugin gives every session:")
+			fmt.Println("  - hooks: which agent started which, and group awareness (regia context)")
+			fmt.Println("  - the regia MCP server (regia mcp): agents read the tree; coordinators, and agents you grant with O, organize it")
+			fmt.Println("  - the regia:organize skill: how agents use those tools")
+			fmt.Println("  new sessions get them; running ones after a restart or /reload-plugins")
 		}
 	}
 

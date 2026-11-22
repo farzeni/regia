@@ -8,8 +8,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/farzeni/regia/internal/group"
 )
 
 // Update wraps update so the selected agent's git info is refreshed in the
@@ -241,11 +239,6 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 		m.syncLayout()
-		if m.notesFor != "" {
-			if c, ok := m.updateNotes(msg); ok {
-				return m, c
-			}
-		}
 		if m.view == viewSearch {
 			return m, m.updateSearch(msg)
 		}
@@ -365,7 +358,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		m.moveCursor(-len(m.rows))
 	case "G", "end":
 		m.moveCursor(len(m.rows))
-	case "tab": // tree → inbox → search
+	case "tab": // agents → inbox → search
 		return m.cycleView(1)
 	case "shift+tab":
 		return m.cycleView(-1)
@@ -539,15 +532,16 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 				m.syncLayout()
 				m.layout.DeleteGroup(id, m.agents)
 				m.saveLayout()
-				group.DeleteNotes(id)
 				m.flash("removed group %q", title)
 				return nil
 			})
 		}
-	case "N":
-		return m.notesKey(r)
 	case "M":
 		return m.muteKey(r)
+	case "O":
+		return m.grantKey(r)
+	case "U":
+		return m.actionsKey()
 	case "T":
 		return m.timelineKey(r)
 	case "w":

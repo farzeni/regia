@@ -111,6 +111,13 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string) {
 	if a.Unhealthy != "" {
 		field("stuck?", stuckGlyph+" "+a.Unhealthy, lipgloss.NewStyle().Foreground(cDim), 1)
 	}
+	if g := m.grantFor(a.ID); g != "" {
+		if why := m.layout.Claims[a.ID]; why != "" {
+			field("claims", grantGlyph+" "+g+": "+why, stAccent, 2)
+		} else {
+			field("may", grantGlyph+" organize "+g+" (you granted it: O)", stAccent, 1)
+		}
+	}
 	// the box, unless it would only say there's nothing yet
 	tabs := append([]panelTab{{name: agentTab, body: ctx}, m.changesTab(a, w)}, pluginTabs(a, w)...)
 	if len(ctx) > 0 || len(tabs) > 2 || tabs[1].badge != nil || m.panelTab == changesTab {
@@ -153,6 +160,36 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string) {
 
 func clock(t time.Time) string { return t.Local().Format("15:04") }
 
+// humanTime is when, the way you'd say it: just now, 3 minutes ago, 2 hours
+// ago (today), yesterday, Mon 5 Aug (this year), Wed 8 Jan 2025.
+func humanTime(t time.Time) string { return humanTimeAt(t, time.Now()) }
+
+func humanTimeAt(t, now time.Time) string {
+	t, now = t.Local(), now.Local()
+	d := now.Sub(t)
+	y, mo, dd := now.Date()
+	today := time.Date(y, mo, dd, 0, 0, 0, 0, now.Location())
+	ago := func(n int, unit string) string {
+		if n == 1 {
+			return "1 " + unit + " ago"
+		}
+		return fmt.Sprintf("%d %ss ago", n, unit)
+	}
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return ago(int(d/time.Minute), "minute")
+	case !t.Before(today):
+		return ago(int(d/time.Hour), "hour")
+	case !t.Before(today.AddDate(0, 0, -1)):
+		return "yesterday"
+	case t.Year() == now.Year():
+		return t.Format("Mon 2 Jan")
+	}
+	return t.Format("Mon 2 Jan 2006")
+}
+
 func plural(n int) string {
 	if n == 1 {
 		return ""
@@ -171,7 +208,7 @@ func dayLabel(t time.Time) string {
 	case !t.Before(today.AddDate(0, 0, -1)):
 		return "Yesterday"
 	case t.Year() == now.Year():
-		return t.Format("Mon Jan 2")
+		return t.Format("Mon 2 Jan")
 	}
-	return t.Format("Jan 2 2006")
+	return t.Format("Mon 2 Jan 2006")
 }

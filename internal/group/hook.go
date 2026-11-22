@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 )
@@ -22,17 +21,16 @@ var ExplainEvery = 10 * time.Minute
 
 // asksRe matches a user message that talks about the group in regia's words
 // ("check your siblings", "use regia context"), in English or Italian.
-var asksRe = regexp.MustCompile(`(?i)\bregia (context|note)\b|\b(siblings?|coordinator|coordinatore|blackboard|lavagna|fratell[io]|sorell[ae])\b|\b(your|my|our|the|this|tuo|nostro|il) (group|gruppo)\b`)
+var asksRe = regexp.MustCompile(`(?i)\bregia context\b|\b(siblings?|coordinator|coordinatore|fratell[io]|sorell[ae])\b|\b(your|my|our|the|this|tuo|nostro|il) (group|gruppo)\b`)
 
 // Asks says whether a user message talks about the group.
 func Asks(prompt string) bool { return asksRe.MatchString(prompt) }
 
 // state is what the hook remembers per session, in ~/.cache/regia/group.
 type state struct {
-	Intro   bool                 `json:"intro"`   // the intro was given
-	Checked time.Time            `json:"checked"` // last look for news
-	Seen    map[string]time.Time `json:"seen"`    // container -> last change from others already announced or read
-	Nearest string               `json:"nearest"` // nearest container at the last look
+	Intro   bool      `json:"intro"`   // the intro was given
+	Checked time.Time `json:"checked"` // last look for news
+	Nearest string    `json:"nearest"` // nearest container at the last look
 	// Explained is when a user message about the group was last answered.
 	Explained time.Time `json:"explained,omitzero"`
 }
@@ -42,16 +40,19 @@ func statePath(self string) string {
 	if err != nil {
 		d = os.TempDir()
 	}
-	return filepath.Join(d, "regia", "group", strings.ReplaceAll(fileName(self), ".jsonl", ".json"))
+	return filepath.Join(d, "regia", "group", fileName(self))
+}
+
+// fileName makes an agent id safe as a file name.
+func fileName(id string) string {
+	r := strings.NewReplacer(":", "_", "/", "_", "\\", "_", "..", "_")
+	return r.Replace(id) + ".json"
 }
 
 func loadState(self string) state {
 	var s state
 	if b, err := os.ReadFile(statePath(self)); err == nil {
 		_ = json.Unmarshal(b, &s)
-	}
-	if s.Seen == nil {
-		s.Seen = map[string]time.Time{}
 	}
 	return s
 }
@@ -66,13 +67,11 @@ func saveState(self string, s state) {
 	}
 }
 
-// MarkRead records that self has seen every note it can see (regia context).
-func MarkRead(t *Tree, pos Position) {
+// MarkRead records that self has read its context (regia context): the hook
+// needn't introduce the group to it.
+func MarkRead(pos Position) {
 	s := loadState(pos.Self)
-	for _, c := range pos.Visible() {
-		s.Seen[c] = latest(fromOthers(c, pos.Self))
-	}
-	s.Intro = true
+	s.Intro, s.Nearest = true, pos.Nearest()
 	saveState(pos.Self, s)
 }
 
@@ -123,12 +122,11 @@ func HandleHook(stdin io.Reader, stdout io.Writer, jobDir string, now time.Time)
 }
 
 // Check decides what, if anything, to tell self now: the intro the first time
-// it is in a group, then one line when there are notes from others it hasn't
-// heard about or it was moved to another group. name looks up agent names
-// (nil: cached listing).
+// it is in a group, then one line when it was moved to another group. name
+// looks up agent names (nil: cached listing).
 func Check(t *Tree, self, event string, now time.Time, name func(string) string) string {
 	pos := t.Resolve(self)
-	if !pos.Grouped() {
+	if !t.aware(pos) {
 		return ""
 	}
 	s := loadState(self)
@@ -143,53 +141,19 @@ func Check(t *Tree, self, event string, now time.Time, name func(string) string)
 
 	if !s.Intro {
 		s.Intro, s.Nearest = true, pos.Nearest()
-		total := 0
-		for _, c := range pos.Visible() {
-			others := fromOthers(c, self)
-			for _, n := range others { // all of them the first time; on a reintro, the unread ones
-				if n.touched().After(s.Seen[c]) {
-					total++
-				}
-			}
-			s.Seen[c] = latest(others)
-		}
-		return intro(t, pos, name, total)
+		return intro(t, pos, name)
 	}
-
-	var parts []string
 	if n := pos.Nearest(); n != s.Nearest {
 		s.Nearest = n
-		parts = append(parts, "you were moved: you're now "+where(t, pos, name))
+		return "[regia] you were moved: you're now " + where(t, pos, name) + " — `regia context` shows who is there."
 	}
-	news, authors := 0, map[string]bool{}
-	for _, c := range pos.Visible() {
-		others := fromOthers(c, self)
-		for _, n := range others {
-			if n.touched().After(s.Seen[c]) {
-				authors[n.author()] = true
-				news++
-			}
-		}
-		s.Seen[c] = latest(others)
-	}
-	if news > 0 {
-		names := make([]string, 0, len(authors))
-		for a := range authors {
-			names = append(names, a)
-		}
-		sort.Strings(names)
-		parts = append(parts, fmt.Sprintf("%d new note%s in your group from %s", news, plural(news), strings.Join(names, ", ")))
-	}
-	if len(parts) == 0 {
-		return ""
-	}
-	return "[regia] " + strings.Join(parts, "; ") + " — `regia context` to read."
+	return ""
 }
 
 // Reintro gives a grouped agent the intro again, as its conversation lost it
 // (compacted or cleared).
 func Reintro(t *Tree, self string, now time.Time, name func(string) string) string {
-	if !t.Resolve(self).Grouped() {
+	if !t.aware(t.Resolve(self)) {
 		return ""
 	}
 	s := loadState(self)
@@ -208,9 +172,9 @@ func Answer(t *Tree, self string, now time.Time, name func(string) string) strin
 		return ""
 	}
 	s.Explained = now
-	if !t.Resolve(self).Grouped() {
+	if !t.aware(t.Resolve(self)) {
 		saveState(self, s)
-		return "[regia] You are not in a regia group: you have no coordinator, no siblings and no shared notes " +
+		return "[regia] You are not in a regia group: you have no coordinator and no siblings " +
 			"(those exist only for agents the user grouped in regia, or that a coordinator agent started). " +
 			"`regia context` shows this too."
 	}
@@ -237,21 +201,40 @@ func where(t *Tree, pos Position, name func(string) string) string {
 	return strings.Join(ps, ", ")
 }
 
-func intro(t *Tree, pos Position, name func(string) string, notes int) string {
+// aware says whether the hook has anything to tell this agent: it is in a
+// group, coordinates agents, or the user granted it part of the tree.
+func (t *Tree) aware(pos Position) bool {
+	return pos.Grouped() || t.L.Grants[pos.Self] != ""
+}
+
+func intro(t *Tree, pos Position, name func(string) string) string {
 	var b strings.Builder
-	// Facts only, no advice on what to write or how to weigh it: the group
-	// shares a blackboard and the agents decide how to use it.
-	fmt.Fprintf(&b, "[regia] You are part of a group of agents: %s. The group shares a blackboard", where(t, pos, name))
-	if notes > 0 {
-		fmt.Fprintf(&b, " (%d unread note%s on it)", notes, plural(notes))
+	if pos.Grouped() {
+		fmt.Fprintf(&b, "[regia] You are part of a group of agents: %s.\n", where(t, pos, name))
+		// The words the user may use, so "check your siblings" needs no explaining.
+		b.WriteString("Your coordinator is the agent that started you (or that you were placed under); your siblings are the other agents in your group or under your coordinator.\n")
+		b.WriteString("- `regia context` shows your group, coordinator and siblings with what they are doing.\n")
+	} else {
+		b.WriteString("[regia] You run under regia, the control room where the user watches and organizes their agents.\n")
 	}
-	b.WriteString(".\n")
-	// The words the user may use, so "check your siblings" needs no explaining.
-	b.WriteString("Your coordinator is the agent that started you (or that you were placed under); your siblings are the other agents in your group or under your coordinator.\n")
-	b.WriteString("- `regia context` shows your group, coordinator and siblings with what they are doing, and the blackboard's notes.\n")
-	b.WriteString("- `regia note \"…\"` writes one line on the blackboard for the whole group.\n")
-	b.WriteString("A line like this one tells you when something new is written.")
-	return b.String()
+	// Agents that may organize the tree are told how; workers aren't.
+	tools := "the regia MCP tools (whoami, tree, inbox, timeline, create_group, move, archive…); the regia:organize skill explains how"
+	switch g := t.L.Grants[pos.Self]; {
+	case t.L.Claims[pos.Self] != "":
+		b.WriteString("- You claimed part of regia's tree: organize it with " + tools + ", and release it when you're done.\n")
+	case g == Everything:
+		b.WriteString("- The user granted you the whole tree: you can read and organize it with " + tools + ".\n")
+	case g != "":
+		fmt.Fprintf(&b, "- The user granted you group %q: you can read and organize it with %s.\n", t.Title(g, name), tools)
+	case pos.Family:
+		b.WriteString("- You can organize the agents under you with " + tools + ".\n")
+	default:
+		b.WriteString("- When the user asks you to look at or organize regia's tree, use " + tools + ".\n")
+	}
+	if pos.Grouped() {
+		b.WriteString("A line like this one tells you when you are moved to another group.")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func plural(n int) string {

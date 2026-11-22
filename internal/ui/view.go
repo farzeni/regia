@@ -11,7 +11,6 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"github.com/farzeni/regia/internal/claude"
-	"github.com/farzeni/regia/internal/group"
 	"github.com/farzeni/regia/internal/layout"
 )
 
@@ -26,14 +25,16 @@ var (
 	cDim     = lipgloss.Color("241")
 	cAccent  = lipgloss.Color("141")
 
-	stDim    = lipgloss.NewStyle().Foreground(cDim)
-	stBold   = lipgloss.NewStyle().Bold(true)
-	stAccent = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
-	stCursor = lipgloss.NewStyle().Foreground(lipgloss.Color("81")) // the conversation's block cursor: not the divider's purple
-	stSel    = lipgloss.NewStyle().Background(lipgloss.Color("237"))
-	stYou    = lipgloss.NewStyle().Foreground(lipgloss.Color("183")) // your messages in the history: a light tint of the accent
-	stHead   = lipgloss.NewStyle().Foreground(cDim).Bold(true)
-	stErr    = lipgloss.NewStyle().Foreground(cFailed) // a failed step
+	stDim      = lipgloss.NewStyle().Foreground(cDim)
+	stBold     = lipgloss.NewStyle().Bold(true)
+	stAccent   = lipgloss.NewStyle().Foreground(cAccent).Bold(true)
+	stCursor   = lipgloss.NewStyle().Background(lipgloss.Color("235")) // the conversation's block cursor: a faint gray, so the text stays readable
+	stDragSel  = lipgloss.NewStyle().Reverse(true)                     // text dragged over in the panel
+	stSel      = lipgloss.NewStyle().Background(lipgloss.Color("237"))
+	stSelFocus = lipgloss.NewStyle().Background(cAccent).Foreground(lipgloss.Color("16")) // the selected agent while its panel has the keys
+	stYou      = lipgloss.NewStyle().Foreground(lipgloss.Color("183"))                    // your messages in the history: a light tint of the accent
+	stHead     = lipgloss.NewStyle().Foreground(cDim).Bold(true)
+	stErr      = lipgloss.NewStyle().Foreground(cFailed) // a failed step
 )
 
 func glyph(a *claude.Agent) (string, lipgloss.Color) {
@@ -120,7 +121,8 @@ func (m *model) View() string {
 	if m.w == 0 {
 		return ""
 	}
-	m.sizeInput() // the input box grows with the draft; the list gets the rest
+	m.markCount = nil // marks or the tree may have changed since the last frame
+	m.sizeInput()     // the input box grows with the draft; the list gets the rest
 	bh := m.bodyHeight()
 	iw := m.w - 2*padX
 	lw := m.sidebarWidth(iw)
@@ -194,7 +196,11 @@ func (m *model) View() string {
 	for i := 0; i < bh; i++ {
 		row := margin + pad(left[i], lw)
 		if sel >= 0 && i >= sel && i < sel+rh {
-			row = selBar(row+" ", padX+lw+1) // the whole row, margins too
+			if m.convFocus || m.chg.focus { // the panel has the keys: the row its agent, in the divider's purple
+				row = stSelFocus.Render(pad(ansi.Strip(row+" "), padX+lw+1))
+			} else {
+				row = selBar(row+" ", padX+lw+1) // the whole row, margins too
+			}
 			if dw > 20 {
 				b.WriteString(row + sep[1:])
 			} else {
@@ -245,7 +251,7 @@ func (m *model) header() string {
 			nbusy++
 		}
 	}
-	tabs := []string{"tree", "inbox", "search"}
+	tabs := []string{"agents", "inbox", "search"}
 	for i, t := range tabs {
 		if viewKind(i) == m.view {
 			tabs[i] = stAccent.Render("[" + t + "]")
@@ -407,14 +413,15 @@ func faded(a *claude.Agent, now time.Time) bool {
 // change but for the pulsing icon's color, which is part of the key.
 type rowKey struct {
 	id, title, mark, age               string
-	depth, count, blocked, busy, w     int
+	depth, count, blocked, ready, busy int
+	w                                  int
 	group, kids, collapsed, archived   bool
 	muted, inbox                       bool
 	glyph                              string
 	color                              lipgloss.Color
 	cut, pin, yourTurn, faded, snoozed bool
 	unhealthy                          bool
-	badges                             string
+	badges, grant                      string
 }
 
 var rowCache = map[rowKey]string{}
@@ -426,8 +433,8 @@ func (m *model) rowLine(r layout.Row, w int) string {
 		return m.drawRowLine(r, w)
 	}
 	k := rowKey{id: r.ID, title: r.Title, mark: m.markFor(r.ID), depth: r.Depth, count: r.Count, blocked: r.Blocked,
-		busy: r.Busy, w: w, group: r.Group, kids: r.HasKids, collapsed: r.Collapsed, archived: r.Archived,
-		muted: m.layout.Muted[r.ID], inbox: m.view == viewInbox}
+		ready: r.Ready, busy: r.Busy, w: w, group: r.Group, kids: r.HasKids, collapsed: r.Collapsed, archived: r.Archived,
+		muted: m.layout.Muted[r.ID], inbox: m.view == viewInbox, grant: m.grantFor(r.ID)}
 	if a := r.Agent; !r.Group && a != nil {
 		k.glyph, k.color = m.agentGlyph(a)
 		k.age = ago(waitedSince(a))
@@ -459,13 +466,7 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 	}
 	var line string
 	if r.Group {
-		meta := fmt.Sprintf("%d", r.Count)
-		if r.Busy > 0 {
-			meta = lipgloss.NewStyle().Foreground(cBusy).Render(fmt.Sprintf("◆%d ", r.Busy)) + meta
-		}
-		if r.Blocked > 0 {
-			meta = lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("●%d ", r.Blocked)) + meta
-		}
+		meta := countBadge(r) + fmt.Sprintf("%d", r.Count)
 		mark := m.markFor(r.ID)
 		muted := ""
 		if m.layout.Muted[r.ID] {
@@ -487,12 +488,18 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 			cutMark = "✂ "
 		}
 		extra := ""
-		if r.Collapsed && r.Blocked > 0 && m.view != viewInbox {
-			extra = fmt.Sprintf("  (+%d your turn)", r.Blocked)
+		if r.Collapsed && m.view != viewInbox {
+			if s := countWords(r, false); s != "" {
+				extra = "  (+" + strings.ReplaceAll(s, " · ", ", +") + ")"
+			}
 		}
 		if m.layout.Muted[r.ID] {
 			extra += "  (muted)"
 		}
+		if g := m.grantFor(r.ID); g != "" {
+			extra += "  (organizes " + g + ")"
+		}
+
 		if a.Snoozed {
 			extra += "  (snoozed)"
 		}
@@ -500,6 +507,9 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 		pin := ""
 		if m.layout.Pins[r.ID] {
 			pin = stAccent.Render(pinGlyph) + " "
+		}
+		if m.layout.Grants[r.ID] != "" {
+			pin += stAccent.Render(grantGlyph) + " "
 		}
 		warn := ""
 		if a.Unhealthy != "" && !r.Archived {
@@ -596,6 +606,7 @@ func (m *model) placePanel(p panel, h, w int) []string {
 	fresh := m.panelFor != m.cursorID
 	if fresh {
 		m.panelFor, m.panelScroll = m.cursorID, 0
+		m.conv.drag.on = false // another row: the text dragged over is gone
 	}
 	rule := stDim.Render(strings.Repeat("─", w))
 	var foot []string
@@ -629,6 +640,8 @@ func (m *model) placePanel(p panel, h, w int) []string {
 		out = append(out, "")
 	}
 	m.conv.histRow, m.conv.histStart, m.conv.histEnd = len(out), start, end // for clicks
+	m.conv.hist = p.hist
+	m.highlightDrag(view, start)
 	return append(append(out, view...), foot...)
 }
 
@@ -651,7 +664,7 @@ func (m *model) detailLines(w int) panel {
 			return panel{card: c.lines}
 		}
 		defer func() { m.groupPanel.id, m.groupPanel.w, m.groupPanel.gen, m.groupPanel.lines = r.ID, w, m.gen, out }()
-		out = append(out, stBold.Render(r.Title), stDim.Render(fmt.Sprintf("%d agents · %d your turn · %d busy", r.Count, r.Blocked, r.Busy)),
+		out = append(out, stBold.Render(r.Title), stDim.Render(trunc(groupCounts(*r), w)),
 			trunc(m.groupDirLine(r.ID), w))
 		sec("your turn")
 		n := 0
@@ -669,21 +682,48 @@ func (m *model) detailLines(w int) panel {
 		if n == 0 {
 			out = append(out, stDim.Render("nothing"))
 		}
-		if group.IsGroup(r.ID) {
-			out = append(out, m.notesSection(r.ID, w, 10)...)
-		}
 		return panel{card: out}
 	}
 	m.tabHits, m.tabRow = m.tabHits[:0], 0 // agentDetail draws them again if it has tabs
 	m.conv.id = ""                         // agentDetail sets it when it shows the conversation
 	hist, card, foot := m.agentDetail(r, w)
-	// a coordinator's panel is like any agent's; its agents' blackboard shows
-	// atop the card only while open (N)
-	if r.HasKids && m.notesFor == r.ID {
-		if ns := m.notesSection(r.ID, w, 5); len(ns) > 0 {
-			card = append(append(ns[1:], ""), card...)
-			m.tabRow = len(ns) // the tab bar moved down by the notes
+	return panel{hist: hist, card: card, foot: foot, bottomUp: true}
+}
+
+// countBadge is a group row's "●2 ✓1 ◆3 " before its total: each count wears
+// the glyph and colour of the rows it counts (● waiting on you, bold ✓ a
+// result you haven't seen, ◆ working), so the badge reads like the tree.
+func countBadge(r layout.Row) string {
+	var b strings.Builder
+	if r.Blocked > 0 {
+		b.WriteString(lipgloss.NewStyle().Foreground(cBlocked).Render(fmt.Sprintf("●%d ", r.Blocked)))
+	}
+	if r.Ready > 0 {
+		b.WriteString(lipgloss.NewStyle().Foreground(cReady).Bold(true).Render(fmt.Sprintf("✓%d ", r.Ready)))
+	}
+	if r.Busy > 0 {
+		b.WriteString(lipgloss.NewStyle().Foreground(cBusy).Render(fmt.Sprintf("◆%d ", r.Busy)))
+	}
+	return b.String()
+}
+
+// countWords spells the badge out in the status bar's words: "2 need you ·
+// 1 ready · 3 busy". zeros: keep the counts that are 0.
+func countWords(r layout.Row, zeros bool) string {
+	var parts []string
+	for _, c := range []struct {
+		n    int
+		word string
+	}{{r.Blocked, "need you"}, {r.Ready, "ready"}, {r.Busy, "busy"}} {
+		if c.n > 0 || zeros {
+			parts = append(parts, fmt.Sprintf("%d %s", c.n, c.word))
 		}
 	}
-	return panel{hist: hist, card: card, foot: foot, bottomUp: true}
+	return strings.Join(parts, " · ")
+}
+
+// groupCounts is the line under a group's title: "17 agents · 2 need you ·
+// 1 ready · 3 busy".
+func groupCounts(r layout.Row) string {
+	return fmt.Sprintf("%d agents · %s", r.Count, countWords(r, true))
 }

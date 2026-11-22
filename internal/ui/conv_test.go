@@ -9,7 +9,9 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/muesli/termenv"
 
 	"github.com/farzeni/regia/internal/claude"
 )
@@ -21,6 +23,9 @@ func TestUnfoldedStepsBoxed(t *testing.T) {
 	selectWhere(t, m, bigRun)
 	m.Update(tkey("enter"))
 	ls := strings.Split(ansi.Strip(strings.Join(m.conversationLines(m.agents["aaaa1111"], 80), "\n")), "\n")
+	if !strings.Contains(strings.Join(ls, "\n"), "steps") {
+		t.Fatal("no run")
+	}
 	top := -1
 	for i, l := range ls {
 		if strings.Contains(l, "▾ ⚙ 7 steps") {
@@ -40,6 +45,20 @@ func TestUnfoldedStepsBoxed(t *testing.T) {
 		t.Fatalf("7 steps in the box, got %d:\n%s", bot-top-1, strings.Join(ls[top:bot+1], "\n"))
 	}
 	t.Log("\n" + strings.Join(ls[top-1:bot+2], "\n"))
+}
+
+// alt+enter in the conversation attaches to the agent's session.
+func TestConvAltEnterAttaches(t *testing.T) {
+	m := convModel(t)
+	var attached string
+	prev := attachSession
+	attachSession = func(id string) tea.Cmd { attached = id; return nil }
+	t.Cleanup(func() { attachSession = prev })
+	m.Update(tkey("o"))
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter, Alt: true})
+	if attached != "aaaa1111" || m.convFocus {
+		t.Fatalf("alt+enter: attached %q, focus %v", attached, m.convFocus)
+	}
 }
 
 // convModel: alpha's transcript is internal/claude/testdata/steps.jsonl ("fix
@@ -88,7 +107,10 @@ func selectWhere(t *testing.T, m *model, f func(b convBlock) bool) {
 	t.Fatal("no such block")
 }
 
-func bigRun(b convBlock) bool { return b.kind == blockRun && len(b.run.steps) == 7 }
+// isRun: a block with a run line on top (a run, or a run + the reply after it).
+func isRun(b convBlock) bool { return b.kind != blockStep && b.run != nil }
+
+func bigRun(b convBlock) bool { return isRun(b) && len(b.run.steps) == 7 }
 
 func TestFocusUnfoldRunAndStep(t *testing.T) {
 	m := convModel(t)
@@ -161,9 +183,18 @@ func TestFocusMovesAndFollows(t *testing.T) {
 	if s := convScreen(m); !strings.Contains(s, "running") {
 		t.Fatalf("G goes back to the end:\n%s", s)
 	}
-	// the cursor's bar marks the selected block
-	if !strings.Contains(convScreen(m), "▌") {
-		t.Fatal("the selected block should be marked")
+	// a faint background marks the selected block's lines, and only them
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.ANSI256)
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+	r := stCursor.Render("x")
+	bg := r[:strings.Index(r, "x")]
+	ls := m.conversationLines(m.agents["aaaa1111"], 80)
+	b := m.conv.blocks[m.convSel()]
+	for j, l := range ls {
+		if in := j >= b.top && j < b.top+b.n; in != strings.HasPrefix(l, bg) {
+			t.Fatalf("line %d (selected %v) has the wrong background: %q", j, in, l)
+		}
 	}
 }
 
@@ -261,7 +292,7 @@ func TestRunLineBetweenMessages(t *testing.T) {
 		}
 	}
 	// the run line, the reply's time at its end
-	if len(between) != 1 || !regexp.MustCompile(`^▸ ⚙ 3 steps · ran 3 commands · 1 error · 2m10s +\d\d:\d\d$`).MatchString(between[0]) {
+	if len(between) != 1 || !regexp.MustCompile(`^▸ ⚙ 3 steps · ran 3 commands · 1 error · 2m10s {3,}(Sat 14 Nov( 2026)?|yesterday|.+ ago|just now)$`).MatchString(between[0]) {
 		t.Fatalf("one run line between the messages, got %q:\n%s", between, s)
 	}
 	if strings.Contains(s, "go vet") {
@@ -464,8 +495,8 @@ func TestConvFastJumps(t *testing.T) {
 		t.Fatalf("shift+↓ then j: block %d, want 2", got)
 	}
 	m.Update(tkey("shift+up"))
-	if got := m.convSel(); got != 1 || bs[1].kind == blockMsg {
-		t.Fatalf("shift+↑ should land on the run between messages (block %d)", got)
+	if got := m.convSel(); got != 1 || bs[1].run == nil { // the thought and the reply after it: one item
+		t.Fatalf("shift+↑ should land on the run + reply item (block %d)", got)
 	}
 }
 

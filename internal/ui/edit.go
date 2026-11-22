@@ -3,26 +3,20 @@ package ui
 import (
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/farzeni/regia/internal/group"
 )
 
-// In-place editing: renaming a row (r), naming a new group (n) and writing a
-// note happen where the text is drawn, in the sidebar row or on the
-// blackboard, with the usual readline keys (←/→, home/end, ctrl+a/e,
-// alt+←/→, backspace, alt+backspace/ctrl+w, ctrl+u/ctrl+k, delete). enter
-// saves, esc cancels.
+// In-place editing: renaming a row (r) and naming a new group (n) happen
+// where the text is drawn, in the sidebar row, with the usual readline keys
+// (←/→, home/end, ctrl+a/e, alt+←/→, backspace, alt+backspace/ctrl+w,
+// ctrl+u/ctrl+k, delete). enter saves, esc cancels.
 
 type inlineEdit struct {
 	ti     textinput.Model
-	row    string // the sidebar row being edited; "" for a note
-	notes  string // the blackboard a note is edited on
-	note   int    // that note's index; -1: a new note
+	row    string // the sidebar row being edited
 	save   func(m *model, s string) tea.Cmd
 	cancel func(m *model)
 }
@@ -43,15 +37,7 @@ func newEditInput(initial string) textinput.Model {
 
 // editRow starts editing the sidebar row id in place.
 func (m *model) editRow(id, initial string, save func(m *model, s string) tea.Cmd, cancel func(m *model)) {
-	m.edit = &inlineEdit{ti: newEditInput(initial), row: id, note: -1, save: save, cancel: cancel}
-	m.mode = modeEdit
-	m.flash("enter saves · esc cancels")
-}
-
-// editNote starts editing a note on the blackboard of container in place:
-// note i, or a new one at the bottom when i is -1.
-func (m *model) editNote(container string, i int, initial string, save func(m *model, s string) tea.Cmd) {
-	m.edit = &inlineEdit{ti: newEditInput(initial), notes: container, note: i, save: save}
+	m.edit = &inlineEdit{ti: newEditInput(initial), row: id, save: save, cancel: cancel}
 	m.mode = modeEdit
 	m.flash("enter saves · esc cancels")
 }
@@ -93,14 +79,6 @@ func (e *inlineEdit) view(w int) string {
 // editingRow is the edit on sidebar row id, if any.
 func (m *model) editingRow(id string) *inlineEdit {
 	if m.mode == modeEdit && m.edit != nil && m.edit.row != "" && m.edit.row == id {
-		return m.edit
-	}
-	return nil
-}
-
-// editingNotes is the edit on container's blackboard, if any.
-func (m *model) editingNotes(container string) *inlineEdit {
-	if m.mode == modeEdit && m.edit != nil && m.edit.row == "" && m.edit.notes == container {
 		return m.edit
 	}
 	return nil
@@ -182,17 +160,4 @@ func cloneOrder(o map[string][]string) map[string][]string {
 		c[k] = slices.Clone(v)
 	}
 	return c
-}
-
-// noteForEdit is the notes drawn on a blackboard while one is edited: a new
-// one is added at the bottom, from you.
-func (m *model) noteForEdit(container string, notes []group.Note) ([]group.Note, int) {
-	e := m.editingNotes(container)
-	if e == nil {
-		return notes, -1
-	}
-	if e.note < 0 || e.note >= len(notes) {
-		return append(slices.Clone(notes), group.Note{Name: "you", At: time.Now()}), len(notes)
-	}
-	return notes, e.note
 }

@@ -35,8 +35,9 @@ var helpSections = []helpSection{
 		{"m, then p", "into group / after agent"},
 		{"m, then P", "the other way round"},
 		{"n  r  d", "new / rename / remove group"},
-		{"N  M", "group notes / mute"},
-		{"T", "group timeline / blackboard"},
+		{"M", "mute group awareness"},
+		{"O / U", "grant, end a claim ✦ / undo agents"},
+		{"T", "group timeline"},
 		{"w", "group's dir for new agents"},
 	}},
 	{"D: the changes tab", [][2]string{
@@ -51,7 +52,7 @@ var helpSections = []helpSection{
 		{"pgup / pgdn", "scroll the conversation"},
 		{", / .", "agent box: previous / next tab"},
 		{"b", "next agent waiting for you"},
-		{"tab / shift+tab", "tree → inbox → search (ctrl+g scope, ctrl+r regex)"},
+		{"tab / shift+tab", "agents → inbox → search (ctrl+g scope, ctrl+r regex)"},
 		{"Z", "snooze a question"},
 		{"/", "filter: ↑↓ pick, enter opens, esc clears"},
 		{"h/l  space  z", "fold / unfold / all"},
@@ -61,8 +62,8 @@ var helpSections = []helpSection{
 	{"o / →: focus the conversation", [][2]string{
 		{"↑↓  ctrl+↑↓", "message to message / your messages"},
 		{"shift+↑↓ j/k  ctrl+d/u", "every block, steps too / half page"},
-		{"enter / space", "fold, unfold, open a step; or click"},
-		{"c r i  ← esc", "copy / quote in the input / input / back"},
+		{"enter space  alt+enter", "fold, unfold, open a step; or click / attach"},
+		{"c r i  ← esc", "copy / quote in the input (or the drag) / input / back"},
 	}},
 	{"new agent", [][2]string{
 		{"type + enter", "start it at the selection"},

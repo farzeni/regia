@@ -5,6 +5,7 @@
 package layout
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -33,10 +34,13 @@ type Layout struct {
 	Seen      map[string]time.Time `json:"seen,omitempty"`     // agent id -> when you last looked at it (nil: never recorded)
 	Pins      map[string]bool      `json:"pins,omitempty"`     // agent id -> pinned by you: shown even when done (Pinned above is placement)
 	Snoozed   map[string]time.Time `json:"snoozed,omitempty"`  // agent id -> its last change when you snoozed it: off the inbox until it changes again
+	Grants    map[string]string    `json:"grants,omitempty"`   // agent id -> what it may organize through regia mcp: a group id, or "*" for the whole tree
+	Claims    map[string]string    `json:"claims,omitempty"`   // agent id -> why it claimed its grant itself (regia mcp claim); none: you granted it (O)
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 
 	mtime time.Time // file mtime at last load/save, to notice other writers
+	base  []byte    // the file as last loaded or saved: what Save merges against
 }
 
 // ChangedOnDisk reports whether another process (a second regia) saved the
@@ -55,9 +59,10 @@ type Row struct {
 	HasKids   bool
 	Collapsed bool
 	Archived  bool
-	Count     int // visible agents below
-	Blocked   int // blocked agents below
-	Busy      int
+	Count     int      // visible agents below
+	Blocked   int      // agents below waiting on you (●): blocked, not stale or snoozed
+	Ready     int      // agents below with a result you haven't seen (bold ✓)
+	Busy      int      // agents below working right now (◆)
 	Where     []string // inbox only: the ancestors' titles, outermost first (see Trail)
 }
 
@@ -70,10 +75,17 @@ func Load() *Layout {
 	l := &Layout{}
 	if b, err := os.ReadFile(Path()); err == nil {
 		_ = json.Unmarshal(b, l)
+		l.base = b
 	}
 	if fi, err := os.Stat(Path()); err == nil {
 		l.mtime = fi.ModTime()
 	}
+	l.fill()
+	return l
+}
+
+// fill makes the maps a loaded layout may lack, so callers can write to them.
+func (l *Layout) fill() {
 	if l.Groups == nil {
 		l.Groups = map[string]string{}
 	}
@@ -104,27 +116,35 @@ func Load() *Layout {
 	if l.Pins == nil {
 		l.Pins = map[string]bool{}
 	}
-	return l
+	if l.Claims == nil {
+		l.Claims = map[string]string{}
+	}
+	if l.Grants == nil {
+		l.Grants = map[string]string{}
+	}
 }
 
+// Save writes l. When another process saved since l was loaded, the two are
+// merged first (see merge3): l's own changes win, everything else is kept,
+// and l becomes the merged layout.
 func (l *Layout) Save() error {
-	b, err := json.MarshalIndent(l, "", "  ")
-	if err != nil {
-		return err
-	}
-	p := Path()
-	_ = os.MkdirAll(filepath.Dir(p), 0o755)
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp, p); err != nil {
-		return err
-	}
-	if fi, err := os.Stat(p); err == nil {
-		l.mtime = fi.ModTime()
-	}
-	return nil
+	return locked(func() error {
+		disk, _ := os.ReadFile(Path())
+		if len(disk) > 0 && !bytes.Equal(disk, l.base) {
+			ours, err := json.Marshal(l)
+			if err != nil {
+				return err
+			}
+			merged, err := merge3(l.base, ours, disk)
+			if err != nil {
+				return err
+			}
+			if err := l.adopt(merged); err != nil {
+				return err
+			}
+		}
+		return l.write()
+	})
 }
 
 func (l *Layout) IsGroup(id string) bool { _, ok := l.Groups[id]; return ok }
@@ -257,19 +277,19 @@ func (o ViewOpts) Visible(a *claude.Agent, alias string, pinned bool) bool {
 // descendant is visible; auto groups with nothing visible are dropped.
 func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 	var rows []Row
-	var walk func(id string, depth int, visited map[string]bool) (rs []Row, count, blocked, busy int)
-	walk = func(id string, depth int, visited map[string]bool) ([]Row, int, int, int) {
+	var walk func(id string, depth int, visited map[string]bool) (rs []Row, n Tally)
+	walk = func(id string, depth int, visited map[string]bool) ([]Row, Tally) {
 		if visited[id] || depth > 32 {
-			return nil, 0, 0, 0
+			return nil, Tally{}
 		}
 		visited[id] = true
 		kids := l.Children(id, agents)
 		var sub []Row
-		count, blocked, busy := 0, 0, 0
+		var n Tally
 		for _, k := range kids {
-			r, c, b, u := walk(k, depth+1, visited)
+			r, t := walk(k, depth+1, visited)
 			sub = append(sub, r...)
-			count, blocked, busy = count+c, blocked+b, busy+u
+			n.add(t)
 		}
 		row := Row{ID: id, Depth: depth, HasKids: len(sub) > 0}
 		selfVisible := false
@@ -283,13 +303,8 @@ func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 			// archived: hidden unless shown (A) or searched for
 			selfVisible = o.Visible(a, l.Alias[id], l.Pins[id]) && (!row.Archived || o.ShowArchived || o.Filter != "")
 			if selfVisible {
-				count++
-				if a.YourTurn() {
-					blocked++
-				}
-				if a.State == "busy" {
-					busy++
-				}
+				n.Count++
+				n.Tick(a)
 			}
 		} else {
 			row.Group = true
@@ -297,19 +312,19 @@ func (l *Layout) Flatten(agents map[string]*claude.Agent, o ViewOpts) []Row {
 			selfVisible = strings.HasPrefix(id, "g:") && o.Filter == ""
 		}
 		if !selfVisible && len(sub) == 0 {
-			return nil, 0, 0, 0
+			return nil, Tally{}
 		}
-		row.Count, row.Blocked, row.Busy = count, blocked, busy
+		row.Count, row.Blocked, row.Ready, row.Busy = n.Count, n.Blocked, n.Ready, n.Busy
 		row.Collapsed = l.Collapsed[id] && o.Filter == ""
 		out := []Row{row}
 		if !row.Collapsed {
 			out = append(out, sub...)
 		}
-		return out, count, blocked, busy
+		return out, n
 	}
 	visited := map[string]bool{}
 	for _, id := range l.Children("", agents) {
-		r, _, _, _ := walk(id, 0, visited)
+		r, _ := walk(id, 0, visited)
 		rows = append(rows, r...)
 	}
 	return rows
@@ -551,6 +566,16 @@ func (l *Layout) Outdent(id string, agents map[string]*claude.Agent) error {
 	return l.Reparent(id, l.Parent[p], p, agents)
 }
 
+// NewGroupIn makes an empty group at the end of parent ("" for the top).
+func (l *Layout) NewGroupIn(title, parent string, agents map[string]*claude.Agent) string {
+	gid := fmt.Sprintf("g:%d", time.Now().UnixNano())
+	l.Groups[gid] = title
+	l.materialize(parent, agents)
+	l.Parent[gid] = parent
+	l.Order[parent] = append(l.Order[parent], gid)
+	return gid
+}
+
 func (l *Layout) NewGroup(title, near string, agents map[string]*claude.Agent) string {
 	gid := fmt.Sprintf("g:%d", time.Now().UnixNano())
 	l.Groups[gid] = title
@@ -645,4 +670,24 @@ func listedSpawner(l spawns.Link, agents map[string]*claude.Agent) string {
 		}
 	}
 	return ""
+}
+
+// Tally counts agents the way the tree draws them: ● waiting on you, bold ✓
+// a result you haven't seen, ◆ working. Each agent lands in at most one.
+type Tally struct{ Count, Blocked, Ready, Busy int }
+
+// Tick counts a's state (not Count: the caller decides what is visible).
+func (t *Tally) Tick(a *claude.Agent) {
+	switch {
+	case a.State == "blocked" && a.YourTurn():
+		t.Blocked++
+	case a.State == "ready":
+		t.Ready++
+	case a.State == "busy":
+		t.Busy++
+	}
+}
+
+func (t *Tally) add(o Tally) {
+	t.Count, t.Blocked, t.Ready, t.Busy = t.Count+o.Count, t.Blocked+o.Blocked, t.Ready+o.Ready, t.Busy+o.Busy
 }

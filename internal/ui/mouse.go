@@ -11,7 +11,8 @@ const listTop = 2
 // the pointer), a click selects a row, a tab of the agent box, a file of the
 // changes tab or a block of the conversation (a click on the selected one
 // opens it, or folds / unfolds it), and dragging the divider resizes the
-// list. (Holding shift lets the terminal select text as usual.)
+// list. A drag in the panel selects its text and copies it (drag.go).
+// (Holding shift lets the terminal select text as usual.)
 func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 	if m.help || m.mode != modeNormal {
 		return nil
@@ -40,13 +41,36 @@ func (m *model) updateMouse(e tea.MouseMsg) tea.Cmd {
 		} else {
 			m.scrollConv(-3)
 		}
+	case e.Action == tea.MouseActionMotion && m.pressed: // a drag in the panel selects text
+		if e.X != m.pressX || e.Y != m.pressY || m.conv.drag.on {
+			x0 := padX + m.lw + gap
+			m.dragTo(m.pressX-x0, m.pressY-listTop, e.X-x0, e.Y-listTop)
+		}
+	case e.Action == tea.MouseActionRelease:
+		// A click in the panel acts on the release, where it went down (not
+		// after a drag): a terminal opening a link on cmd/ctrl+click swallows
+		// that release (Ghostty does), while it still sends the press. Acting on
+		// the press would select, unfold or scroll, moving the link away from
+		// the pointer before the terminal opened it.
+		if m.pressed {
+			m.pressed = false
+			if m.conv.drag.on { // a drag: copy what it selected
+				m.endDrag()
+				return nil
+			}
+			if e.X == m.pressX && e.Y == m.pressY {
+				return m.clickPanel(e.X-(padX+m.lw+gap), e.Y-listTop)
+			}
+		}
 	case e.Button == tea.MouseButtonLeft && e.Action == tea.MouseActionPress:
+		m.pressed, m.conv.drag.on = false, false
 		if e.X >= divider-1 && e.X <= divider+1 && e.Y >= listTop {
 			m.dragging = true
 			return nil
 		}
-		if !onList {
-			return m.clickPanel(e.X-(padX+m.lw+gap), e.Y-listTop)
+		if !onList { // the click happens on the release
+			m.pressed, m.pressX, m.pressY = true, e.X, e.Y
+			return nil
 		}
 		if rh := m.rowHeight(); onList && e.Y >= listTop && e.Y < listTop+m.vis*rh {
 			if i := m.offset + (e.Y-listTop)/rh; i < len(m.rows) {
@@ -80,13 +104,17 @@ func (m *model) clickPanel(x, y int) tea.Cmd {
 	if i < 0 {
 		return nil
 	}
-	if m.convFocus && i == m.convSel() {
-		return m.activateConv(m.conv.blocks[i])
+	b := m.conv.blocks[i]
+	if b.kind == blockStep && m.convFocus && i == m.convSel() { // the selected step: its action
+		return m.activateConv(b)
+	}
+	if !m.convFocus || i != m.convSel() {
+		m.flash(convHint)
 	}
 	m.selectConvBlock(i)
 	m.convFocus, m.chg.focus = true, false
-	m.flash(convHint)
-	if b := m.conv.blocks[i]; b.kind != blockMsg { // a run or a step folds / unfolds on the first click too
+	runLine := b.run != nil && b.kind != blockStep && m.conv.histStart+y-m.conv.histRow == b.top
+	if b.kind == blockStep || runLine { // the steps fold / unfold on a click; a message's text only selects
 		m.toggleConv(b)
 	}
 	return nil

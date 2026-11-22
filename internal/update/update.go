@@ -77,11 +77,17 @@ func (b Build) String() string {
 const Branch = "main"
 
 // Latest asks the Go module proxy (through `go list`) for the newest version:
-// the head of main. Not @latest: the proxy caches that answer for a while,
-// so right after a push it still names an older commit, while a branch query
-// is resolved fresh. With tags, main's pseudo-version still sorts after them.
+// the head of main. The proxy caches branch answers (and @latest) for hours,
+// so right after a push @main still names an older commit. A commit hash is
+// always resolved fresh, so Latest first asks GitHub for main's commit and
+// queries the proxy for that; if git can't reach GitHub it falls back to @main.
+// With tags, main's pseudo-version still sorts after them.
 func Latest(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, "go", "list", "-m", "-json", Module+"@"+Branch)
+	query := Branch
+	if h, err := headFn(ctx); err == nil {
+		query = h
+	}
+	cmd := exec.CommandContext(ctx, "go", "list", "-m", "-json", Module+"@"+query)
 	cmd.Dir = os.TempDir() // outside any module or workspace
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
 	out, err := cmd.Output()
@@ -96,6 +102,26 @@ func Latest(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("go list: unexpected output %q", out)
 	}
 	return v.Version, nil
+}
+
+// Head is the commit at the tip of main on GitHub, from `git ls-remote`.
+func Head(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "ls-remote", "https://"+Module, "refs/heads/"+Branch)
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0") // never ask for credentials
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git ls-remote: %w", err)
+	}
+	return parseHead(string(out))
+}
+
+// parseHead takes the hash from ls-remote's "<hash>\trefs/heads/main" line.
+func parseHead(out string) (string, error) {
+	f := strings.Fields(out)
+	if len(f) < 2 || len(f[0]) != 40 || strings.Trim(f[0], "0123456789abcdef") != "" {
+		return "", fmt.Errorf("git ls-remote: unexpected output %q", out)
+	}
+	return f[0], nil
 }
 
 // Newer reports whether latest is a later version than current
@@ -196,6 +222,7 @@ func AutoEnabled() bool {
 // Seams for tests.
 var (
 	currentFn = Current
+	headFn    = Head
 	latestFn  = Latest
 	installFn = Install
 	pluginFn  = UpdatePlugin

@@ -28,10 +28,12 @@ regia setup
 
 1. **Installs the regia Claude Code plugin** with
    `claude plugin install regia --marketplace https://github.com/farzeni/regia.git`
-   (this repo is its own marketplace). The plugin adds a small hook so regia
-   knows which session started which: that's how agents nest under their
-   coordinator automatically. Sessions already running pick it up after a
-   restart or `/reload-plugins`.
+   (this repo is its own marketplace), and updates it if it was already there.
+   The plugin gives every session hooks (so regia knows which session started
+   which: that's how agents nest under their coordinator automatically, and so
+   agents in a group know about it), the **regia MCP server** and the
+   **`regia:organize` skill** (see [Agents that organize regia](#agents-that-organize-regia)).
+   Sessions already running pick it up after a restart or `/reload-plugins`.
 2. **Backfills** those links from your existing transcripts, so sessions you
    already have are nested too.
 
@@ -70,9 +72,9 @@ regia uninstall  # remove the plugin and the binary
 regia openers    # list | show | test: what opens files, images, URLs and diffs (see Openers)
 ```
 
-The screen has three views: `tab` goes tree → inbox → search, `shift+tab` goes back.
+The screen has three views: `tab` goes agents → inbox → search, `shift+tab` goes back.
 
-- **tree** — every agent, organized. Each row shows state (● waiting for you,
+- **agents** — every agent, organized (as a tree). Each row shows state (● waiting for you,
   ✓ ready, ◆ busy, ✗ failed; see below), name and age; folded groups show how
   many agents are inside and how many are your turn. The right panel shows the selected agent
   in three parts: a card pinned at the top (task, git status, what it is
@@ -83,12 +85,14 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   end, the latest reply right above the foot (`pgup`/`pgdn` scroll back and
   forth). The tool calls between two messages are one folded line,
   `▸ ⚙ 14 steps · edited 3 files · ran 5 commands · 1 error · 2m10s` (how long
-  they took), with the time of the reply that follows at its right end; the
+  they took), with when the reply that follows came at its right end (`just
+  now`, `3 minutes ago`, `2 hours ago`, `yesterday`, `Mon 5 Aug`,
+  `Wed 8 Jan 2025`; your messages say it the same way); the
   reply comes right under it. Unfolded, the steps show in a box. `o` focuses the conversation (the divider lights up): `↑`/`↓`
   move message to message, `shift+↑`/`↓` (`j`/`k`) through every block,
   runs and steps too, `enter`/`space` unfold a run into one
   line per step (`✗` failed) and a step into its detail, `c` copies the
-  selected block, `r` quotes it (`> ` lines) in the input box, also on the
+  selected block, `r` quotes it (or the text you last dragged over) as `> ` lines in the input box, also on the
   clipboard, with the cursor two lines below and the input focused, `i` goes
   to the input, `g`/`G` go to the top / bottom, `←`/`esc` give the keys back
   to the list. What's
@@ -109,10 +113,12 @@ The screen has three views: `tab` goes tree → inbox → search, `shift+tab` go
   | Thinking | `… thought` | the thought, when the transcript has it | — |
   | Other tools | `• Tool input` (MCP tools as `server:tool`) | the input and the head of the result | — |
 
-  A click on a block selects it (and focuses the conversation), and on a run
-  or a step also unfolds / folds it; a click on the selected one does what
-  `enter` does (folds, or opens the step). The wheel scrolls, and in
-  focus the cursor stays on what's shown.
+  The steps line and the agent's reply right after it are one item: `enter`
+  /`space` unfold its steps, `c`/`r` copy / quote the reply. A click selects
+  (and focuses the conversation); on a steps line or a step it also unfolds /
+  folds it, a click on the reply's text only selects, and a click on the
+  selected step opens it. The wheel scrolls, and in focus the cursor stays on
+  what's shown.
   The agent box's **changes** tab (`D`) lists the files the agent edited or
   wrote, newest first, each with the lines it added and removed (`+8 −3`) and
   the line it last changed; failed edits don't count. `D` gives the tab the
@@ -249,12 +255,12 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | Key | Action |
 |---|---|
 | `enter` | attach to the session (`←` inside it comes back) |
-| `tab` / `shift+tab` | tree → inbox → search / back (see [search](#usage)) |
+| `tab` / `shift+tab` | agents → inbox → search / back (see [search](#usage)) |
 | `ctrl+r` (in search) | regex cheat sheet for `/patterns/` (`esc` closes it) |
 | `ctrl+g` (in search) | search the listed sessions or the whole history (removed sessions too; `enter` resumes one) |
 | `[` / `]`, `ctrl+↑` / `ctrl+↓`, `alt+↑` / `alt+↓` | previous / next group (the arrows also while typing; some terminals, e.g. Tilix, keep `alt+↑/↓` for themselves) |
 | `pgup` / `pgdn` | scroll the panel's conversation back / forward (in the input: earlier / later messages you typed) |
-| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `↑`/`↓` message to message over the steps, `shift+↑`/`↓` (`j`/`k`) every block, runs and steps too, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block in the input (and copy it), `i` to the input, `g`/`G` top / bottom, `←`/`esc` back |
+| `o`, `→` | focus the conversation (`→` on an agent; one with folded agents under it unfolds first): `↑`/`↓` message to message over the steps, `shift+↑`/`↓` (`j`/`k`) every block, runs and steps too, `ctrl+↑`/`↓` (`alt+↑`/`↓`, `[`/`]`) your messages, `ctrl+d`/`u` half a screen, `enter`/`space` fold / unfold (or open a step), `c` copy, `r` quote the block, or the text you dragged over, in the input (and copy it), `i` to the input, `alt+enter` attach to its session, `g`/`G` top / bottom, `←`/`esc` back |
 | `b` | jump to the next agent whose turn is yours (waiting on a question) |
 | `y` / `Y` | copy the suggested reply / the session id |
 | `!` | plugin actions and links for the agent (see [Plugins](#plugins)) |
@@ -267,7 +273,9 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `>` / `<` | nest under the agent above (it becomes the coordinator) / un-nest |
 | `m`, then `p` / `P` | move: `p` puts it into the group under the cursor (at the top), or right after the agent; `P` puts it after the group, or under the agent (as its coordinator) |
 | `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up); the name is typed right in the row (`enter` saves, `esc` cancels) |
-| `T` | a group's or coordinator's panel shows its timeline instead of the blackboard / back (on an agent: its group's); see [Group awareness](#group-awareness) |
+| `O` | let the agent organize part of the tree through regia's MCP tools: its group, then the whole tree, then nothing (marked ✦); on an agent's own claim, takes it back; see [Agents that organize regia](#agents-that-organize-regia) |
+| `U` | what agents changed in the tree, newest first: a key undoes that change |
+| `T` | a group's or coordinator's panel shows its timeline / back (on an agent: its group's); see [Group awareness](#group-awareness) |
 | `w` | set the directory new agents in the group start in (on an agent: its group's); see [Where a new agent starts](#where-a-new-agent-starts) |
 | `←` `→` `space` | fold / unfold |
 | `z` | fold everything / unfold everything |
@@ -284,11 +292,14 @@ The mouse works too: the wheel scrolls the list or the panel's conversation
 (whichever is under the pointer), a click selects a row, a tab of the agent
 box, a file of the changes tab or a block of the conversation (a second click
 on the selected one opens it, or folds / unfolds it), and dragging the
-divider resizes the list. Hold `shift` while dragging to select text with the
-mouse as usual (regia captures the mouse, so plain dragging doesn't select).
+divider resizes the list. Dragging over the panel selects its text (the list
+stays out of it) and copies it when you let go, focusing the conversation:
+`r` right then quotes just that text in the input; a click, any other key or
+moving to another agent clears it. Hold `shift` while dragging to select with
+the terminal instead, across the screen.
 
 The input takes the usual readline keys (`ctrl+a`/`ctrl+e`, `ctrl+w`,
-`alt+←/→`, `ctrl+k`/`ctrl+u`, …), and so do names and notes edited in place. `alt+enter`, `ctrl+j`, or `\` then `enter`
+`alt+←/→`, `ctrl+k`/`ctrl+u`, …), and so do names edited in place. `alt+enter`, `ctrl+j`, or `\` then `enter`
 add a line. A paste longer than 3 lines or 800 characters folds to
 `[Pasted text #1 +N lines]` and is expanded when the agent starts; `ctrl+v`
 pastes from the clipboard the same way. A task is capped at 120 KiB; beyond
@@ -381,52 +392,84 @@ started (or that you moved under it). Automatic project groups don't, so agents
 that only share a directory know nothing about each other.
 
 - **`regia context`** (run by an agent): its group, its coordinator, its
-  siblings and its own agents with state and last line, then the latest 10
-  shared notes of each level above it (`--all` for every note).
-- **`regia note "…"`** (run by an agent): one line for the group: a decision, a
-  fact or a warning. It goes to the nearest group or coordinator above the
-  agent and reaches everything below that point. Notes live in
-  `~/.config/regia/notes/` and are kept; removing a group removes its notes.
-
-In regia, the panel of a group shows its blackboard; a coordinator's panel is
-like any agent's, and its agents' blackboard shows above its card only while
-open. `N` opens it, from the group, the coordinator or any agent in it:
-`↑/↓` pick a note, `n` adds one from you, `e` edits the picked note (yours or
-an agent's), `x x` deletes it, `esc` closes. A note is written right on the
-blackboard (`enter` saves, `esc` cancels). An edit reaches the agents like a
-new note does. Outside regia, `regia context <id>` prints what an agent would
-see (`--all` for every note).
+  siblings and its own agents with state and last line. Outside regia,
+  `regia context <id>` prints what an agent would see.
 
 **Timeline** (`T`, "what happened while I was away"): the panel of a group or
-coordinator swaps its blackboard for one feed of everything its agents did,
+coordinator swaps for one feed of everything its agents did,
 oldest first and the newest at the bottom, a rule per day, one line each: the
 time, who, and what. It lists the agents' state changes (▶ started, ● waiting
 with its question, ◆ back to work, ✓ done, ✗ failed, from
-`~/.claude/jobs/<id>/timeline.jsonl`), the blackboard notes (✎), the commits
+`~/.claude/jobs/<id>/timeline.jsonl`), the commits
 on their branches since they started (⎇, `git log` of each distinct directory
 and branch, read in the background and cached for 30 s; a commit goes to the
 last agent on that branch started before it) and the PRs they opened (⇡, from
 `state.json`, dated when the agent first mentioned the link). `pgup`/`pgdn`
-scroll it, `T` goes back to the blackboard, and `T` on an agent opens its
+scroll it, `T` goes back, and `T` on an agent opens its
 group's timeline. Whatever can't be read is left out. Agents working in the
 main checkout share its branch, so commits made there by others show too.
 
 It is built to stay out of the agents' way. The plugin's hook does nothing for
-agents outside a group. A grouped agent gets a short introduction once (what
-the two commands are for: a shared blackboard, with no advice on how to use it), then
-a single line only when someone else wrote a note it hasn't seen or it was
+agents outside a group. A grouped agent gets a short introduction once (where
+it is and what `regia context` is for), then a single line only when it was
 moved, at most once a minute (or when it gets a message). The introduction
 says what "coordinator" and "siblings" mean and comes again after the
 conversation is compacted or cleared, and when a message from you talks about
 the group ("check your siblings", "use regia context", "your coordinator", at
 most every 10 minutes); an agent outside a group is then told it is in none.
-Notes are never
-pasted into the conversation: the agent reads them with `regia context` when
-it wants to.
 
 To turn it off: `regia group off` for every session (`regia group on` to
 undo), `REGIA_GROUP=off` for one session, or `M` in regia to mute one group or
 coordinator (its agents get nothing, and it isn't listed to others).
+
+## Agents that organize regia
+
+Agents can read regia's tree and, when allowed, organize it: "split the agents
+on the shop into frontend and backend", "these five look stale, sort them
+out", "check what your siblings are doing". The plugin starts `regia mcp`, a
+small MCP server, in every session (no daemon: it lives and dies with the
+session), and ships the `regia:organize` skill that tells agents how to use it.
+
+Tools:
+
+- read: `whoami`, `tree`, `agent`; `inbox` (who is waiting, stuck or failed),
+  `timeline` (what happened in a group in the last hours: the same feed as
+  `T`), `changes` (the files an agent edited, as in the changes tab);
+- change: `create_group`, `rename_group`, `delete_group`, `move`, `archive`,
+  `unarchive`, `rename_agent` (the name regia shows), `pin`, `unpin`;
+- `claim` / `release`: take or give back a part of the tree to organize.
+
+What an agent may do follows from where it is (the server knows the calling
+session) and what it claimed:
+
+| Role | Who | Reads | Organizes |
+|---|---|---|---|
+| worker | any agent | its group | nothing, until it claims |
+| coordinator | an agent with agents under it | the agents under it | the agents under it (itself only to rename or pin) |
+| orchestrator | an agent that claimed its group or the whole tree, or that you pressed `O` on | what it claimed or was granted | the same |
+
+An agent asked to organize more than its own agents first **claims** its group
+or the whole tree, with a reason. Nothing stops it from claiming: the point is
+that you see it. The agent is marked ✦ in the tree, its box says what it claimed
+and why ("claims ✦ the whole tree: morning triage"), the claim shows in the
+status line and in `U`. A claim ends when the agent releases it, when it is
+done, or when you press `O` on it.
+
+You can also grant an agent part of the tree yourself with `O` (its group, then
+the whole tree, then nothing); a grant lasts until you take it back.
+
+Muted groups (`M`) are out of reach to claims: mute what agents must leave
+alone. Only a whole-tree grant you gave reaches them. `archive` only hides an
+agent in regia; it never stops one.
+
+Every change appears in the status line as it happens ("orchestrator: moved 2
+items into backend · U to undo"). `U` lists the agents' changes, newest first;
+its key undoes one, unless what it changed was changed again since (regia says
+so and leaves it). The log is `~/.config/regia/actions.jsonl`. Changes from
+agents and from you are merged, so neither overwrites the other.
+
+`REGIA_GROUP=off` (or `regia group off`) turns the tools off along with group
+awareness.
 
 ## Plugins
 
@@ -507,12 +550,14 @@ defaults; `regia openers show` says which line.
 With `osc8` on, URLs and file paths in the agent's replies (`/abs/x.go:12`,
 `internal/ui/open.go`, `x.go:7`) are links: ctrl+click (a plain click in
 some terminals) opens URLs in the browser and files where the preset's `link`
-points. `auto` turns them on when the terminal says it supports them:
+points. regia acts on a click when the button comes up, so a terminal that
+opens the link then (Ghostty) gets it before regia selects or moves anything.
+`auto` turns links on when the terminal says it supports them:
 
 | terminal | links |
 |---|---|
 | Tilix, GNOME Terminal, Ptyxis (VTE ≥ 0.50) | yes, ctrl+click |
-| Ghostty, Kitty, WezTerm | yes (Kitty: plain click, asks first) |
+| Ghostty, Kitty, WezTerm | yes (Ghostty: ctrl+click, cmd+click on macOS; Kitty: plain click, asks first) |
 | iTerm2 | yes, cmd+click |
 | VS Code terminal, Windows Terminal | yes |
 | xterm, the Linux console, others | off (they'd ignore them anyway) |
@@ -539,13 +584,14 @@ the regia repo:
 | list of sessions | `claude agents --json --all` (run again when a job or session file changes, at most every 2 s and at least every 10 s; the last result is cached so the first frame is instant) |
 | question, suggested reply, now-doing, tokens, PRs | `~/.claude/jobs/<id>/state.json` and `timeline.jsonl`, read-only, every 1 s |
 | PR status (state, CI, review) | `gh pr view <PR link or branch> --json …` in the agent's directory, in the background: open PRs every 60 s at most, a branch without a PR every 10 min, merged/closed never again (the selected agent, plus finished agents from today or with a PR link, up to 4 new calls per second); skipped when `gh` is missing or not logged in |
-| group timeline (`T`) | the agents' `timeline.jsonl` (parsed again only when it changes), the notes, `git log` per directory and branch (background, cached 30 s) |
+| group timeline (`T`) | the agents' `timeline.jsonl` (parsed again only when it changes), `git log` per directory and branch (background, cached 30 s) |
 | stuck (⚠) | mtimes of the job files, the transcript and its subagents' transcripts; the transcript's tail, read incrementally |
 | history | the session transcript (`~/.claude/projects/…/<session>.jsonl`), read-only |
 | attach / stop / start / output / remove | `claude attach`, `claude stop`, `claude --bg`, `claude logs`, `claude rm` |
 | plugins | your scripts in `~/.config/regia/plugins/`, in the background: per agent at most every `every` (2 min by default), up to 4 runs per second, backing off when one fails |
 | your organization | `~/.config/regia/layout.json` |
 | who started whom | `~/.config/regia/spawns.jsonl` |
+| what agents changed (`U`) | `~/.config/regia/actions.jsonl`, written by `regia mcp` |
 
 ## Limits
 
@@ -568,7 +614,8 @@ cmd/regia/          the binary: argument parsing, `regia setup`, `update`, `unin
 internal/claude/    Claude Code data: `claude agents` listing, job state files, transcript history
 internal/spawns/    spawn links: the hook handler, transcript backfill, spawns.jsonl
 internal/layout/    your organization: tree, automatic placement, moves, layout.json
-internal/group/     group awareness: `regia context`, `regia note`, `regia hook group`
+internal/group/     group awareness (`regia context`, `regia hook group`); the tree tools, roles and undo log
+internal/mcp/       `regia mcp`: the MCP server the plugin starts per session
 internal/plugins/   your plugin scripts: run per agent in the background, cached
 internal/gitinfo/   git state of an agent's directory, cached
 internal/prinfo/    PR status of an agent (state, CI, review) via `gh`, cached
@@ -577,11 +624,13 @@ internal/update/    self-update: version check on the Go module proxy, `go insta
 internal/ui/        the terminal interface (bubbletea): model, update, view, panel, input
 .claude-plugin/     plugin manifest + marketplace (this repo is its own marketplace)
 hooks/hooks.json    the hooks the plugin installs (spawn links, group awareness)
+.mcp.json           the MCP server the plugin starts (regia mcp)
+skills/organize/    the regia:organize skill
 presets/openers/    opener presets, embedded in the binary
 docs/               plugin protocol, code conventions
 ```
 
-Dependencies point one way: `ui` → `group` → `layout` → `spawns` → `claude`;
+Dependencies point one way: `ui` / `mcp` → `group` → `layout` → `spawns` → `claude`;
 `gitinfo`, `prinfo`, `attach`, `update` and `plugins` are standalone.
 Before contributing, read [docs/conventions.md](docs/conventions.md);
 [CLAUDE.md](CLAUDE.md) is the short version for Claude Code.

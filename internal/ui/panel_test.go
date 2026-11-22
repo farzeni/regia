@@ -13,7 +13,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/farzeni/regia/internal/claude"
-	"github.com/farzeni/regia/internal/group"
 )
 
 // giveTranscript writes a transcript for agent id, alternating your messages
@@ -103,7 +102,7 @@ func TestAgentPanelLayout(t *testing.T) {
 	}
 	// the body ends with the latest reply right above the foot, its time at
 	// the end of the run line above it
-	if !strings.Contains(ls[n-4], "Done: the panel shows the conversation now.") || !regexp.MustCompile(`^\s+▸ ⚙ .*\s\d\d:\d\d\s*$`).MatchString(ansi.Strip(ls[n-5])) {
+	if !strings.Contains(ls[n-4], "Done: the panel shows the conversation now.") || !regexp.MustCompile(`^\s+▸ ⚙ .*\s(just now|\d+ \w+ ago)\s*$`).MatchString(ansi.Strip(ls[n-5])) {
 		t.Fatalf("the latest reply should sit right above the foot:\n%s", all)
 	}
 	if !strings.Contains(all, "fix the panel") || !strings.Contains(all, "earlier · pgup") {
@@ -135,9 +134,8 @@ func TestAgentPanelNoConversation(t *testing.T) {
 	}
 }
 
-func TestCoordinatorPanelWithoutBlackboard(t *testing.T) {
+func TestCoordinatorPanel(t *testing.T) {
 	m := teamModel(t)
-	group.AddNote("aaaa1111", group.Note{By: "bbbb2222", Name: "beta", Text: "NOTE FOR THE TEAM"})
 	giveTranscript(t, m, "aaaa1111", "coordinate the team", "Started beta on the panel.")
 	goTo(t, m, "aaaa1111")
 	if !m.selected().HasKids {
@@ -147,16 +145,11 @@ func TestCoordinatorPanelWithoutBlackboard(t *testing.T) {
 	ls := renderPanel(m, 60, 16)
 	all := strings.Join(ls, "\n")
 	t.Log("\n" + all)
-	if strings.Contains(all, "NOTE FOR THE TEAM") || strings.Contains(all, "blackboard") {
-		t.Fatalf("a coordinator's panel should not show the blackboard:\n%s", all)
+	if strings.Contains(all, "blackboard") {
+		t.Fatalf("there is no blackboard any more:\n%s", all)
 	}
 	if n := len(ls); !strings.Contains(ls[n-4], "Started beta on the panel.") || !strings.Contains(ls[n-2], "alpha") {
 		t.Fatalf("a coordinator's panel is an agent's: conversation, then the foot:\n%s", all)
-	}
-	// N still opens it
-	m.Update(tkey("N"))
-	if v := ansi.Strip(m.View()); !strings.Contains(v, "NOTE FOR THE TEAM") {
-		t.Fatalf("N should show the coordinator's blackboard:\n%s", v)
 	}
 }
 

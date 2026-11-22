@@ -43,7 +43,7 @@ func DumpTree(w io.Writer) error {
 	for _, r := range m.rows {
 		ind := strings.Repeat("  ", r.Depth)
 		if r.Group {
-			fmt.Fprintf(w, "%s▾ %s  (%d, %d need you)\n", ind, r.Title, r.Count, r.Blocked)
+			fmt.Fprintf(w, "%s▾ %s  (%s)\n", ind, r.Title, groupCounts(r))
 			continue
 		}
 		g, _ := glyph(r.Agent)

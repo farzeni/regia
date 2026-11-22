@@ -34,7 +34,7 @@ const (
 	modeMenu // the ! menu: plugin actions and links
 	// the model picker (ctrl+g)
 	modeModel
-	modeEdit  // a row or note edited in place (m.edit)
+	modeEdit  // a row edited in place (m.edit)
 	modeScope // what search looks in (ctrl+g in search)
 )
 
@@ -58,17 +58,19 @@ type model struct {
 	srch searchState // the search view
 	help bool
 
-	mode         mode
-	input        string
-	inputPrompt  string
-	inputAction  func(m *model, s string) tea.Cmd
-	edit         *inlineEdit // what modeEdit edits
-	confirmMsg   string
-	confirmKey   string // the action's key: pressed again, it confirms
-	confirmDo    func(m *model) tea.Cmd
-	filterBefore string
-	menu         []menuItem // the ! menu's items while modeMenu
-	menuTitle    string
+	mode          mode
+	input         string
+	inputPrompt   string
+	inputAction   func(m *model, s string) tea.Cmd
+	edit          *inlineEdit // what modeEdit edits
+	confirmMsg    string
+	confirmKey    string // the action's key: pressed again, it confirms
+	confirmDo     func(m *model) tea.Cmd
+	filterBefore  string
+	menu          []menuItem // the ! menu's items while modeMenu
+	actionsSeen   time.Time  // the agents' action log's mtime at the last look (noticeActions)
+	actionsLooked bool       // noticeActions ran once: what was there before isn't news
+	menuTitle     string
 
 	panelTab string   // the agent box's tab (, and .): "" or "agent", or a plugin's name; kept across agents
 	tabHits  []tabHit // where the tabs were drawn, for clicks
@@ -81,20 +83,22 @@ type model struct {
 
 	selectID string // just started: select it as soon as it's listed
 
-	selecting bool            // select mode (v): space marks rows for e / x
-	marked    map[string]bool // agent ids marked in select mode
+	selecting bool              // select mode (v): space marks rows for e / x
+	marked    map[string]bool   // agent ids marked in select mode
+	markCount map[string][2]int // markCounts, built once a frame
 
 	removing map[string]*pendingRemoval // taken off the list while claude rm runs
 
 	scanning  bool // a transcript scan for missed spawns is running
 	scannedAt int  // the tick the last one started
 
-	notesFor string // the blackboard open with N (a group or coordinator id)
-	noteSel  int    // the note picked on it, oldest first
-
 	// geometry of the last frame, for the mouse
 	lw, vis  int
 	dragging bool // dragging the divider to resize the list
+	// where the left button went down in the panel; the click happens on its
+	// release there (see updateMouse)
+	pressed        bool
+	pressX, pressY int
 
 	// the agent panel's conversation (conv.go): fold state and cursor by
 	// agent, whether it has the keys (o), what the last frame drew of it
@@ -107,7 +111,7 @@ type model struct {
 
 	panelScroll int    // lines the panel's conversation is scrolled back (pgup/pgdn)
 	panelFor    string // the row panelScroll belongs to
-	timeline    bool   // T: a group's or coordinator's panel shows its timeline instead of the blackboard
+	timeline    bool   // T: a group's or coordinator's panel shows its timeline
 
 	// the always-on input at the bottom: typing goes there, command keys
 	// (j/k, J/K, s, y…) work after esc
@@ -280,6 +284,8 @@ func (m *model) refresh() {
 	m.classify(time.Now())
 	m.checkHealth(time.Now())
 	m.noteLive()
+	m.noticeActions()
+	m.releaseDone()
 	m.layout.Spawns = spawns.Cached()
 	placed := m.layout.Place(m.agents)
 	if m.layout.Revive(m.agents) || placed { // archived but working again: back in the tree

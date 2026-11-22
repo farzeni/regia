@@ -230,24 +230,46 @@ func count(n int, what string) string {
 	return fmt.Sprintf("%d %ss", n, what)
 }
 
+// markCounts is, for every node (agent, group, "" for the whole tree), how
+// many shown agents are under it and how many of those are marked. Every
+// row's checkbox needs it, so it is built once a frame from one walk of the
+// tree: under() flattens the whole tree, once a row was seconds a keypress.
+func (m *model) markCounts() map[string][2]int {
+	if m.markCount != nil {
+		return m.markCount
+	}
+	c := map[string][2]int{}
+	for _, id := range m.under("") {
+		marked := m.marked[id]
+		for cur, n := id, 0; n < 64; n++ { // the agent, its ancestors, the root (as IsDescendant)
+			x := c[cur]
+			x[0]++
+			if marked {
+				x[1]++
+			}
+			c[cur] = x
+			if cur == "" {
+				break
+			}
+			cur = m.layout.Parent[cur]
+		}
+	}
+	m.markCount = c
+	return c
+}
+
 // markFor is the select-mode checkbox for a row: ◉ marked, ○ not, ◐ a group
 // partly marked; nothing outside select mode.
 func (m *model) markFor(id string) string {
 	if !m.selecting {
 		return ""
 	}
-	ids := m.under(id)
-	n := 0
-	for _, x := range ids {
-		if m.marked[x] {
-			n++
-		}
-	}
+	x := m.markCounts()[id]
 	st := lipgloss.NewStyle().Foreground(cBlocked)
 	switch {
-	case len(ids) > 0 && n == len(ids):
+	case x[0] > 0 && x[1] == x[0]:
 		return st.Render("◉ ")
-	case n > 0:
+	case x[1] > 0:
 		return st.Render("◐ ")
 	}
 	return stDim.Render("○ ")

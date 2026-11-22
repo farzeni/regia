@@ -227,6 +227,35 @@ func TestPanelDivider(t *testing.T) {
 	}
 }
 
+// While the conversation has the keys, the selected agent's row is in the
+// divider's purple; back on the list, the usual grey.
+func TestSelectedRowPurpleInFocus(t *testing.T) {
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.ANSI256)
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+	m := convModel(t)
+	purple, grey := "48;5;141", "48;5;237"
+	row := func() string {
+		for _, l := range strings.Split(m.View(), "\n") {
+			if strings.Contains(ansi.Strip(l), "alpha") && strings.Contains(l, "48;5;") {
+				return l
+			}
+		}
+		return ""
+	}
+	if l := row(); !strings.Contains(l, grey) || strings.Contains(l, purple) {
+		t.Fatalf("on the list the selection is grey: %q", l)
+	}
+	m.Update(tkey("o"))
+	if l := row(); !strings.Contains(l, purple) {
+		t.Fatalf("in focus the selection is purple: %q", l)
+	}
+	m.Update(tkey("esc"))
+	if l := row(); !strings.Contains(l, grey) {
+		t.Fatalf("back on the list it is grey again: %q", l)
+	}
+}
+
 func TestYourMessagesTinted(t *testing.T) {
 	prev := lipgloss.ColorProfile()
 	lipgloss.SetColorProfile(termenv.ANSI256)

@@ -21,7 +21,8 @@ The agent's GitHub PR in its own tab of the agent's box, from `gh`:
 - **actions (`!`):** copy the failing jobs' logs to paste into the agent;
   re-run the failed jobs (once CI has stopped); mark a draft ready for review
 - re-checks every 20 s while CI runs, every minute otherwise, never once the
-  PR is merged or closed
+  PR is merged or closed (then only the `pr` line is left: no badge, alarm or
+  actions)
 
 regia's own `pr` line is hidden on agents whose PR this plugin shows.
 
