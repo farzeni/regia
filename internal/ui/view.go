@@ -414,7 +414,7 @@ type rowKey struct {
 	color                              lipgloss.Color
 	cut, pin, yourTurn, faded, snoozed bool
 	unhealthy                          bool
-	badges                             string
+	badges, grant                      string
 }
 
 var rowCache = map[rowKey]string{}
@@ -427,7 +427,7 @@ func (m *model) rowLine(r layout.Row, w int) string {
 	}
 	k := rowKey{id: r.ID, title: r.Title, mark: m.markFor(r.ID), depth: r.Depth, count: r.Count, blocked: r.Blocked,
 		ready: r.Ready, busy: r.Busy, w: w, group: r.Group, kids: r.HasKids, collapsed: r.Collapsed, archived: r.Archived,
-		muted: m.layout.Muted[r.ID], inbox: m.view == viewInbox}
+		muted: m.layout.Muted[r.ID], inbox: m.view == viewInbox, grant: m.grantFor(r.ID)}
 	if a := r.Agent; !r.Group && a != nil {
 		k.glyph, k.color = m.agentGlyph(a)
 		k.age = ago(waitedSince(a))
@@ -489,6 +489,10 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 		if m.layout.Muted[r.ID] {
 			extra += "  (muted)"
 		}
+		if g := m.grantFor(r.ID); g != "" {
+			extra += "  (organizes " + g + ")"
+		}
+
 		if a.Snoozed {
 			extra += "  (snoozed)"
 		}
@@ -496,6 +500,9 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 		pin := ""
 		if m.layout.Pins[r.ID] {
 			pin = stAccent.Render(pinGlyph) + " "
+		}
+		if m.layout.Grants[r.ID] != "" {
+			pin += stAccent.Render(grantGlyph) + " "
 		}
 		warn := ""
 		if a.Unhealthy != "" && !r.Archived {

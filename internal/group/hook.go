@@ -126,7 +126,7 @@ func HandleHook(stdin io.Reader, stdout io.Writer, jobDir string, now time.Time)
 // looks up agent names (nil: cached listing).
 func Check(t *Tree, self, event string, now time.Time, name func(string) string) string {
 	pos := t.Resolve(self)
-	if !pos.Grouped() {
+	if !t.aware(pos) {
 		return ""
 	}
 	s := loadState(self)
@@ -153,7 +153,7 @@ func Check(t *Tree, self, event string, now time.Time, name func(string) string)
 // Reintro gives a grouped agent the intro again, as its conversation lost it
 // (compacted or cleared).
 func Reintro(t *Tree, self string, now time.Time, name func(string) string) string {
-	if !t.Resolve(self).Grouped() {
+	if !t.aware(t.Resolve(self)) {
 		return ""
 	}
 	s := loadState(self)
@@ -172,7 +172,7 @@ func Answer(t *Tree, self string, now time.Time, name func(string) string) strin
 		return ""
 	}
 	s.Explained = now
-	if !t.Resolve(self).Grouped() {
+	if !t.aware(t.Resolve(self)) {
 		saveState(self, s)
 		return "[regia] You are not in a regia group: you have no coordinator and no siblings " +
 			"(those exist only for agents the user grouped in regia, or that a coordinator agent started). " +
@@ -201,14 +201,36 @@ func where(t *Tree, pos Position, name func(string) string) string {
 	return strings.Join(ps, ", ")
 }
 
+// aware says whether the hook has anything to tell this agent: it is in a
+// group, coordinates agents, or the user granted it part of the tree.
+func (t *Tree) aware(pos Position) bool {
+	return pos.Grouped() || t.L.Grants[pos.Self] != ""
+}
+
 func intro(t *Tree, pos Position, name func(string) string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "[regia] You are part of a group of agents: %s.\n", where(t, pos, name))
-	// The words the user may use, so "check your siblings" needs no explaining.
-	b.WriteString("Your coordinator is the agent that started you (or that you were placed under); your siblings are the other agents in your group or under your coordinator.\n")
-	b.WriteString("- `regia context` shows your group, coordinator and siblings with what they are doing.\n")
-	b.WriteString("A line like this one tells you when you are moved to another group.")
-	return b.String()
+	if pos.Grouped() {
+		fmt.Fprintf(&b, "[regia] You are part of a group of agents: %s.\n", where(t, pos, name))
+		// The words the user may use, so "check your siblings" needs no explaining.
+		b.WriteString("Your coordinator is the agent that started you (or that you were placed under); your siblings are the other agents in your group or under your coordinator.\n")
+		b.WriteString("- `regia context` shows your group, coordinator and siblings with what they are doing.\n")
+	} else {
+		b.WriteString("[regia] You run under regia, the control room where the user watches and organizes their agents.\n")
+	}
+	// Agents that may organize the tree are told how; workers aren't.
+	tools := "the regia MCP tools (whoami, tree, agent, create_group, move, archive…); the regia:organize skill explains how"
+	switch g := t.L.Grants[pos.Self]; {
+	case g == Everything:
+		b.WriteString("- The user granted you the whole tree: you can read and organize it with " + tools + ".\n")
+	case g != "":
+		fmt.Fprintf(&b, "- The user granted you group %q: you can read and organize it with %s.\n", t.Title(g, name), tools)
+	case pos.Family:
+		b.WriteString("- You can organize the agents under you with " + tools + ".\n")
+	}
+	if pos.Grouped() {
+		b.WriteString("A line like this one tells you when you are moved to another group.")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func plural(n int) string {

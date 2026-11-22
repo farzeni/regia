@@ -529,6 +529,10 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		}
 	case "M":
 		return m.muteKey(r)
+	case "O":
+		return m.grantKey(r)
+	case "U":
+		return m.actionsKey()
 	case "T":
 		return m.timelineKey(r)
 	case "w":

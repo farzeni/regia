@@ -6,12 +6,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/farzeni/regia/internal/attach"
 	"github.com/farzeni/regia/internal/group"
+	regiamcp "github.com/farzeni/regia/internal/mcp"
 	"github.com/farzeni/regia/internal/spawns"
 	"github.com/farzeni/regia/internal/ui"
 )
@@ -29,6 +31,7 @@ const usage = `regia — terminal control room for Claude Code background agents
 
   group awareness (agents in a hand-made group or under a coordinator):
   regia context    run by an agent: its group, coordinator and siblings with what they are doing
+  regia mcp        the MCP server the plugin starts in every session: agents read and organize the tree
   regia group      on | off | status: turn it on or off for every session (REGIA_GROUP=off: one session)`
 
 func main() {
@@ -67,6 +70,8 @@ func dispatch(args []string) error {
 		}
 	case "context":
 		return cmdContext(args[1:], os.Stdout)
+	case "mcp": // started by Claude Code from the plugin's .mcp.json, one per session
+		return regiamcp.Run(context.Background(), group.SelfFromEnv(), current().String())
 	case "note": // removed with the blackboard; sessions started before may still try it
 		return fmt.Errorf("regia note was removed: there is no group blackboard any more (regia context shows your group)")
 	case "group":
