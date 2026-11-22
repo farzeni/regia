@@ -28,10 +28,12 @@ regia setup
 
 1. **Installs the regia Claude Code plugin** with
    `claude plugin install regia --marketplace https://github.com/farzeni/regia.git`
-   (this repo is its own marketplace). The plugin adds a small hook so regia
-   knows which session started which: that's how agents nest under their
-   coordinator automatically. Sessions already running pick it up after a
-   restart or `/reload-plugins`.
+   (this repo is its own marketplace), and updates it if it was already there.
+   The plugin gives every session hooks (so regia knows which session started
+   which: that's how agents nest under their coordinator automatically, and so
+   agents in a group know about it), the **regia MCP server** and the
+   **`regia:organize` skill** (see [Agents that organize regia](#agents-that-organize-regia)).
+   Sessions already running pick it up after a restart or `/reload-plugins`.
 2. **Backfills** those links from your existing transcripts, so sessions you
    already have are nested too.
 
@@ -259,6 +261,8 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `>` / `<` | nest under the agent above (it becomes the coordinator) / un-nest |
 | `m`, then `p` / `P` | move: `p` puts it into the group under the cursor (at the top), or right after the agent; `P` puts it after the group, or under the agent (as its coordinator) |
 | `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up); the name is typed right in the row (`enter` saves, `esc` cancels) |
+| `O` | let the agent organize part of the tree through regia's MCP tools: its group, then the whole tree, then nothing (marked ✦); see [Agents that organize regia](#agents-that-organize-regia) |
+| `U` | what agents changed in the tree, newest first: a key undoes that change |
 | `T` | a group's or coordinator's panel shows its timeline / back (on an agent: its group's); see [Group awareness](#group-awareness) |
 | `w` | set the directory new agents in the group start in (on an agent: its group's); see [Where a new agent starts](#where-a-new-agent-starts) |
 | `←` `→` `space` | fold / unfold |
@@ -406,6 +410,39 @@ To turn it off: `regia group off` for every session (`regia group on` to
 undo), `REGIA_GROUP=off` for one session, or `M` in regia to mute one group or
 coordinator (its agents get nothing, and it isn't listed to others).
 
+## Agents that organize regia
+
+Agents can read regia's tree and, when allowed, organize it: "split the agents
+on the shop into frontend and backend", "these five look stale, sort them
+out", "check what your siblings are doing". The plugin starts `regia mcp`, a
+small MCP server, in every session (no daemon: it lives and dies with the
+session), and ships the `regia:organize` skill that tells agents how to use it.
+
+Tools: `whoami`, `tree`, `agent` (read); `create_group`, `rename_group`,
+`delete_group`, `move`, `archive`, `unarchive` (change).
+
+What an agent may do is decided by regia, from who it is (the server knows the
+calling session), never by the agent:
+
+| Role | Who | Reads | Organizes |
+|---|---|---|---|
+| worker | any agent | its group | nothing |
+| coordinator | an agent with agents under it | the agents under it | the agents under it (not itself) |
+| orchestrator | an agent you pressed `O` on | what it was granted | its group, or the whole tree (`O` again) |
+
+Muted groups (`M`) are out of reach unless an agent has the whole tree. A grant
+lasts until you take it back (`O` until the ✦ is gone) and is kept in
+`layout.json`. `archive` only hides an agent in regia; it never stops one.
+
+Every change appears in the status line as it happens ("orchestrator: moved 2
+items into backend · U to undo"). `U` lists the agents' changes, newest first;
+its key undoes one, unless what it changed was changed again since (regia says
+so and leaves it). The log is `~/.config/regia/actions.jsonl`. Changes from
+agents and from you are merged, so neither overwrites the other.
+
+`REGIA_GROUP=off` (or `regia group off`) turns the tools off along with group
+awareness.
+
 ## Plugins
 
 Your own scripts can add to the agent panel: lines on the card (ticket status,
@@ -526,6 +563,7 @@ the regia repo:
 | plugins | your scripts in `~/.config/regia/plugins/`, in the background: per agent at most every `every` (2 min by default), up to 4 runs per second, backing off when one fails |
 | your organization | `~/.config/regia/layout.json` |
 | who started whom | `~/.config/regia/spawns.jsonl` |
+| what agents changed (`U`) | `~/.config/regia/actions.jsonl`, written by `regia mcp` |
 
 ## Limits
 
@@ -548,7 +586,8 @@ cmd/regia/          the binary: argument parsing, `regia setup`, `update`, `unin
 internal/claude/    Claude Code data: `claude agents` listing, job state files, transcript history
 internal/spawns/    spawn links: the hook handler, transcript backfill, spawns.jsonl
 internal/layout/    your organization: tree, automatic placement, moves, layout.json
-internal/group/     group awareness: `regia context`, `regia hook group`
+internal/group/     group awareness (`regia context`, `regia hook group`); the tree tools, roles and undo log
+internal/mcp/       `regia mcp`: the MCP server the plugin starts per session
 internal/plugins/   your plugin scripts: run per agent in the background, cached
 internal/gitinfo/   git state of an agent's directory, cached
 internal/prinfo/    PR status of an agent (state, CI, review) via `gh`, cached
@@ -557,11 +596,13 @@ internal/update/    self-update: version check on the Go module proxy, `go insta
 internal/ui/        the terminal interface (bubbletea): model, update, view, panel, input
 .claude-plugin/     plugin manifest + marketplace (this repo is its own marketplace)
 hooks/hooks.json    the hooks the plugin installs (spawn links, group awareness)
+.mcp.json           the MCP server the plugin starts (regia mcp)
+skills/organize/    the regia:organize skill
 presets/openers/    opener presets, embedded in the binary
 docs/               plugin protocol, code conventions
 ```
 
-Dependencies point one way: `ui` → `group` → `layout` → `spawns` → `claude`;
+Dependencies point one way: `ui` / `mcp` → `group` → `layout` → `spawns` → `claude`;
 `gitinfo`, `prinfo`, `attach`, `update` and `plugins` are standalone.
 Before contributing, read [docs/conventions.md](docs/conventions.md);
 [CLAUDE.md](CLAUDE.md) is the short version for Claude Code.

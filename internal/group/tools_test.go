@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/layout"
@@ -181,4 +182,26 @@ func TestToolsOffAndUnknown(t *testing.T) {
 	refused(t, err, "not a group")
 	_, err = AgentInfo("coord", "nobody")
 	refused(t, err, "no agent")
+}
+
+// The hook tells agents that may organize the tree how; workers aren't told.
+func TestIntroMentionsTools(t *testing.T) {
+	toolsFixture(t)
+	tr := LoadTree()
+	now := time.Now()
+	if msg := Check(tr, "w1", "SessionStart", now, names); strings.Contains(msg, "MCP") {
+		t.Fatalf("a worker isn't told about the tools:\n%s", msg)
+	}
+	if msg := Check(tr, "coord", "SessionStart", now, names); !strings.Contains(msg, "organize the agents under you") || !strings.Contains(msg, "regia:organize") {
+		t.Fatalf("a coordinator is told:\n%s", msg)
+	}
+	if msg := Check(tr, "boss", "SessionStart", now, names); msg != "" {
+		t.Fatalf("boss is in no group and has no grant: %q", msg)
+	}
+	grant(t, "boss", "g:1")
+	tr = LoadTree()
+	msg := Check(tr, "boss", "SessionStart", now, names)
+	if !strings.Contains(msg, "You run under regia") || !strings.Contains(msg, `granted you group "dashboards"`) || strings.Contains(msg, "moved to another group") {
+		t.Fatalf("a granted agent outside any group:\n%s", msg)
+	}
 }

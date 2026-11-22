@@ -1,6 +1,7 @@
 # Design: agents that act on regia (`regia mcp`)
 
-Status: proposal, not implemented. Decisions are listed at the end.
+Status: implemented (steps 1–5 of the plan). Sibling messaging is not done. Decisions are listed at the end; "As
+built" says where the code differs from this proposal.
 
 ## Goal
 
@@ -89,8 +90,8 @@ Rules inside the scope:
 - **Rename / delete group**: only groups inside the scope. Delete lifts the children into the group's place,
   as in the TUI (`DeleteGroup`), so no agent is lost.
 - **Archive / unarchive**: agents inside the scope, never the caller itself.
-- **Hand placements** (`Pinned`: placed by the user in the TUI) can be moved by an orchestrator but not by a
-  coordinator. A coordinator's request to move one fails with "placed by the user in regia".
+- **Hand placements** (`Pinned`): no special rule in the end. Inside its scope a coordinator may move them
+  too (see "As built").
 
 **The grant** is a new `layout.json` field `Grants map[agentID]string` (value: a group id, or `"*"` for the
 whole tree), set and revoked with a new key in the TUI on the selected agent, shown as a mark next to its
@@ -220,6 +221,24 @@ The user's `swarm` skill should point to it for briefs.
 4. Orchestrator grants (layout field, TUI key, mark).
 5. The skill, the hook's intro line, README and help modal.
 6. Sibling messaging, after checking `SendMessage`.
+
+## As built
+
+- Hand placements get no special protection: every agent under a coordinator was either started by it or put
+  there by the user, so "pinned" said nothing about what the user wants kept. Moves are reversible with `U`.
+- The undo modal is the `!` menu's modal: `U` lists up to 35 recent actions, newest first, and their key
+  undoes one. The log is `~/.config/regia/actions.jsonl` (300 kept); each entry stores the `layout.Change` it
+  made (per field and key, before and after), and undo refuses when any of those values changed again since.
+- The grant key is `O`: the agent's group, then the whole tree, then nothing. Granted agents carry ✦.
+- `layout.Save` merges: under an flock on `layout.json.lock` it compares the file with what it loaded and keeps
+  other writers' changes per field and map key. So the ~30 TUI save sites stayed as they were, and
+  `layout.Update` (used by the tools) is load, change, write under the same lock.
+- The hook's intro gets a line for coordinators and granted agents naming the tools and the skill; a granted
+  agent outside any group gets a short intro too. Workers aren't told about the tools.
+- `internal/mcp` depends on `group`. The test drives the server with the SDK's in-memory transports and a real
+  client instead of a recorded exchange.
+- `regia setup` also refreshes the marketplace and updates the plugin, so a machine that already had it gets
+  the server and the skill.
 
 ## Decisions taken
 

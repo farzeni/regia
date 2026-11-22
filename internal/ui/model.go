@@ -34,7 +34,7 @@ const (
 	modeMenu // the ! menu: plugin actions and links
 	// the model picker (ctrl+g)
 	modeModel
-	modeEdit // a row or note edited in place (m.edit)
+	modeEdit // a row edited in place (m.edit)
 )
 
 type model struct {
@@ -57,17 +57,19 @@ type model struct {
 	srch searchState // the search view
 	help bool
 
-	mode         mode
-	input        string
-	inputPrompt  string
-	inputAction  func(m *model, s string) tea.Cmd
-	edit         *inlineEdit // what modeEdit edits
-	confirmMsg   string
-	confirmKey   string // the action's key: pressed again, it confirms
-	confirmDo    func(m *model) tea.Cmd
-	filterBefore string
-	menu         []menuItem // the ! menu's items while modeMenu
-	menuTitle    string
+	mode          mode
+	input         string
+	inputPrompt   string
+	inputAction   func(m *model, s string) tea.Cmd
+	edit          *inlineEdit // what modeEdit edits
+	confirmMsg    string
+	confirmKey    string // the action's key: pressed again, it confirms
+	confirmDo     func(m *model) tea.Cmd
+	filterBefore  string
+	menu          []menuItem // the ! menu's items while modeMenu
+	actionsSeen   time.Time  // the agents' action log's mtime at the last look (noticeActions)
+	actionsLooked bool       // noticeActions ran once: what was there before isn't news
+	menuTitle     string
 
 	panelTab string   // the agent box's tab (, and .): "" or "agent", or a plugin's name; kept across agents
 	tabHits  []tabHit // where the tabs were drawn, for clicks
@@ -280,6 +282,7 @@ func (m *model) refresh() {
 	m.classify(time.Now())
 	m.checkHealth(time.Now())
 	m.noteLive()
+	m.noticeActions()
 	m.layout.Spawns = spawns.Cached()
 	placed := m.layout.Place(m.agents)
 	if m.layout.Revive(m.agents) || placed { // archived but working again: back in the tree
