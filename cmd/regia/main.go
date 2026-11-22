@@ -28,8 +28,7 @@ const usage = `regia — terminal control room for Claude Code background agents
   regia openers    list | show | test: what opens files, images, URLs and diffs (README "Openers")
 
   group awareness (agents in a hand-made group or under a coordinator):
-  regia context    run by an agent: its group, siblings' state and shared notes (--all: every note)
-  regia note "…"   run by an agent: share one line with its group
+  regia context    run by an agent: its group, coordinator and siblings with what they are doing
   regia group      on | off | status: turn it on or off for every session (REGIA_GROUP=off: one session)`
 
 func main() {
@@ -68,8 +67,8 @@ func dispatch(args []string) error {
 		}
 	case "context":
 		return cmdContext(args[1:], os.Stdout)
-	case "note":
-		return cmdNote(args[1:], os.Stdout)
+	case "note": // removed with the blackboard; sessions started before may still try it
+		return fmt.Errorf("regia note was removed: there is no group blackboard any more (regia context shows your group)")
 	case "group":
 		return cmdGroup(args[1:], os.Stdout)
 	case "plugin", "plugins":

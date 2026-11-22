@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -62,8 +60,8 @@ func TestResolve(t *testing.T) {
 	if !slices.Equal(coord.Chain, []string{"g:1"}) || !coord.Family || coord.Nearest() != "g:1" {
 		t.Fatalf("coord: %+v", coord)
 	}
-	if !slices.Equal(coord.Visible(), []string{"coord", "g:1"}) || !slices.Equal(tr.Children(coord), []string{"w1", "w2", "w3"}) {
-		t.Fatalf("coord visible %v children %v", coord.Visible(), tr.Children(coord))
+	if !slices.Equal(coord.Chain, []string{"g:1"}) || !slices.Equal(tr.Children(coord), []string{"w1", "w2", "w3"}) {
+		t.Fatalf("coord chain %v children %v", coord.Chain, tr.Children(coord))
 	}
 	if got := tr.Siblings(coord); !slices.Equal(got, []string{"a1"}) {
 		t.Fatalf("coord siblings: %v", got)
@@ -157,11 +155,15 @@ func TestCheckFlow(t *testing.T) {
 		t.Fatalf("not grouped: silent, got %q", msg)
 	}
 
-	AddNote("g:1", Note{By: "a1", Name: "copy", Text: "prod DB is read-only"})
 	msg := Check(tr, "w1", "PostToolUse", t0, names)
-	for _, want := range []string{`working under coordinator "orchestrator"`, "blackboard (1 unread note on it)", "regia context", "regia note", "something new"} {
+	for _, want := range []string{`working under coordinator "orchestrator"`, "regia context", "moved to another group"} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("intro lacks %q:\n%s", want, msg)
+		}
+	}
+	for _, gone := range []string{"blackboard", "regia note"} {
+		if strings.Contains(msg, gone) {
+			t.Fatalf("intro still mentions %q:\n%s", gone, msg)
 		}
 	}
 	if n := len(strings.Fields(msg)); n > 120 {
@@ -171,41 +173,31 @@ func TestCheckFlow(t *testing.T) {
 		t.Fatalf("nothing new: silent, got %q", msg)
 	}
 
-	AddNote("coord", Note{By: "w2", Name: "layout", Text: "gauges go on top"})
-	AddNote("coord", Note{By: "w1", Name: "KPI queries", Text: "my own note"})
+	// a move is noticed at the next look, not within the throttle
+	tr.L.Parent["w1"] = "g:1"
 	if msg := Check(tr, "w1", "PostToolUse", t0.Add(30*time.Second), names); msg != "" {
 		t.Fatalf("within the throttle: silent, got %q", msg)
 	}
 	msg = Check(tr, "w1", "PostToolUse", t0.Add(90*time.Second), names)
-	if msg != "[regia] 1 new note in your group from layout — `regia context` to read." {
-		t.Fatalf("news: %q", msg)
+	if !strings.Contains(msg, `you were moved: you're now in group "dashboards" with`) {
+		t.Fatalf("moved: %q", msg)
 	}
 	if msg := Check(tr, "w1", "PostToolUse", t0.Add(5*time.Minute), names); msg != "" {
-		t.Fatalf("news is told once: %q", msg)
+		t.Fatalf("a move is told once: %q", msg)
 	}
 
-	// a user message checks right away; notes flow down from the group above
-	AddNote("g:1", Note{By: FromUser, Name: "you", Text: "ship by friday"})
-	if msg := Check(tr, "w1", "UserPromptSubmit", t0.Add(5*time.Minute+time.Second), names); !strings.Contains(msg, "1 new note in your group from the user (in regia)") {
-		t.Fatalf("user message: %q", msg)
-	}
-	// a note the user wrote in regia must not read "you:" to the agent
-	if c := Context(tr, tr.Resolve("w1"), nil, false, t0); !strings.Contains(c, "the user (in regia): ship by friday") {
-		t.Fatalf("user note in context:\n%s", c)
-	}
-
-	// read with regia context: what was there is no news any more
-	AddNote("coord", Note{By: "w3", Name: "export", Text: "csv uses ;"})
-	MarkRead(tr, tr.Resolve("w1"))
+	// read with regia context: a move it has seen there is no news any more
+	tr.L.Parent["w1"] = "coord"
+	MarkRead(tr.Resolve("w1"))
 	if msg := Check(tr, "w1", "UserPromptSubmit", t0.Add(6*time.Minute), names); msg != "" {
 		t.Fatalf("after reading: %q", msg)
 	}
 
-	// moved into the group directly
+	// a user message checks right away
 	tr.L.Parent["w1"] = "g:1"
-	msg = Check(tr, "w1", "UserPromptSubmit", t0.Add(7*time.Minute), names)
-	if !strings.Contains(msg, `you were moved: you're now in group "dashboards" with`) {
-		t.Fatalf("moved: %q", msg)
+	msg = Check(tr, "w1", "UserPromptSubmit", t0.Add(6*time.Minute+time.Second), names)
+	if !strings.Contains(msg, "you were moved") {
+		t.Fatalf("user message: %q", msg)
 	}
 }
 
@@ -213,7 +205,7 @@ func TestHandleHookAndSwitches(t *testing.T) {
 	fixture(t) // HandleHook loads the tree itself: w3 is unknown there (no spawns.jsonl)
 	run := func(event string) string {
 		var out bytes.Buffer
-		in := fmt.Sprintf(`{"session_id":"0123456789abcdef","hook_event_name":%q,"tool_name":"Bash","tool_response":{"stdout":"`+strings.Repeat("x", 2<<20)+`"}}`, event)
+		in := fmt.Sprintf(`{"session_id":"0123456789abcdef","hook_event_name":%q,"prompt":"check your siblings","tool_name":"Bash","tool_response":{"stdout":"`+strings.Repeat("x", 2<<20)+`"}}`, event)
 		HandleHook(strings.NewReader(in), &out, "/home/u/.claude/jobs/w2", time.Now())
 		return out.String()
 	}
@@ -231,8 +223,7 @@ func TestHandleHookAndSwitches(t *testing.T) {
 		t.Fatalf("second call: %q", out)
 	}
 
-	// turned off: silent even with news
-	AddNote("coord", Note{By: "w1", Name: "KPI queries", Text: "x"})
+	// turned off: silent even when asked about the group
 	if err := SetEnabled(false); err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +236,7 @@ func TestHandleHookAndSwitches(t *testing.T) {
 		t.Fatal("REGIA_GROUP=off should silence the hook")
 	}
 	t.Setenv("REGIA_GROUP", "")
-	if out := run("UserPromptSubmit"); !strings.Contains(out, "1 new note") || !strings.Contains(out, `"hookEventName":"UserPromptSubmit"`) {
+	if out := run("UserPromptSubmit"); !strings.Contains(out, "You are part of a group") || !strings.Contains(out, `"hookEventName":"UserPromptSubmit"`) {
 		t.Fatalf("back on: %q", out)
 	}
 }
@@ -258,129 +249,24 @@ func TestContext(t *testing.T) {
 		"w1":    {ID: "w1", Name: "KPI queries", State: "busy", StartedAt: now.Add(-4 * time.Minute)},
 		"w2":    {ID: "w2", Name: "layout", State: "done", Detail: "moved gauges\nto the top", UpdatedAt: now.Add(-10 * time.Minute)},
 	}
-	for i := 1; i <= 12; i++ {
-		AddNote("coord", Note{At: now, By: "w2", Name: "layout", Text: fmt.Sprintf("note %d", i)})
-	}
-	AddNote("g:1", Note{At: now, By: "w1", Name: "KPI queries", Text: "mine"})
-	out := Context(tr, tr.Resolve("w1"), agents, false, now)
+	out := Context(tr, tr.Resolve("w1"), agents, now)
 	for _, want := range []string{
 		`regia · you are "KPI queries" (w1)`,
 		`coordinator: ◆ orchestrator — working 2m — spawned 3 workers`,
 		"siblings (2):",
 		"✓ layout — done 10m — moved gauges to the top",
 		"· w3 — not listed any more",
-		"[orchestrator]", "(+2 older: regia context --all)", "layout: note 12",
-		"[dashboards]", "you: mine",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("context lacks %q:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "note 2\n") {
-		t.Fatalf("older notes should be cut:\n%s", out)
+	if strings.Contains(out, "blackboard") {
+		t.Fatalf("context still shows a blackboard:\n%s", out)
 	}
-	if all := Context(tr, tr.Resolve("w1"), agents, true, now); !strings.Contains(all, "layout: note 1\n") {
-		t.Fatalf("--all shows every note:\n%s", all)
-	}
-	if out := Context(tr, tr.Resolve("lonely"), agents, false, now); !strings.Contains(out, "not in a group") {
+	if out := Context(tr, tr.Resolve("lonely"), agents, now); !strings.Contains(out, "not in a group") {
 		t.Fatalf("lonely: %s", out)
 	}
-}
-
-func TestAddNote(t *testing.T) {
-	fixture(t)
-	if err := AddNote("g:1", Note{By: "w1", Text: "two\nlines   here"}); err != nil {
-		t.Fatal(err)
-	}
-	AddNote("g:1", Note{By: "w1", Text: strings.Repeat("é", 900)})
-	if AddNote("g:1", Note{By: "w1", Text: "  \n "}) == nil || AddNote("", Note{Text: "x"}) == nil {
-		t.Fatal("empty note or no group should fail")
-	}
-	ns := ReadNotes("g:1")
-	if len(ns) != 2 || ns[0].Text != "two lines here" || len([]rune(ns[1].Text)) != maxNote+1 {
-		t.Fatalf("notes %+v", ns)
-	}
-	if _, err := os.Stat(filepath.Join(notesDir(), "g_1.jsonl")); err != nil {
-		t.Fatal(err)
-	}
-	DeleteNotes("g:1")
-	if ReadNotes("g:1") != nil {
-		t.Fatal("not deleted")
-	}
-}
-
-func TestEditDeleteNote(t *testing.T) {
-	tr := fixture(t)
-	t0 := time.Now()
-	AddNote("g:1", Note{By: "a1", Name: "copy", Text: "launch nov 20"})
-	AddNote("g:1", Note{By: "w2", Name: "layout", Text: "grid is 12 cols"})
-	os.WriteFile(notesPath("g:1"), append(must(os.ReadFile(notesPath("g:1"))), "not json\n"...), 0o644) // kept as is
-	Check(tr, "w1", "UserPromptSubmit", t0, names)                                                      // intro: both seen
-
-	ns := ReadNotes("g:1")
-	if err := EditNote("g:1", ns[0], "launch moved to dec 1"); err != nil {
-		t.Fatal(err)
-	}
-	// an edit is news, like a new note
-	if msg := Check(tr, "w1", "UserPromptSubmit", t0.Add(time.Second), names); !strings.Contains(msg, "1 new note in your group from copy") {
-		t.Fatalf("edit should be news: %q", msg)
-	}
-	ns = ReadNotes("g:1")
-	if len(ns) != 2 || ns[0].Text != "launch moved to dec 1" || ns[0].Edited.IsZero() || !ns[0].At.Equal(ns[0].At) || ns[1].Text != "grid is 12 cols" {
-		t.Fatalf("after edit: %+v", ns)
-	}
-	if c := Context(tr, tr.Resolve("w1"), nil, false, t0); !strings.Contains(c, "copy: launch moved to dec 1 (edited)") {
-		t.Fatalf("context:\n%s", c)
-	}
-	if EditNote("g:1", ns[0], "  ") == nil {
-		t.Fatal("an empty edit should fail")
-	}
-
-	// a delete then a new note: the new one is still news (a count would miss it)
-	if err := DeleteNote("g:1", ns[1]); err != nil {
-		t.Fatal(err)
-	}
-	AddNote("g:1", Note{By: "w2", Name: "layout", Text: "grid is 16 cols"})
-	if msg := Check(tr, "w1", "UserPromptSubmit", t0.Add(2*time.Second), names); !strings.Contains(msg, "1 new note in your group from layout") {
-		t.Fatalf("delete+add: %q", msg)
-	}
-	if DeleteNote("g:1", ns[1]) == nil {
-		t.Fatal("deleting a gone note should fail")
-	}
-	if b := string(must(os.ReadFile(notesPath("g:1")))); !strings.Contains(b, "not json") {
-		t.Fatalf("an unreadable line was lost:\n%s", b)
-	}
-}
-
-// Agents append while the user edits: no append may be lost.
-func TestRewriteVsAppends(t *testing.T) {
-	fixture(t)
-	AddNote("g:1", Note{By: FromUser, Name: "you", Text: "v0"})
-	first := ReadNotes("g:1")[0]
-	done := make(chan bool)
-	go func() {
-		for i := range 200 {
-			AddNote("g:1", Note{By: "w1", Name: "w", Text: fmt.Sprint("n", i)})
-		}
-		done <- true
-	}()
-	for i := range 200 {
-		if err := EditNote("g:1", first, fmt.Sprint("v", i+1)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	<-done
-	ns := ReadNotes("g:1")
-	if len(ns) != 201 || ns[0].Text != "v200" {
-		t.Fatalf("%d notes, first %q", len(ns), ns[0].Text)
-	}
-}
-
-func must(b []byte, err error) []byte {
-	if err != nil {
-		panic(err)
-	}
-	return b
 }
 
 func TestSelfID(t *testing.T) {

@@ -12,14 +12,13 @@ import (
 
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/gitinfo"
-	"github.com/farzeni/regia/internal/group"
 	"github.com/farzeni/regia/internal/layout"
 )
 
 // The group timeline (T): for a group, or a coordinator with its agents, one
 // feed of what happened, oldest first and newest at the bottom like the rest
 // of the panel: the agents' state changes (from their timeline.jsonl), the
-// blackboard notes, the commits on their branches (git log, read in the
+// commits on their branches (git log, read in the
 // background and cached) and the PRs they opened (state.json). Every source
 // is optional: what can't be read is left out.
 
@@ -121,9 +120,6 @@ func (m *model) timelineItems(container string) []tlItem {
 				Text: strings.TrimSpace(fmt.Sprintf("opened %s #%s %s", kind, p.ID, p.Href))})
 		}
 	}
-	for _, n := range group.ReadNotes(container) {
-		items = append(items, tlItem{At: n.At, Who: n.Name, Icon: "✎", Color: cAccent, Text: n.Text})
-	}
 	seen := map[string]bool{}
 	for k, ag := range logKeys(as) {
 		cs, _ := gitinfo.CachedLog(k)
@@ -168,7 +164,7 @@ func prefix(what, detail string) string {
 // "15:04 name ● what" lines, newest last.
 func timelineLines(items []tlItem, w int) []string {
 	if len(items) == 0 {
-		return []string{stDim.Render("nothing yet: no state changes, notes, commits or PRs")}
+		return []string{stDim.Render("nothing yet: no state changes, commits or PRs")}
 	}
 	nameW := 4
 	for _, it := range items {
@@ -249,14 +245,14 @@ func (m *model) timelineCmd() tea.Cmd {
 	}
 }
 
-// timelineKey (T) swaps the blackboard of a group or coordinator for its
-// timeline and back. On an agent it selects the agent's group first.
+// timelineKey (T) swaps the panel of a group or coordinator for its timeline
+// and back. On an agent it selects the agent's group first.
 func (m *model) timelineKey(r *layout.Row) tea.Cmd {
 	target := ""
 	if r != nil && m.isContainer(r) {
 		target = r.ID
 	} else {
-		target = m.noteTarget(r)
+		target = m.groupTarget(r)
 		if target != "" && m.visRow[target] {
 			m.cursorID = target
 			m.rebuild()
@@ -275,9 +271,9 @@ func (m *model) timelineKey(r *layout.Row) tea.Cmd {
 	}
 	m.panelFor = "" // open at the newest line
 	if m.timeline {
-		m.flash("timeline of %s · pgup/pgdn scroll · T: blackboard", m.titleOf(target))
+		m.flash("timeline of %s · pgup/pgdn scroll · T: back", m.titleOf(target))
 	} else {
-		m.flash("blackboard · T: timeline")
+		m.flash("T: timeline")
 	}
 	return m.timelineCmd()
 }
@@ -287,7 +283,7 @@ func (m *model) timelineKey(r *layout.Row) tea.Cmd {
 // own card) and the timeline below it, stuck to the bottom and scrolled with
 // pgup/pgdn like an agent's history.
 func (m *model) timelineView(r *layout.Row, w int) panel {
-	head := stHead.Render("timeline  (T: blackboard · pgup/pgdn)")
+	head := stHead.Render("timeline  (T: back · pgup/pgdn)")
 	var card []string
 	if r.Group {
 		card = []string{stBold.Render(r.Title),

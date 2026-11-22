@@ -1,6 +1,6 @@
 {
   "name": "regia",
-  "description": "Records which Claude Code session started which (claude --bg), so the regia control room nests agents under their coordinator, and tells agents in a regia group about their group (regia context, regia note).",
+  "description": "Records which Claude Code session started which (claude --bg), so the regia control room nests agents under their coordinator, and tells agents in a regia group about their group (regia context).",
   "author": { "name": "farzeni" },
   "repository": "https://github.com/farzeni/regia"
 }

@@ -89,9 +89,6 @@ type model struct {
 	scanning  bool // a transcript scan for missed spawns is running
 	scannedAt int  // the tick the last one started
 
-	notesFor string // the blackboard open with N (a group or coordinator id)
-	noteSel  int    // the note picked on it, oldest first
-
 	// geometry of the last frame, for the mouse
 	lw, vis  int
 	dragging bool // dragging the divider to resize the list
@@ -111,7 +108,7 @@ type model struct {
 
 	panelScroll int    // lines the panel's conversation is scrolled back (pgup/pgdn)
 	panelFor    string // the row panelScroll belongs to
-	timeline    bool   // T: a group's or coordinator's panel shows its timeline instead of the blackboard
+	timeline    bool   // T: a group's or coordinator's panel shows its timeline
 
 	// the always-on input at the bottom: typing goes there, command keys
 	// (j/k, J/K, s, y…) work after esc
