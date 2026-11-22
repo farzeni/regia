@@ -9,6 +9,7 @@ import (
 
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/gitinfo"
+	"github.com/farzeni/regia/internal/prinfo"
 )
 
 // Reads for agents beyond the tree: the inbox (who needs the user), a
@@ -20,15 +21,17 @@ import (
 // InboxItem is an agent that needs the user, and why.
 type InboxItem struct {
 	Node
-	Why     string `json:"why"`             // waiting, stuck, failed
+	Why     string `json:"why"`             // waiting, stuck, pr, failed
 	Stuck   string `json:"stuck,omitempty"` // why it looks stuck
+	PR      string `json:"pr,omitempty"`    // what its PR needs ("PR #12: CI failing") and its link
 	Since   string `json:"since,omitempty"` // how long it has been like this
 	Snoozed bool   `json:"snoozed,omitempty"`
 }
 
 // Inbox lists the agents the caller may read that need the user: waiting on
-// a question, looking stuck, or failed; in that order, the longest waiting
-// first. Archived agents are left out.
+// a question, looking stuck, finished with a PR that fails CI or has changes
+// requested (as regia last saw it, from prinfo's cache on disk), or failed;
+// in that order, the longest waiting first. Archived agents are left out.
 func Inbox(self string) ([]InboxItem, error) {
 	w, err := read(self)
 	if err != nil {
@@ -36,7 +39,8 @@ func Inbox(self string) ([]InboxItem, error) {
 	}
 	c := w.who(self)
 	now := time.Now()
-	rank := map[string]int{"waiting": 0, "stuck": 1, "failed": 2}
+	rank := map[string]int{"waiting": 0, "stuck": 1, "pr": 2, "failed": 3}
+	prinfo.Load()
 	type item struct {
 		InboxItem
 		at time.Time
@@ -53,6 +57,8 @@ func Inbox(self string) ([]InboxItem, error) {
 			it.Why = "waiting"
 		case a.State == "busy" && claude.Health(a, now) != "":
 			it.Why, it.Stuck = "stuck", claude.Health(a, now)
+		case (a.State == "done" || a.State == "ready") && prNeeds(a) != "":
+			it.Why, it.PR = "pr", prNeeds(a)
 		case a.State == "failed":
 			it.Why = "failed"
 		default:
@@ -82,6 +88,20 @@ func Inbox(self string) ([]InboxItem, error) {
 		out[i] = it.InboxItem
 	}
 	return out, nil
+}
+
+// prNeeds is what a's PR needs from the user, with its link ("" if nothing),
+// from the cache regia keeps; regia mcp never runs gh itself.
+func prNeeds(a *claude.Agent) string {
+	dir, ref := PRRef(a)
+	if ref == "" {
+		return ""
+	}
+	i, _ := prinfo.Cached(dir, ref)
+	if r := i.Reason(); r != "" {
+		return strings.TrimSpace(r + " " + i.URL)
+	}
+	return ""
 }
 
 func since(d time.Duration) string {

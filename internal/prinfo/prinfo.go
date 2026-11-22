@@ -168,6 +168,7 @@ func fetch(dir, ref string) Info {
 	mu.Lock()
 	cache[k] = info
 	mu.Unlock()
+	save()
 	return info
 }
 

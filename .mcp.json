@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "regia": {
-      "command": "regia",
-      "args": ["mcp"]
-    }
-  }
-}

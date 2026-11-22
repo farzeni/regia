@@ -12,7 +12,7 @@ developed that way: feature work arrives as `worktree-*` branches merged into `m
 
 regia only **reads** Claude Code's own data and drives the `claude` CLI; it has no server and no database of its own.
 It also ships a **Claude Code plugin** (this repo is its own marketplace) whose hooks call `regia hook …`, which
-starts `regia mcp` (`.mcp.json`) in every session and carries the `regia:organize` skill (`skills/`).
+starts `regia mcp` (`mcpServers` in `.claude-plugin/plugin.json`) in every session and carries the `regia:organize` skill (`skills/`).
 
 ## Commands
 

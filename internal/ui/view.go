@@ -228,6 +228,9 @@ func (m *model) View() string {
 	if m.mode == modeMenu {
 		return overlay(b.String(), m.menuModal(), m.w, m.h)
 	}
+	if m.mode == modeActions {
+		return overlay(b.String(), m.actionsModal(), m.w, m.h)
+	}
 	return b.String()
 }
 

@@ -2,9 +2,12 @@ package ui
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/farzeni/regia/internal/group"
 	"github.com/farzeni/regia/internal/layout"
@@ -126,33 +129,68 @@ func actionLine(a group.Action) string {
 	return s
 }
 
-// actionsKey (U) lists the agents' latest actions; a key undoes one.
+// actionsKey (U) opens the list of the agents' actions, newest first.
 func (m *model) actionsKey() tea.Cmd {
 	as := group.Actions()
 	if len(as) == 0 {
 		m.flash("no agent has changed the tree (agents organize it through regia mcp)")
 		return nil
 	}
-	var items []menuItem
-	for i := len(as) - 1; i >= 0 && len(items) < len(menuKeys); i-- {
-		a := as[i]
-		items = append(items, menuItem{string(menuKeys[len(items)]), actionLine(a), func(m *model) tea.Cmd {
-			if !a.Undone.IsZero() {
-				m.flash("already undone")
-				return nil
-			}
-			if err := group.Undo(a); err != nil {
-				m.flash("not undone: %v", err)
-				return nil
-			}
+	slices.Reverse(as)
+	m.acts, m.actSel, m.mode = as, 0, modeActions
+	return nil
+}
+
+// updateActions: j/k move, enter undoes the selected action, U, q or esc close.
+func (m *model) updateActions(k tea.KeyMsg) tea.Cmd {
+	switch k.String() {
+	case "j", "down":
+		m.actSel = min(m.actSel+1, len(m.acts)-1)
+	case "k", "up":
+		m.actSel = max(m.actSel-1, 0)
+	case "g", "home":
+		m.actSel = 0
+	case "G", "end":
+		m.actSel = len(m.acts) - 1
+	case "enter":
+		a := m.acts[m.actSel]
+		switch err := group.Undo(a); {
+		case !a.Undone.IsZero():
+			m.flash("already undone")
+		case err != nil:
+			m.flash("not undone: %v", err)
+		default:
 			m.syncLayout()
 			m.rebuild()
 			m.flash("undone: %s", a.Summary)
-			return nil
-		}})
+			m.acts[m.actSel].Undone = time.Now()
+		}
+	case "U", "q", "esc":
+		m.mode, m.acts = modeNormal, nil
 	}
-	m.menu, m.menuTitle, m.mode = items, "agent actions · a key undoes one", modeMenu
 	return nil
+}
+
+// actionsModal draws the list as a box over the screen, scrolled to keep the
+// selection in view.
+func (m *model) actionsModal() string {
+	rows := max(3, m.h-8)
+	top := min(max(0, m.actSel-rows/2), max(0, len(m.acts)-rows))
+	ls := []string{stBold.Render("agent actions") + stDim.Render(fmt.Sprintf("   %d · j/k move · enter undoes · esc closes", len(m.acts))), ""}
+	for i := top; i < min(len(m.acts), top+rows); i++ {
+		l := trunc(actionLine(m.acts[i]), max(20, m.w-12))
+		switch {
+		case i == m.actSel:
+			l = stAccent.Render("▸ ") + stBold.Render(l)
+		case !m.acts[i].Undone.IsZero():
+			l = "  " + stDim.Render(l)
+		default:
+			l = "  " + l
+		}
+		ls = append(ls, l)
+	}
+	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(cAccent).
+		Padding(0, 1).MaxWidth(m.w).Render(strings.Join(ls, "\n"))
 }
 
 // noticeActions announces an action an agent just made (run on refresh). The

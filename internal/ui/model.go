@@ -11,6 +11,7 @@ import (
 
 	"github.com/farzeni/regia/internal/attach"
 	"github.com/farzeni/regia/internal/claude"
+	"github.com/farzeni/regia/internal/group"
 	"github.com/farzeni/regia/internal/layout"
 	"github.com/farzeni/regia/internal/spawns"
 )
@@ -34,8 +35,9 @@ const (
 	modeMenu // the ! menu: plugin actions and links
 	// the model picker (ctrl+g)
 	modeModel
-	modeEdit  // a row edited in place (m.edit)
-	modeScope // what search looks in (ctrl+g in search)
+	modeEdit    // a row edited in place (m.edit)
+	modeScope   // what search looks in (ctrl+g in search)
+	modeActions // the agents' actions (U): j/k, enter undoes
 )
 
 type model struct {
@@ -67,9 +69,11 @@ type model struct {
 	confirmKey    string // the action's key: pressed again, it confirms
 	confirmDo     func(m *model) tea.Cmd
 	filterBefore  string
-	menu          []menuItem // the ! menu's items while modeMenu
-	actionsSeen   time.Time  // the agents' action log's mtime at the last look (noticeActions)
-	actionsLooked bool       // noticeActions ran once: what was there before isn't news
+	menu          []menuItem     // the ! menu's items while modeMenu
+	actionsSeen   time.Time      // the agents' action log's mtime at the last look (noticeActions)
+	actionsLooked bool           // noticeActions ran once: what was there before isn't news
+	acts          []group.Action // the U list while modeActions, newest first
+	actSel        int            // its selection
 	menuTitle     string
 
 	panelTab string   // the agent box's tab (, and .): "" or "agent", or a plugin's name; kept across agents

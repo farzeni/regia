@@ -248,6 +248,9 @@ The user's `swarm` skill should point to it for briefs.
   done (only if it finished after its claim, so a lagging state file doesn't end a fresh one) or with `O`.
   The user's `O` grant stays, lasts until revoked, and a whole-tree grant still reaches muted parts.
   Coordinators organize their own agents without claiming.
+- The server is declared in `.claude-plugin/plugin.json` (`mcpServers`), not in a root `.mcp.json`: this repo is
+  the plugin, and Claude Code also reads a root `.mcp.json` as the project's own server, so sessions in the
+  regia repo were asked to approve a second copy.
 - `regia setup` also refreshes the marketplace and updates the plugin, so a machine that already had it gets
   the server and the skill.
 

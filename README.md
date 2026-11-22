@@ -274,7 +274,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `m`, then `p` / `P` | move: `p` puts it into the group under the cursor (at the top), or right after the agent; `P` puts it after the group, or under the agent (as its coordinator) |
 | `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up); the name is typed right in the row (`enter` saves, `esc` cancels) |
 | `O` | let the agent organize part of the tree through regia's MCP tools: its group, then the whole tree, then nothing (marked ✦); on an agent's own claim, takes it back; see [Agents that organize regia](#agents-that-organize-regia) |
-| `U` | what agents changed in the tree, newest first: a key undoes that change |
+| `U` | what agents changed in the tree, newest first: `j`/`k` move, `enter` undoes one, `esc` closes |
 | `T` | a group's or coordinator's panel shows its timeline / back (on an agent: its group's); see [Group awareness](#group-awareness) |
 | `w` | set the directory new agents in the group start in (on an agent: its group's); see [Where a new agent starts](#where-a-new-agent-starts) |
 | `←` `→` `space` | fold / unfold |
@@ -432,7 +432,7 @@ session), and ships the `regia:organize` skill that tells agents how to use it.
 
 Tools:
 
-- read: `whoami`, `tree`, `agent`; `inbox` (who is waiting, stuck or failed),
+- read: `whoami`, `tree` (`brief` for the shape, `under` for one group), `agent`; `inbox` (who is waiting, stuck, has a PR that fails CI or has changes requested, or failed),
   `timeline` (what happened in a group in the last hours: the same feed as
   `T`), `changes` (the files an agent edited, as in the changes tab);
 - change: `create_group`, `rename_group`, `delete_group`, `move`, `archive`,
@@ -463,8 +463,8 @@ alone. Only a whole-tree grant you gave reaches them. `archive` only hides an
 agent in regia; it never stops one.
 
 Every change appears in the status line as it happens ("orchestrator: moved 2
-items into backend · U to undo"). `U` lists the agents' changes, newest first;
-its key undoes one, unless what it changed was changed again since (regia says
+items into backend · U to undo"). `U` lists all the agents' changes, newest first;
+`enter` undoes the selected one, unless what it changed was changed again since (regia says
 so and leaves it). The log is `~/.config/regia/actions.jsonl`. Changes from
 agents and from you are merged, so neither overwrites the other.
 
@@ -622,9 +622,8 @@ internal/prinfo/    PR status of an agent (state, CI, review) via `gh`, cached
 internal/attach/    `claude attach` behind a pty proxy (fast return to regia)
 internal/update/    self-update: version check on the Go module proxy, `go install` in place
 internal/ui/        the terminal interface (bubbletea): model, update, view, panel, input
-.claude-plugin/     plugin manifest + marketplace (this repo is its own marketplace)
+.claude-plugin/     plugin manifest (with the MCP server it starts, regia mcp) + marketplace (this repo is its own marketplace)
 hooks/hooks.json    the hooks the plugin installs (spawn links, group awareness)
-.mcp.json           the MCP server the plugin starts (regia mcp)
 skills/organize/    the regia:organize skill
 presets/openers/    opener presets, embedded in the binary
 docs/               plugin protocol, code conventions

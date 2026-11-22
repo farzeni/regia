@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -10,7 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/farzeni/regia/internal/claude"
-	"github.com/farzeni/regia/internal/gitinfo"
+	"github.com/farzeni/regia/internal/group"
 	"github.com/farzeni/regia/internal/prinfo"
 )
 
@@ -25,45 +24,8 @@ type prMsg struct{}
 // prRefsPerTick caps how many gh calls one tick may start.
 const prRefsPerTick = 4
 
-// prRef is where and what to ask gh about for a, or "" when there's nothing.
-func prRef(a *claude.Agent) (dir, ref string) {
-	if a == nil || a.Interactive {
-		return "", ""
-	}
-	dir = a.Cwd
-	if dir != "" {
-		if _, err := os.Stat(dir); err != nil {
-			dir = "" // worktree removed: a URL still works from anywhere
-		}
-	}
-	for i := len(a.PRs) - 1; i >= 0; i-- {
-		if p := a.PRs[i]; p.Kind == "pr" && (p.Href != "" || p.ID != "") {
-			ref = p.Href
-			if ref == "" {
-				ref = p.ID
-				if dir == "" {
-					return "", ""
-				}
-			}
-			if dir == "" {
-				dir, _ = os.UserHomeDir()
-			}
-			return dir, ref
-		}
-	}
-	if dir == "" {
-		return "", ""
-	}
-	b := a.Branch
-	if gi, ok := gitinfo.Cached(a.Cwd); ok && gi.OK && gi.Branch != "" {
-		b = gi.Branch
-	}
-	switch b {
-	case "", "main", "master", "develop", "trunk":
-		return "", "" // the default branch has no PR of its own
-	}
-	return dir, b
-}
+// prRef is where and what to ask gh about for a (group.PRRef).
+var prRef = group.PRRef
 
 // prFor is a's cached PR status (zero when unknown or none).
 func prFor(a *claude.Agent) prinfo.Info {

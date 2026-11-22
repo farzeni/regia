@@ -56,7 +56,7 @@ func TestWorkerReadsOnly(t *testing.T) {
 	if err != nil || me.Role != RoleWorker || me.Group != "coord" || me.Scope != "" {
 		t.Fatalf("w1: %+v %v", me, err)
 	}
-	tr, _ := TreeOf("w1", false)
+	tr, _ := TreeOf("w1", TreeOpts{})
 	if tr.ID != "coord" || strings.Join(ids(tr), ",") != "w1,w2" {
 		t.Fatalf("a worker reads its group: %+v", tr)
 	}
@@ -83,11 +83,18 @@ func TestCoordinatorOrganizesItsAgents(t *testing.T) {
 	if err != nil || !strings.Contains(s, `created group "frontend"`) {
 		t.Fatalf("create: %q %v", s, err)
 	}
-	tr, _ := TreeOf("coord", false)
+	tr, _ := TreeOf("coord", TreeOpts{})
 	if len(tr.Children) != 2 || tr.Children[1].Title != "frontend" || strings.Join(ids(tr.Children[1]), ",") != "w1" {
 		t.Fatalf("the group is under coord with w1 in it: %+v", tr)
 	}
 	gid := tr.Children[1].ID
+	if sub, err := TreeOf("coord", TreeOpts{Under: gid, Brief: true}); err != nil || sub.ID != gid || len(sub.Children) != 1 ||
+		sub.Children[0].ID != "w1" || sub.Children[0].State == "" || sub.Children[0].Question != "" || sub.Children[0].Updated != "" {
+		t.Fatalf("under the group, brief: %+v %v", sub, err)
+	}
+	if _, err := TreeOf("w2", TreeOpts{Under: "nope"}); err == nil {
+		t.Fatal("under something out of reach is refused")
+	}
 	if _, err := Move("coord", []string{"w2"}, gid, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +162,7 @@ func TestOrchestratorGrants(t *testing.T) {
 	if _, err := CreateGroup("boss", "triage", "", nil); err != nil {
 		t.Fatalf("a top-level group: %v", err)
 	}
-	tr, _ := TreeOf("boss", false)
+	tr, _ := TreeOf("boss", TreeOpts{})
 	if tr.Title != "regia" || !strings.Contains(strings.Join(ids(tr), ","), "g:1") {
 		t.Fatalf("whole tree from the top: %+v", tr)
 	}
@@ -169,7 +176,7 @@ func TestOrchestratorGrants(t *testing.T) {
 func TestToolsOffAndUnknown(t *testing.T) {
 	toolsFixture(t)
 	t.Setenv("REGIA_GROUP", "off")
-	if _, err := TreeOf("w1", false); !errors.Is(err, ErrOff) {
+	if _, err := TreeOf("w1", TreeOpts{}); !errors.Is(err, ErrOff) {
 		t.Fatalf("off: %v", err)
 	}
 	if _, err := Move("coord", []string{"w1"}, "coord", ""); !errors.Is(err, ErrOff) {
