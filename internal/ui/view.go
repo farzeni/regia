@@ -11,7 +11,6 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"github.com/farzeni/regia/internal/claude"
-	"github.com/farzeni/regia/internal/group"
 	"github.com/farzeni/regia/internal/layout"
 )
 
@@ -669,22 +668,11 @@ func (m *model) detailLines(w int) panel {
 		if n == 0 {
 			out = append(out, stDim.Render("nothing"))
 		}
-		if group.IsGroup(r.ID) {
-			out = append(out, m.notesSection(r.ID, w, 10)...)
-		}
 		return panel{card: out}
 	}
 	m.tabHits, m.tabRow = m.tabHits[:0], 0 // agentDetail draws them again if it has tabs
 	m.conv.id = ""                         // agentDetail sets it when it shows the conversation
 	hist, card, foot := m.agentDetail(r, w)
-	// a coordinator's panel is like any agent's; its agents' blackboard shows
-	// atop the card only while open (N)
-	if r.HasKids && m.notesFor == r.ID {
-		if ns := m.notesSection(r.ID, w, 5); len(ns) > 0 {
-			card = append(append(ns[1:], ""), card...)
-			m.tabRow = len(ns) // the tab bar moved down by the notes
-		}
-	}
 	return panel{hist: hist, card: card, foot: foot, bottomUp: true}
 }
 

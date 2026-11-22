@@ -1,6 +1,5 @@
 // Package group makes agents aware of the group they belong to in regia's
-// tree: their siblings, their coordinator, the agents they started, and notes
-// the group shares.
+// tree: their siblings, their coordinator and the agents they started.
 //
 // Only relationships made on purpose count: hand-made groups ("g:…") and
 // coordinators (an agent that started others, or that agents were moved
@@ -11,10 +10,9 @@
 //   - agents outside a group get nothing (the hook exits at once), unless the
 //     user asks them about a group: then one line says they are in none;
 //   - a grouped agent is told once (again after a compaction, or when the
-//     user talks about its group), in a few lines, that `regia context` and
-//     `regia note` exist; after that the hook speaks only when a sibling
-//     wrote a note it hasn't seen or it was moved, at most once a minute,
-//     with one line that points to `regia context` instead of pasting notes;
+//     user talks about its group), in a few lines, that `regia context`
+//     exists; after that the hook speaks only when it was moved, at most
+//     once a minute, in one line;
 //   - the whole thing is off with `regia group off` or REGIA_GROUP=off, and a
 //     group or coordinator can be muted in regia (M).
 package group
@@ -227,8 +225,8 @@ func (t *Tree) Resolve(self string) Position {
 // Grouped says whether the agent has anyone to be aware of.
 func (p Position) Grouped() bool { return len(p.Chain) > 0 || p.Family }
 
-// Nearest is the container a note from this agent goes to: the closest one
-// above, or its own family when nothing is above.
+// Nearest is the agent's closest container: the closest one above, or its
+// own family when nothing is above. The hook notices a move by it changing.
 func (p Position) Nearest() string {
 	if len(p.Chain) > 0 {
 		return p.Chain[0]
@@ -237,16 +235,6 @@ func (p Position) Nearest() string {
 		return p.Self
 	}
 	return ""
-}
-
-// Visible lists the containers whose notes the agent sees: its own family's
-// (its agents write there) and every container above (notes flow down).
-func (p Position) Visible() []string {
-	var out []string
-	if p.Family {
-		out = append(out, p.Self)
-	}
-	return append(out, p.Chain...)
 }
 
 // Siblings are the other members of the nearest container above.

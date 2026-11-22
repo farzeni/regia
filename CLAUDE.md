@@ -39,14 +39,14 @@ After changing `hooks/hooks.json` or `.claude-plugin/`: `claude plugin marketpla
 - These are internal Claude Code formats: every field is optional; what can't be read is left out.
 
 **regia's own state** in `~/.config/regia/`: `layout.json` (your tree, archive, pins, seen), `spawns.jsonl` (who
-started whom, written by the plugin's hook and backfilled from transcripts), `notes/` (group blackboards),
+started whom, written by the plugin's hook and backfilled from transcripts),
 `plugins/` (your scripts), `openers.conf`.
 
 **Packages** — dependencies point one way: `ui` → `group` → `layout` → `spawns` → `claude`; `gitinfo`, `prinfo`,
 `attach`, `update`, `plugins` are standalone.
 - `layout`: places each new agent (fork parent → spawner → project group) and flattens the tree into rows.
 - `spawns`: the `regia hook spawn` handler (PostToolUse on Bash) and the transcript backfill.
-- `group`: group awareness for agents — `regia context`, `regia note`, and `regia hook group` (PostToolUse,
+- `group`: group awareness for agents — `regia context` and `regia hook group` (PostToolUse,
   UserPromptSubmit, SessionStart), which must stay quiet and fast in every session.
 - `attach`: `claude attach` behind a pty proxy so `←` returns to regia in ~80 ms.
 - `ui`: the TUI, one model (`model.go`), `update.go` (keys, messages), `view.go`; a 1 s tick re-reads job state

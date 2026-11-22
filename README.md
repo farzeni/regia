@@ -259,7 +259,7 @@ is selected as soon as it shows up in the list, so a second `enter` attaches to 
 | `>` / `<` | nest under the agent above (it becomes the coordinator) / un-nest |
 | `m`, then `p` / `P` | move: `p` puts it into the group under the cursor (at the top), or right after the agent; `P` puts it after the group, or under the agent (as its coordinator) |
 | `n` / `r` / `d` | new group / rename (group or agent alias) / delete group (its agents move up); the name is typed right in the row (`enter` saves, `esc` cancels) |
-| `T` | a group's or coordinator's panel shows its timeline instead of the blackboard / back (on an agent: its group's); see [Group awareness](#group-awareness) |
+| `T` | a group's or coordinator's panel shows its timeline / back (on an agent: its group's); see [Group awareness](#group-awareness) |
 | `w` | set the directory new agents in the group start in (on an agent: its group's); see [Where a new agent starts](#where-a-new-agent-starts) |
 | `←` `→` `space` | fold / unfold |
 | `z` | fold everything / unfold everything |
@@ -283,7 +283,7 @@ moving to another agent clears it. Hold `shift` while dragging to select with
 the terminal instead, across the screen.
 
 The input takes the usual readline keys (`ctrl+a`/`ctrl+e`, `ctrl+w`,
-`alt+←/→`, `ctrl+k`/`ctrl+u`, …), and so do names and notes edited in place. `alt+enter`, `ctrl+j`, or `\` then `enter`
+`alt+←/→`, `ctrl+k`/`ctrl+u`, …), and so do names edited in place. `alt+enter`, `ctrl+j`, or `\` then `enter`
 add a line. A paste longer than 3 lines or 800 characters folds to
 `[Pasted text #1 +N lines]` and is expanded when the agent starts; `ctrl+v`
 pastes from the clipboard the same way. A task is capped at 120 KiB; beyond
@@ -376,48 +376,31 @@ started (or that you moved under it). Automatic project groups don't, so agents
 that only share a directory know nothing about each other.
 
 - **`regia context`** (run by an agent): its group, its coordinator, its
-  siblings and its own agents with state and last line, then the latest 10
-  shared notes of each level above it (`--all` for every note).
-- **`regia note "…"`** (run by an agent): one line for the group: a decision, a
-  fact or a warning. It goes to the nearest group or coordinator above the
-  agent and reaches everything below that point. Notes live in
-  `~/.config/regia/notes/` and are kept; removing a group removes its notes.
-
-In regia, the panel of a group shows its blackboard; a coordinator's panel is
-like any agent's, and its agents' blackboard shows above its card only while
-open. `N` opens it, from the group, the coordinator or any agent in it:
-`↑/↓` pick a note, `n` adds one from you, `e` edits the picked note (yours or
-an agent's), `x x` deletes it, `esc` closes. A note is written right on the
-blackboard (`enter` saves, `esc` cancels). An edit reaches the agents like a
-new note does. Outside regia, `regia context <id>` prints what an agent would
-see (`--all` for every note).
+  siblings and its own agents with state and last line. Outside regia,
+  `regia context <id>` prints what an agent would see.
 
 **Timeline** (`T`, "what happened while I was away"): the panel of a group or
-coordinator swaps its blackboard for one feed of everything its agents did,
+coordinator swaps for one feed of everything its agents did,
 oldest first and the newest at the bottom, a rule per day, one line each: the
 time, who, and what. It lists the agents' state changes (▶ started, ● waiting
 with its question, ◆ back to work, ✓ done, ✗ failed, from
-`~/.claude/jobs/<id>/timeline.jsonl`), the blackboard notes (✎), the commits
+`~/.claude/jobs/<id>/timeline.jsonl`), the commits
 on their branches since they started (⎇, `git log` of each distinct directory
 and branch, read in the background and cached for 30 s; a commit goes to the
 last agent on that branch started before it) and the PRs they opened (⇡, from
 `state.json`, dated when the agent first mentioned the link). `pgup`/`pgdn`
-scroll it, `T` goes back to the blackboard, and `T` on an agent opens its
+scroll it, `T` goes back, and `T` on an agent opens its
 group's timeline. Whatever can't be read is left out. Agents working in the
 main checkout share its branch, so commits made there by others show too.
 
 It is built to stay out of the agents' way. The plugin's hook does nothing for
-agents outside a group. A grouped agent gets a short introduction once (what
-the two commands are for: a shared blackboard, with no advice on how to use it), then
-a single line only when someone else wrote a note it hasn't seen or it was
+agents outside a group. A grouped agent gets a short introduction once (where
+it is and what `regia context` is for), then a single line only when it was
 moved, at most once a minute (or when it gets a message). The introduction
 says what "coordinator" and "siblings" mean and comes again after the
 conversation is compacted or cleared, and when a message from you talks about
 the group ("check your siblings", "use regia context", "your coordinator", at
 most every 10 minutes); an agent outside a group is then told it is in none.
-Notes are never
-pasted into the conversation: the agent reads them with `regia context` when
-it wants to.
 
 To turn it off: `regia group off` for every session (`regia group on` to
 undo), `REGIA_GROUP=off` for one session, or `M` in regia to mute one group or
@@ -536,7 +519,7 @@ the regia repo:
 | list of sessions | `claude agents --json --all` (run again when a job or session file changes, at most every 2 s and at least every 10 s; the last result is cached so the first frame is instant) |
 | question, suggested reply, now-doing, tokens, PRs | `~/.claude/jobs/<id>/state.json` and `timeline.jsonl`, read-only, every 1 s |
 | PR status (state, CI, review) | `gh pr view <PR link or branch> --json …` in the agent's directory, in the background: open PRs every 60 s at most, a branch without a PR every 10 min, merged/closed never again (the selected agent, plus finished agents from today or with a PR link, up to 4 new calls per second); skipped when `gh` is missing or not logged in |
-| group timeline (`T`) | the agents' `timeline.jsonl` (parsed again only when it changes), the notes, `git log` per directory and branch (background, cached 30 s) |
+| group timeline (`T`) | the agents' `timeline.jsonl` (parsed again only when it changes), `git log` per directory and branch (background, cached 30 s) |
 | stuck (⚠) | mtimes of the job files, the transcript and its subagents' transcripts; the transcript's tail, read incrementally |
 | history | the session transcript (`~/.claude/projects/…/<session>.jsonl`), read-only |
 | attach / stop / start / output / remove | `claude attach`, `claude stop`, `claude --bg`, `claude logs`, `claude rm` |
@@ -565,7 +548,7 @@ cmd/regia/          the binary: argument parsing, `regia setup`, `update`, `unin
 internal/claude/    Claude Code data: `claude agents` listing, job state files, transcript history
 internal/spawns/    spawn links: the hook handler, transcript backfill, spawns.jsonl
 internal/layout/    your organization: tree, automatic placement, moves, layout.json
-internal/group/     group awareness: `regia context`, `regia note`, `regia hook group`
+internal/group/     group awareness: `regia context`, `regia hook group`
 internal/plugins/   your plugin scripts: run per agent in the background, cached
 internal/gitinfo/   git state of an agent's directory, cached
 internal/prinfo/    PR status of an agent (state, CI, review) via `gh`, cached

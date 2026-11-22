@@ -39,15 +39,11 @@ func cachedNames() func(string) string {
 	}
 }
 
-const (
-	maxListed = 10 // siblings / agents listed before "+N more"
-	maxNotes  = 10 // notes shown per container
-)
+const maxListed = 10 // siblings / agents listed before "+N more"
 
-// Context renders what `regia context` prints: where self is, the others
-// with their state and last line, and the latest notes of every container it
-// can see. all shows every note instead of the latest ones.
-func Context(t *Tree, pos Position, agents map[string]*claude.Agent, all bool, now time.Time) string {
+// Context renders what `regia context` prints: where self is, and the others
+// with their state and last line.
+func Context(t *Tree, pos Position, agents map[string]*claude.Agent, now time.Time) string {
 	name := func(id string) string {
 		if a := agents[id]; a != nil {
 			return a.Name
@@ -57,7 +53,7 @@ func Context(t *Tree, pos Position, agents map[string]*claude.Agent, all bool, n
 	var b strings.Builder
 	fmt.Fprintf(&b, "regia · you are %q (%s)\n", t.Title(pos.Self, name), pos.Self)
 	if !pos.Grouped() {
-		b.WriteString("You are not in a group (a hand-made group in regia, or a coordinator's agents): there is no one to share with: no coordinator, no siblings, no notes.\n")
+		b.WriteString("You are not in a group (a hand-made group in regia, or a coordinator's agents): no coordinator, no siblings.\n")
 		return b.String()
 	}
 	line := func(id string) string {
@@ -103,43 +99,8 @@ func Context(t *Tree, pos Position, agents map[string]*claude.Agent, all bool, n
 	}
 	list("your agents", t.Children(pos))
 
-	shown := 0
-	for _, c := range pos.Visible() {
-		notes := ReadNotes(c)
-		if len(notes) == 0 {
-			continue
-		}
-		if shown == 0 {
-			b.WriteString("blackboard (newest last):\n")
-		}
-		shown++
-		where := t.Title(c, name)
-		if c == pos.Self {
-			where = "your agents"
-		}
-		fmt.Fprintf(&b, "  [%s]\n", where)
-		start := 0
-		if !all && len(notes) > maxNotes {
-			start = len(notes) - maxNotes
-			fmt.Fprintf(&b, "    (+%d older: regia context --all)\n", start)
-		}
-		for _, n := range notes[start:] {
-			who := n.author()
-			if n.By == pos.Self {
-				who = "you"
-			}
-			text := n.Text
-			if !n.Edited.IsZero() {
-				text += " (edited)"
-			}
-			fmt.Fprintf(&b, "    %s %s: %s\n", noteTime(n.At, now), who, text)
-		}
-	}
-	if shown == 0 {
-		b.WriteString("blackboard: empty — `regia note \"…\"` writes on it.\n")
-	}
 	// Self-describing, for an agent told only "use regia context".
-	b.WriteString("(siblings: the other agents in your group or under your coordinator · blackboard: notes the whole group reads · `regia note \"…\"` adds one)\n")
+	b.WriteString("(siblings: the other agents in your group or under your coordinator)\n")
 	return b.String()
 }
 
@@ -189,13 +150,6 @@ func ago(a *claude.Agent, now time.Time) string {
 		return fmt.Sprintf("%dh", int(d.Hours()))
 	}
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
-}
-
-func noteTime(t, now time.Time) string {
-	if t.Format("2006-01-02") == now.Format("2006-01-02") {
-		return t.Format("15:04")
-	}
-	return t.Format("Jan 2 15:04")
 }
 
 func trunc(s string, n int) string {

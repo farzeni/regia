@@ -14,10 +14,9 @@ func TestAsks(t *testing.T) {
 		"check your siblings":                    true,
 		"use regia context before you start":     true,
 		"ask your coordinator":                   true,
-		"leave a note on the blackboard":         true,
 		"what are the others in the group doing": true,
 		"controlla i tuoi fratelli":              true,
-		"guarda le note del tuo gruppo":          true,
+		"guarda cosa fa il tuo gruppo":           true,
 		"fix the bug in regia's sidebar":         false,
 		"group the rows by date":                 false,
 		"write release notes":                    false,
@@ -35,7 +34,7 @@ func TestAnswerAndReintro(t *testing.T) {
 	t0 := time.Date(2026, 11, 14, 10, 0, 0, 0, time.Local)
 	intro := func(msg string) bool {
 		return strings.Contains(msg, "You are part of a group") && strings.Contains(msg, "your siblings are the other agents") &&
-			strings.Contains(msg, "Your coordinator is") && strings.Contains(msg, "`regia context`") && strings.Contains(msg, "`regia note")
+			strings.Contains(msg, "Your coordinator is") && strings.Contains(msg, "`regia context`")
 	}
 
 	msg := Check(tr, "w1", "PostToolUse", t0, names)
@@ -45,18 +44,17 @@ func TestAnswerAndReintro(t *testing.T) {
 	if n := len(strings.Fields(msg)); n > 120 {
 		t.Fatalf("intro is %d words", n)
 	}
-	if msg := Answer(tr, "w1", t0.Add(time.Minute), names); !intro(msg) || strings.Contains(msg, "unread") {
-		t.Fatalf("asked after the intro: intro again, nothing unread:\n%s", msg)
+	if msg := Answer(tr, "w1", t0.Add(time.Minute), names); !intro(msg) {
+		t.Fatalf("asked after the intro: intro again:\n%s", msg)
 	}
 	if msg := Answer(tr, "w1", t0.Add(2*time.Minute), names); msg != "" {
 		t.Fatalf("asked again within ExplainEvery: %q", msg)
 	}
-	AddNote("coord", Note{By: "w2", Name: "layout", Text: "gauges go on top"})
-	if msg := Answer(tr, "w1", t0.Add(15*time.Minute), names); !intro(msg) || !strings.Contains(msg, "(1 unread note on it)") {
-		t.Fatalf("asked later with a new note:\n%s", msg)
+	if msg := Answer(tr, "w1", t0.Add(15*time.Minute), names); !intro(msg) {
+		t.Fatalf("asked later:\n%s", msg)
 	}
 	if msg := Check(tr, "w1", "UserPromptSubmit", t0.Add(16*time.Minute), names); msg != "" {
-		t.Fatalf("the note was told in the intro: %q", msg)
+		t.Fatalf("nothing new after the intro: %q", msg)
 	}
 
 	if msg := Reintro(tr, "w1", t0.Add(17*time.Minute), names); !intro(msg) {
@@ -72,7 +70,7 @@ func TestAnswerAndReintro(t *testing.T) {
 	if msg := Reintro(tr, "lonely", t0, names); msg != "" {
 		t.Fatalf("lonely compacted: %q", msg)
 	}
-	if c := Context(tr, tr.Resolve("w1"), nil, false, t0); !strings.Contains(c, "(siblings: the other agents in your group") {
+	if c := Context(tr, tr.Resolve("w1"), nil, t0); !strings.Contains(c, "(siblings: the other agents in your group") {
 		t.Fatalf("context explains its words:\n%s", c)
 	}
 }
