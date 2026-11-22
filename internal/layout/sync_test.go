@@ -65,12 +65,10 @@ func TestConcurrentUpdates(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	var wg sync.WaitGroup
 	for i := range 20 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			id := string(rune('a' + i))
 			Update(func(l *Layout) error { l.Alias[id] = id; return nil })
-		}()
+		})
 	}
 	wg.Wait()
 	if n := len(Load().Alias); n != 20 {

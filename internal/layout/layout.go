@@ -562,6 +562,16 @@ func (l *Layout) Outdent(id string, agents map[string]*claude.Agent) error {
 	return l.Reparent(id, l.Parent[p], p, agents)
 }
 
+// NewGroupIn makes an empty group at the end of parent ("" for the top).
+func (l *Layout) NewGroupIn(title, parent string, agents map[string]*claude.Agent) string {
+	gid := fmt.Sprintf("g:%d", time.Now().UnixNano())
+	l.Groups[gid] = title
+	l.materialize(parent, agents)
+	l.Parent[gid] = parent
+	l.Order[parent] = append(l.Order[parent], gid)
+	return gid
+}
+
 func (l *Layout) NewGroup(title, near string, agents map[string]*claude.Agent) string {
 	gid := fmt.Sprintf("g:%d", time.Now().UnixNano())
 	l.Groups[gid] = title
