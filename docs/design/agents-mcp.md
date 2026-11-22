@@ -5,7 +5,10 @@ Status: proposal, not implemented. Decisions still open are marked **Decision**.
 ## Goal
 
 Agents already *know* they run under regia: the plugin's group hook tells a grouped agent about its group,
-coordinator and siblings, and `regia context` / `regia note` let it read the group and write on its blackboard.
+coordinator and siblings, and `regia context` shows what the group is doing.
+
+The blackboard (`regia note`, group notes) is deliberately not part of this design: in practice agents don't
+use it well (they rarely write useful notes and rarely act on the ones they read). Nothing here builds on it.
 
 This design lets some agents also *act* on regia's structure, the same tree the user organizes in the TUI:
 read the whole tree, create groups, move agents, archive the lost ones. It applies least privilege. A worker
@@ -35,9 +38,9 @@ The requests it must serve:
 A daemon would provide a long-lived process, a push channel and one place where writes are serialized.
 regia doesn't need any of them:
 
-- State is files (`layout.json`, `notes/`, `spawns.jsonl`). Every process re-reads them when it needs them.
+- State is files (`layout.json`, `spawns.jsonl`). Every process re-reads them when it needs them.
 - The push channel already exists: `regia hook group` adds a line to an agent's context when something
-  changes for it (a new note, being moved).
+  changes for it (for example, being moved).
 - Serialization is a file lock (see "Safe concurrent writes").
 
 Write actions use MCP rather than a skill driving the `regia` CLI through Bash, for three reasons:
@@ -48,7 +51,7 @@ Write actions use MCP rather than a skill driving the `regia` CLI through Bash, 
   environment comes from the agent, which can write `CLAUDE_JOB_DIR=… regia …`.
 - **Results are structured** (JSON for the tree), so the agent has no text to parse.
 
-The read-only CLI (`regia context`, `regia note`) stays as it is. It works where MCP doesn't, for example in a
+The read-only CLI (`regia context`) stays as it is. It works where MCP doesn't, for example in a
 session started before the plugin update.
 
 ## Threat model
@@ -71,7 +74,7 @@ A role is derived from the caller's position. Nothing is configured, except the 
 
 | Role | Who | Scope (what it may change) |
 |---|---|---|
-| worker | any agent (default) | nothing in the tree; can write notes to its nearest group, as today |
+| worker | any agent (default) | nothing in the tree; reads its neighbourhood only |
 | coordinator | an agent with agents under it (`Position.Family`), or one that started agents (spawns) | its own subtree: the agents under it and the groups among them |
 | orchestrator | an agent the user grants it to in the TUI | the granted subtree (a group), or the whole tree |
 
@@ -109,13 +112,11 @@ Read:
 | `whoami` | the caller's id, name, role, scope, nearest group, coordinator |
 | `tree` | the subtree the caller may read, as JSON: groups (id, title), agents (id, name, state, now-doing, last activity, waiting on the user?, archived?) |
 | `agent` | one agent in the readable scope: state, question, now-doing, tokens, PR links, last few messages (roughly what `regia --panel` prints) |
-| `notes` | a container's notes (the caller's visible containers only) |
 
 Write:
 
 | Tool | Does |
 |---|---|
-| `note` | writes on the nearest group's blackboard (same as `regia note`) |
 | `create_group` | `{title, parent?, agents?}`: a new group under `parent` (default: the caller), with the given agents moved in |
 | `rename_group` | `{group, title}` |
 | `delete_group` | `{group}`: children lifted into its place |
@@ -128,12 +129,13 @@ Every write:
 2. applies the change through the same `layout` functions the TUI uses (`GroupOf`, `Put`, `NewGroup`,
    `DeleteGroup`, `Archive`…) under the layout lock;
 3. appends one line to `~/.config/regia/actions.jsonl`
-   (`{at, by, tool, args, before}`, where `before` is the minimum needed to undo);
-4. writes a note to each affected group ("backend-coordinator moved 3 agents into backend"), so the agents
-   that were moved learn it through the existing hook.
+   (`{at, by, tool, args, before}`, where `before` is the minimum needed to undo).
 
-Not in v1: stopping, starting or deleting sessions; aliases; changing other agents' muting; anything in
-`~/.claude`.
+Agents that were moved learn it through the existing hook, which already tells an agent when its place in the
+tree changed. The TUI shows agent actions as they happen ("backend-coordinator moved 3 agents into backend").
+
+Not in v1: stopping, starting or deleting sessions; aliases; changing other agents' muting; the blackboard;
+anything in `~/.claude`.
 
 ## Talking to siblings
 
@@ -141,18 +143,16 @@ Not in v1: stopping, starting or deleting sessions; aliases; changing other agen
 
 - **Reading status**: done already. `regia context` and the `tree` / `agent` tools show what each sibling is
   doing, from its job state.
-- **Asking a question and getting an answer**: this needs a message delivered into another session. Options:
-  1. the blackboard: write a note addressed to them ("@frontend: can you take the API client?"). Siblings see
-     it through the hook within a minute and answer with a note. This works today, but it is asynchronous and
-     only reaches agents that run tools or get a message;
-  2. Claude Code's own cross-session messaging (`ListAgents` / `SendMessage` for local sessions), if it
-     reaches background sessions. regia would only map its ids to the names those tools use;
-  3. a regia tool that sends text into a session (as typing it in `claude attach` would). This is the most
+- **Asking a question and getting an answer**: this needs a message delivered into another session, and the
+  answer delivered back. Options:
+  1. Claude Code's own cross-session messaging (`ListAgents` / `SendMessage` for local sessions), if it
+     reaches background sessions. regia would only map its ids to the names those tools use, and scope who
+     may message whom (siblings and the coordinator's own agents);
+  2. a regia tool that sends text into a session (as typing it in `claude attach` would). This is the most
      direct, but it puts words in another agent's mouth, so it needs the strongest scoping.
 
-**Decision:** v1 ships option 1. The skill teaches agents to address notes to a sibling by name, and a note
-that names an agent makes the hook speak to that agent at once instead of after the throttle. Check option 2
-before designing option 3.
+**Decision:** v1 covers reading status only. Check option 1 first: if it reaches background sessions, regia
+adds the id mapping and the scope; only if it doesn't, design option 2.
 
 ## Safe concurrent writes (prerequisite)
 
@@ -185,15 +185,15 @@ because the role comes from the same `Tree.Resolve` it already runs.
 `skills/regia/SKILL.md` in the plugin, triggered by talk about groups, siblings, coordinators, reorganizing,
 or stale or lost agents. It covers:
 
-- what regia is, as seen from inside an agent: the tree, groups versus coordinators, the blackboard, that the
-  user watches the tree;
+- what regia is, as seen from inside an agent: the tree, groups versus coordinators, that the user watches the
+  tree;
 - the roles, and that a refusal is final (don't work around it with Bash edits to `layout.json`);
-- playbooks: splitting a group (`tree`, decide, `create_group` with agents, a note explaining the split);
-  triaging stale agents (`agent` on each, then group by domain, archive the clearly finished ones, and report
-  to the user the ones that need a decision instead of guessing); coordinating with siblings through
-  addressed notes;
-- etiquette: read before writing, make few large moves rather than many small ones, always leave a note
-  saying what you changed and why.
+- playbooks: splitting a group (`tree`, decide, `create_group` with agents, tell the user what moved and
+  why); triaging stale agents (`agent` on each, then group by domain, archive the clearly finished ones, and
+  report to the user the ones that need a decision instead of guessing); checking siblings' status before
+  proposing to share work;
+- etiquette: read before writing, make few large moves rather than many small ones, and end with a short
+  report to the user of what changed and why.
 
 The user's `swarm` skill should point to it for briefs.
 
@@ -218,11 +218,11 @@ The user's `swarm` skill should point to it for briefs.
 ## Plan
 
 1. `layout.Update` and the TUI's `m.edit`. No behaviour change, and it fixes the two-instance race.
-2. `regia mcp` with the read tools and `note`, plus `.mcp.json`. Useful right away, low risk.
-3. Scoped write tools, the action log, undo in the TUI, and the auto-notes to affected groups.
+2. `regia mcp` with the read tools, plus `.mcp.json`. Useful right away, low risk.
+3. Scoped write tools, the action log, undo in the TUI.
 4. Orchestrator grants (layout field, TUI key, mark).
 5. The skill, the hook's intro line, README and help modal.
-6. Sibling messaging beyond notes, after checking `SendMessage`.
+6. Sibling messaging, after checking `SendMessage`.
 
 ## Open questions
 
