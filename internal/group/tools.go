@@ -245,9 +245,17 @@ type Node struct {
 	Children []Node `json:"children,omitempty"`
 }
 
-// Tree is what the caller may read, as nested nodes: its scope, else its
-// group. Archived agents are left out unless archived is set.
-func TreeOf(self string, archived bool) (Node, error) {
+// TreeOpts narrows what TreeOf returns, to keep it short on a large tree.
+type TreeOpts struct {
+	Archived bool   // also archived agents
+	Under    string // only this group's (or agent's) part, inside what the caller may read
+	Brief    bool   // ids, titles and states only: no question, doing, updated
+}
+
+// TreeOf is what the caller may read, as nested nodes: its scope, else its
+// group, or the part under o.Under. Archived agents are left out unless
+// o.Archived.
+func TreeOf(self string, o TreeOpts) (Node, error) {
 	w, err := read(self)
 	if err != nil {
 		return Node{}, err
@@ -261,18 +269,41 @@ func TreeOf(self string, archived bool) (Node, error) {
 	var walk func(id string, depth int) Node
 	walk = func(id string, depth int) Node {
 		n := w.node(id, now)
+		if o.Brief {
+			n.Question, n.Doing, n.Updated = "", "", ""
+		}
 		if depth > 32 || (c.Scope != Everything && id != root && w.l.Muted[id]) {
 			return n
 		}
 		for _, k := range w.kids(id) {
-			if !archived && w.l.IsArchived(k) {
+			if !o.Archived && w.l.IsArchived(k) {
 				continue
 			}
 			n.Children = append(n.Children, walk(k, depth+1))
 		}
 		return n
 	}
-	return walk(root, 0), nil
+	t := walk(root, 0)
+	if o.Under == "" || o.Under == root {
+		return t, nil
+	}
+	if n, ok := find(t, o.Under); ok {
+		return n, nil
+	}
+	return Node{}, fmt.Errorf("%s is not in what you may read (tree lists it)", o.Under)
+}
+
+// find is the node id inside t.
+func find(t Node, id string) (Node, bool) {
+	if t.ID == id {
+		return t, true
+	}
+	for _, c := range t.Children {
+		if n, ok := find(c, id); ok {
+			return n, true
+		}
+	}
+	return Node{}, false
 }
 
 func (w *world) node(id string, now time.Time) Node {

@@ -1,5 +1,5 @@
 // Package mcp is `regia mcp`: an MCP server on stdio that Claude Code starts
-// in every session (the plugin's .mcp.json), giving agents regia's tree as
+// in every session (mcpServers in the plugin's manifest), giving agents regia's tree as
 // tools. The tools themselves, and who may do what, live in internal/group;
 // this package only describes them to the model and passes calls through.
 package mcp
@@ -19,7 +19,9 @@ const instructions = `regia is the control room the user runs Claude Code agents
 type noArgs struct{}
 
 type treeArgs struct {
-	Archived bool `json:"archived,omitempty" jsonschema:"also list archived agents (to bring one back)"`
+	Archived bool   `json:"archived,omitempty" jsonschema:"also list archived agents (to bring one back)"`
+	Under    string `json:"under,omitempty" jsonschema:"only this group's part: a group's id from an earlier tree (brief) call"`
+	Brief    bool   `json:"brief,omitempty" jsonschema:"ids, titles and states only, no questions or what agents are doing: the shape of a large tree"`
 }
 
 type agentArgs struct {
@@ -104,9 +106,9 @@ func NewServer(self, version string) *mcp.Server {
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "tree", Annotations: ro("regia's tree"),
-		Description: "The part of regia's tree you may read, nested: groups and agents with each agent's state (working, waiting on the user, idle, done, failed), its question if it waits, what it is doing and when it last changed. A worker sees its group; a coordinator or orchestrator sees what it may organize."},
+		Description: "The part of regia's tree you may read, nested: groups and agents with each agent's state (working, waiting on the user, idle, done, failed), its question if it waits, what it is doing and when it last changed. A worker sees its group; a coordinator or orchestrator sees what it may organize. On a large tree, ask brief first for its shape, then under=<group id> for the part you need."},
 		func(_ context.Context, _ *mcp.CallToolRequest, a treeArgs) (*mcp.CallToolResult, any, error) {
-			out, err := group.TreeOf(self, a.Archived)
+			out, err := group.TreeOf(self, group.TreeOpts{Archived: a.Archived, Under: a.Under, Brief: a.Brief})
 			return nil, out, err
 		})
 
@@ -118,7 +120,7 @@ func NewServer(self, version string) *mcp.Server {
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "inbox", Annotations: ro("Who needs the user"),
-		Description: "The agents you may read that need the user: waiting on a question (with the question), looking stuck (with why), or failed; the longest waiting first. Start a triage or a status report here."},
+		Description: "The agents you may read that need the user: waiting on a question (with the question), looking stuck (with why), finished with a PR that fails CI or has changes requested (with the PR), or failed; the longest waiting first. Start a triage or a status report here."},
 		func(context.Context, *mcp.CallToolRequest, noArgs) (*mcp.CallToolResult, any, error) {
 			as, err := group.Inbox(self)
 			if as == nil {

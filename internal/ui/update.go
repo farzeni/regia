@@ -213,6 +213,8 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.updateMenu(msg)
 		case modeModel:
 			return m, m.updateModelPick(msg)
+		case modeActions:
+			return m, m.updateActions(msg)
 		case modeScope:
 			return m, m.updateScopePick(msg)
 		case modeConfirm:

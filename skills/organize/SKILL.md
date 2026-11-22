@@ -35,11 +35,12 @@ would have done instead.
 - Ids: groups look like `g:…`; agents have short hex ids. Take them from `tree`;
   never guess.
 - `tree` shows state (working, waiting on the user, idle, done, failed), the
-  question an agent waits on, what it is doing, and when it last changed.
-  `agent` adds its directory, branch, PRs, whether it looks stuck, and its last
+  question an agent waits on, what it is doing, and when it last changed. On a
+  large tree ask `tree` with `brief` first (ids, titles, states), then
+  `under` a group's id for the part you need. `agent` adds its directory, branch, PRs, whether it looks stuck, and its last
   messages. Read before you change things.
 - `inbox` lists who needs the user: waiting on a question, looking stuck,
-  failed. `timeline` is what happened in a group (or under an agent) in the last
+  finished with a PR that fails CI or has changes requested, failed. `timeline` is what happened in a group (or under an agent) in the last
   hours: state changes, PRs, commits. `changes` is the files an agent edited.
 - `move` takes agents or groups (what is under them moves too) into a group or
   under an agent. `delete_group` loses nothing: its contents move up.

@@ -47,16 +47,20 @@ func TestActionsUndo(t *testing.T) {
 		t.Fatalf("not announced: %q", m.status)
 	}
 	send(m, tkey("U"))
-	if v := ansi.Strip(m.View()); m.mode != modeMenu || !strings.Contains(v, "alpha · renamed group") {
+	if v := ansi.Strip(m.View()); m.mode != modeActions || !strings.Contains(v, "▸ ") || !strings.Contains(v, "alpha · renamed group") {
 		t.Fatalf("U lists the action:\n%s", v)
 	}
-	send(m, tkey("1"))
+	send(m, tkey("enter"))
 	if m.layout.Groups["g:t"] != "team" || !strings.Contains(m.status, "undone") {
 		t.Fatalf("undo: %q %q", m.layout.Groups["g:t"], m.status)
 	}
-	send(m, tkey("U"))
-	send(m, tkey("1"))
-	if !strings.Contains(m.status, "already undone") {
+	send(m, tkey("enter"))
+	if !strings.Contains(m.status, "already undone") || !strings.Contains(ansi.Strip(m.View()), "(undone)") {
 		t.Fatalf("status %q", m.status)
+	}
+	m.status = ""
+	send(m, tkey("U"))
+	if m.mode != modeNormal || m.status != "" {
+		t.Fatalf("U closes quietly: %v %q", m.mode, m.status)
 	}
 }

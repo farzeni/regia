@@ -70,7 +70,7 @@ func dispatch(args []string) error {
 		}
 	case "context":
 		return cmdContext(args[1:], os.Stdout)
-	case "mcp": // started by Claude Code from the plugin's .mcp.json, one per session
+	case "mcp": // started by Claude Code from the plugin's manifest (mcpServers), one per session
 		return regiamcp.Run(context.Background(), group.SelfFromEnv(), current().String())
 	case "note": // removed with the blackboard; sessions started before may still try it
 		return fmt.Errorf("regia note was removed: there is no group blackboard any more (regia context shows your group)")

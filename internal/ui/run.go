@@ -8,12 +8,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/farzeni/regia/internal/claude"
+	"github.com/farzeni/regia/internal/prinfo"
 )
 
 // Run opens the full-screen control room.
 func Run() error {
 	var oerr error
 	openers, oerr = loadOpeners()
+	prinfo.Persist() // PR status from the last run, and kept for regia mcp
 	m := newModel()
 	if e := recoverDrafts(); e != nil { // a regia that died while you typed
 		m.showEntry(*e)
