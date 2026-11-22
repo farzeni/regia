@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"path/filepath"
-	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -32,71 +30,18 @@ const changesTab = "changes"
 // maxChangeRows is how many files the tab lists at once; the cursor scrolls.
 const maxChangeRows = 8
 
-// changedFile is one file the agent touched, its edits summed.
-type changedFile struct {
-	Path           string // absolute
-	Rel            string // as shown: relative to the agent's directory when inside it
-	Added, Removed int
-	Line           int // where its last edit starts (0: unknown)
-	last           int // the step that last touched it, for the order
-}
+// changedFile is one file the agent touched (claude.ChangedFiles).
+type changedFile = claude.ChangedFile
 
-// changedFiles sums the successful edits in es by file, newest first.
+// changedFiles is claude.ChangedFiles with paths outside cwd shown with ~.
 func changedFiles(es []claude.Entry, cwd string) []changedFile {
-	idx := map[string]int{}
-	var out []changedFile
-	for n, e := range es {
-		s := e.Step
-		if s == nil || s.Res == nil || s.Res.IsError || !editTools[s.Name] {
-			continue
+	fs := claude.ChangedFiles(es, cwd)
+	for i := range fs {
+		if fs[i].Rel == fs[i].Path {
+			fs[i].Rel = tildify(fs[i].Path)
 		}
-		p := s.Res.FilePath
-		if p == "" {
-			p = s.In["file_path"]
-		}
-		if p == "" {
-			continue
-		}
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(cwd, p)
-		}
-		i, ok := idx[p]
-		if !ok {
-			i = len(out)
-			idx[p] = i
-			out = append(out, changedFile{Path: p, Rel: relPath(p, cwd)})
-		}
-		f := &out[i]
-		f.Added += s.Res.Added
-		f.Removed += s.Res.Removed
-		f.Line, f.last = editLine(s.Res), n
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].last > out[j].last })
-	return out
-}
-
-// relPath is p relative to dir when it's inside it, else with ~ for home.
-func relPath(p, dir string) string {
-	if r, err := filepath.Rel(dir, p); err == nil && dir != "" && !strings.HasPrefix(r, "..") {
-		return r
-	}
-	return tildify(p)
-}
-
-// editLine is the first changed line of an edit's last hunk.
-func editLine(r *claude.Result) int {
-	if len(r.Patch) == 0 {
-		return 0
-	}
-	h := r.Patch[len(r.Patch)-1]
-	n := h.NewStart
-	for _, l := range h.Lines {
-		if strings.HasPrefix(l, "+") || strings.HasPrefix(l, "-") {
-			return n
-		}
-		n++
-	}
-	return h.NewStart
+	return fs
 }
 
 // changesCache keeps the last agent's files: the panel is drawn 8 times a

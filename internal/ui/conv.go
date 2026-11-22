@@ -228,7 +228,7 @@ func sortedKeys(m map[string]string) []string {
 // --- runs ----------------------------------------------------------------------
 
 // editTools change a file; the run line counts the files.
-var editTools = map[string]bool{"Edit": true, "Write": true, "MultiEdit": true, "NotebookEdit": true}
+var editTools = claude.EditTools
 
 // runLine is "▸ ⚙ 14 steps · edited 3 files · ran 5 commands · 1 error · 2m10s".
 func runLine(r *convRun, open bool, w int) string {
