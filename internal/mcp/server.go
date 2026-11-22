@@ -14,7 +14,7 @@ import (
 )
 
 // instructions is what the model is told about the server as a whole.
-const instructions = `regia is the control room the user runs Claude Code agents from: a tree of groups and agents, where a coordinator holds the agents it started. These tools read that tree and, if you may, organize it. Call whoami first; inbox says who needs the user, timeline what happened lately, changes which files an agent edited. A worker can only read its group; a coordinator organizes the agents under it; an orchestrator organizes the group the user granted it. A refusal is final: don't work around it. Every change is shown to the user and can be undone in regia. The regia:organize skill explains how to use these tools well.`
+const instructions = `regia is the control room the user runs Claude Code agents from: a tree of groups and agents, where a coordinator holds the agents it started. These tools read that tree and, if you may, organize it. Call whoami first; inbox says who needs the user, timeline what happened lately, changes which files an agent edited. A worker reads its group; a coordinator organizes the agents under it. To organize more (your group, or the whole tree) when the user asks, claim it first with a reason: the user sees the claim in regia. Release it when done. Muted parts are out of reach: don't work around a refusal. Every change is shown to the user and can be undone in regia. The regia:organize skill explains how to use these tools well.`
 
 type noArgs struct{}
 
@@ -59,6 +59,11 @@ type timelineArgs struct {
 type renameAgentArgs struct {
 	ID   string `json:"id" jsonschema:"the agent's id"`
 	Name string `json:"name" jsonschema:"the name regia shows for it; empty to go back to its own name"`
+}
+
+type claimArgs struct {
+	Scope  string `json:"scope" jsonschema:"group (the group or coordinator you are in) or tree (everything)"`
+	Reason string `json:"reason" jsonschema:"why, in a few words: the user sees it in regia (e.g. morning triage)"`
 }
 
 // inboxOut wraps the inbox: a tool's structured result must be an object.
@@ -156,6 +161,18 @@ func NewServer(self, version string) *mcp.Server {
 		Description: "Let finished agents be hidden again (undoes pin)."},
 		func(_ context.Context, _ *mcp.CallToolRequest, a agentsArgs) (*mcp.CallToolResult, any, error) {
 			return wrote(group.Pin(self, a.Agents, false))
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "claim", Annotations: rw("Claim part of the tree", false),
+		Description: "Before you organize beyond the agents under you, claim your group or the whole tree, with the reason. regia shows the claim to the user (✦ on your row and the reason) and ends it when you are done. Only claim when the user asked you to organize."},
+		func(_ context.Context, _ *mcp.CallToolRequest, a claimArgs) (*mcp.CallToolResult, any, error) {
+			return wrote(group.Claim(self, a.Scope, a.Reason))
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "release", Annotations: rw("Release your claim", false),
+		Description: "End your claim when the organizing is done."},
+		func(context.Context, *mcp.CallToolRequest, noArgs) (*mcp.CallToolResult, any, error) {
+			return wrote(group.Release(self))
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "create_group", Annotations: rw("Create a group", false),

@@ -116,7 +116,7 @@ func TestRenameAndPin(t *testing.T) {
 		t.Fatalf("aliases: %v", l.Alias)
 	}
 	_, err := RenameAgent("w1", "w1", "me")
-	refused(t, err, "you are a worker")
+	refused(t, err, "call claim")
 	_, err = RenameAgent("coord", "g:1", "x")
 	refused(t, err, "rename_group renames groups")
 	_, err = RenameAgent("coord", "a1", "x")

@@ -35,6 +35,7 @@ type Layout struct {
 	Pins      map[string]bool      `json:"pins,omitempty"`     // agent id -> pinned by you: shown even when done (Pinned above is placement)
 	Snoozed   map[string]time.Time `json:"snoozed,omitempty"`  // agent id -> its last change when you snoozed it: off the inbox until it changes again
 	Grants    map[string]string    `json:"grants,omitempty"`   // agent id -> what it may organize through regia mcp: a group id, or "*" for the whole tree
+	Claims    map[string]string    `json:"claims,omitempty"`   // agent id -> why it claimed its grant itself (regia mcp claim); none: you granted it (O)
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 
@@ -114,6 +115,9 @@ func (l *Layout) fill() {
 	}
 	if l.Pins == nil {
 		l.Pins = map[string]bool{}
+	}
+	if l.Claims == nil {
+		l.Claims = map[string]string{}
 	}
 	if l.Grants == nil {
 		l.Grants = map[string]string{}

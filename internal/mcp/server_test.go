@@ -83,7 +83,7 @@ func TestToolsListed(t *testing.T) {
 		}
 	}
 	slices.Sort(names)
-	if strings.Join(names, " ") != "agent archive changes create_group delete_group inbox move pin rename_agent rename_group timeline tree unarchive unpin whoami" {
+	if strings.Join(names, " ") != "agent archive changes claim create_group delete_group inbox move pin release rename_agent rename_group timeline tree unarchive unpin whoami" {
 		t.Fatalf("tools: %v", names)
 	}
 	if !strings.Contains(cs.InitializeResult().Instructions, "Call whoami first") {

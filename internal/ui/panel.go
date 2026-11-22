@@ -111,6 +111,13 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string) {
 	if a.Unhealthy != "" {
 		field("stuck?", stuckGlyph+" "+a.Unhealthy, lipgloss.NewStyle().Foreground(cDim), 1)
 	}
+	if g := m.grantFor(a.ID); g != "" {
+		if why := m.layout.Claims[a.ID]; why != "" {
+			field("claims", grantGlyph+" "+g+": "+why, stAccent, 2)
+		} else {
+			field("may", grantGlyph+" organize "+g+" (you granted it: O)", stAccent, 1)
+		}
+	}
 	// the box, unless it would only say there's nothing yet
 	tabs := append([]panelTab{{name: agentTab, body: ctx}, m.changesTab(a, w)}, pluginTabs(a, w)...)
 	if len(ctx) > 0 || len(tabs) > 2 || tabs[1].badge != nil || m.panelTab == changesTab {

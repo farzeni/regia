@@ -283,6 +283,7 @@ func (m *model) refresh() {
 	m.checkHealth(time.Now())
 	m.noteLive()
 	m.noticeActions()
+	m.releaseDone()
 	m.layout.Spawns = spawns.Cached()
 	placed := m.layout.Place(m.agents)
 	if m.layout.Revive(m.agents) || placed { // archived but working again: back in the tree
