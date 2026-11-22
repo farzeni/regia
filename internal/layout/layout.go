@@ -5,6 +5,7 @@
 package layout
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -33,10 +34,12 @@ type Layout struct {
 	Seen      map[string]time.Time `json:"seen,omitempty"`     // agent id -> when you last looked at it (nil: never recorded)
 	Pins      map[string]bool      `json:"pins,omitempty"`     // agent id -> pinned by you: shown even when done (Pinned above is placement)
 	Snoozed   map[string]time.Time `json:"snoozed,omitempty"`  // agent id -> its last change when you snoozed it: off the inbox until it changes again
+	Grants    map[string]string    `json:"grants,omitempty"`   // agent id -> what it may organize through regia mcp: a group id, or "*" for the whole tree
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 
 	mtime time.Time // file mtime at last load/save, to notice other writers
+	base  []byte    // the file as last loaded or saved: what Save merges against
 }
 
 // ChangedOnDisk reports whether another process (a second regia) saved the
@@ -71,10 +74,17 @@ func Load() *Layout {
 	l := &Layout{}
 	if b, err := os.ReadFile(Path()); err == nil {
 		_ = json.Unmarshal(b, l)
+		l.base = b
 	}
 	if fi, err := os.Stat(Path()); err == nil {
 		l.mtime = fi.ModTime()
 	}
+	l.fill()
+	return l
+}
+
+// fill makes the maps a loaded layout may lack, so callers can write to them.
+func (l *Layout) fill() {
 	if l.Groups == nil {
 		l.Groups = map[string]string{}
 	}
@@ -105,27 +115,32 @@ func Load() *Layout {
 	if l.Pins == nil {
 		l.Pins = map[string]bool{}
 	}
-	return l
+	if l.Grants == nil {
+		l.Grants = map[string]string{}
+	}
 }
 
+// Save writes l. When another process saved since l was loaded, the two are
+// merged first (see merge3): l's own changes win, everything else is kept,
+// and l becomes the merged layout.
 func (l *Layout) Save() error {
-	b, err := json.MarshalIndent(l, "", "  ")
-	if err != nil {
-		return err
-	}
-	p := Path()
-	_ = os.MkdirAll(filepath.Dir(p), 0o755)
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp, p); err != nil {
-		return err
-	}
-	if fi, err := os.Stat(p); err == nil {
-		l.mtime = fi.ModTime()
-	}
-	return nil
+	return locked(func() error {
+		disk, _ := os.ReadFile(Path())
+		if len(disk) > 0 && !bytes.Equal(disk, l.base) {
+			ours, err := json.Marshal(l)
+			if err != nil {
+				return err
+			}
+			merged, err := merge3(l.base, ours, disk)
+			if err != nil {
+				return err
+			}
+			if err := l.adopt(merged); err != nil {
+				return err
+			}
+		}
+		return l.write()
+	})
 }
 
 func (l *Layout) IsGroup(id string) bool { _, ok := l.Groups[id]; return ok }
