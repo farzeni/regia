@@ -24,6 +24,7 @@ go build -o regia ./cmd/regia                    # local binary (a "dev build": 
 regia --dump                                     # tree + inbox as plain text, no TTY
 regia --panel <id> / --timeline <id>             # hidden: one agent's panel / a group's timeline as text
 REGIA_BENCH_JOB=<job id> go test ./internal/ui -run x -bench Real   # real-data benchmarks (skipped otherwise)
+cd docs && pnpm install && pnpm build            # the docs site; fails on a dead link (pnpm dev: live)
 ```
 
 Install over the user's binary: `go build -o /tmp/regia ./cmd/regia && install -m755 /tmp/regia ~/.local/bin/regia`.
@@ -66,8 +67,10 @@ started whom, written by the plugin's hook and backfilled from transcripts), `ac
 
 - [docs/conventions.md](docs/conventions.md) — code style, comments, UI styles, tests, commits, dependencies.
   Read it before writing code here.
-- [README.md](README.md) — user-facing behaviour and every key; update it (and the help modal,
-  `internal/ui/modal.go`) whenever a key or behaviour changes.
+- The docs site, `docs/` (VitePress): user-facing behaviour in `docs/guide/`, every key in
+  `docs/reference/keys.md`, commands in `docs/reference/commands.md`. Update the page (and the help modal,
+  `internal/ui/modal.go`) whenever a key or behaviour changes; a new page goes in the sidebar
+  (`docs/.vitepress/config.mts`). `README.md` stays short: what regia is, install, links, development.
 - [docs/plugins.md](docs/plugins.md) — the plugin protocol; keep it in step with `internal/plugins`.
 
 ## Rules that are easy to break

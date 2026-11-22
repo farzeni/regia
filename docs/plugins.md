@@ -28,7 +28,7 @@ This document is the full contract. If you are an agent asked to write a
 plugin, read it to the end and use the checklist at the bottom.
 
 A complete working plugin to read before writing your own:
-[`examples/plugins/gh-pr`](../examples/plugins/gh-pr/check.py). It shows the
+[`examples/plugins/gh-pr`](https://github.com/farzeni/regia/blob/main/examples/plugins/gh-pr/check.py). It shows the
 agent's GitHub PR (state, CI progress, reviews, comments) with a badge,
 attention and three actions, in about 200 lines of Python using only the
 standard library and `gh`.
