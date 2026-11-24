@@ -66,8 +66,12 @@ What the scoping guarantees:
 
 - an agent cannot reorganize, archive or rename anything outside its scope through the tools;
 - every write is recorded and can be undone from the TUI;
-- nothing an agent does through regia touches Claude Code itself: no stopping, deleting or messaging sessions
-  in v1 (archive only hides an agent in regia, and an archived agent that starts working comes back).
+- nothing an agent does through regia touches Claude Code itself, except `stop` and `remove` (added later,
+  for teams that clean up finished sessions so they aren't woken with a cold cache): they need a reason, are
+  shown and logged like every write but can't be undone, `remove` refuses working or waiting agents and
+  coordinators with agents still listed under them, and the user's plugins can refuse a removal (remove
+  gates). No messaging sessions; archive only hides an agent in regia, and an archived agent that starts
+  working comes back.
 
 ## Roles and scope
 
@@ -134,7 +138,7 @@ Every write:
 Agents that were moved learn it through the existing hook, which already tells an agent when its place in the
 tree changed. The TUI shows agent actions as they happen ("backend-coordinator moved 3 agents into backend").
 
-Not in v1: stopping, starting or deleting sessions; aliases; changing other agents' muting; the blackboard;
+Not in v1: starting sessions; aliases; changing other agents' muting; the blackboard;
 anything in `~/.claude`.
 
 ## Talking to siblings

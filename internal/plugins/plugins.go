@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -54,6 +55,7 @@ type Manifest struct {
 	Every       Duration `json:"every"`       // how long a result is kept; default 2m, at least 10s
 	Timeout     Duration `json:"timeout"`     // how long one run may take; default 10s
 	Disabled    bool     `json:"disabled"`
+	Gates       []string `json:"gates"` // what the plugin is asked before it happens, and may refuse: "remove" (see Gate)
 
 	raw []byte
 }
@@ -101,8 +103,10 @@ func (m *Manifest) LabelOr() string {
 // Input is what a plugin reads on stdin.
 type Input struct {
 	Version int        `json:"version"`
-	Event   string     `json:"event"`            // "refresh" or "action"
+	Event   string     `json:"event"`            // "refresh", "action" or "remove"
 	Action  string     `json:"action,omitempty"` // the action's id, for "action"
+	By      string     `json:"by,omitempty"`     // "remove": who asked, "you" or the agent's name
+	Reason  string     `json:"reason,omitempty"` // "remove": the reason the agent gave
 	Plugin  PluginInfo `json:"plugin"`
 	Agent   AgentInfo  `json:"agent"`
 	Git     *GitInfo   `json:"git"` // null when the directory isn't a git checkout (or not known yet)
@@ -175,6 +179,10 @@ type Output struct {
 	Message string `json:"message,omitempty"` // shown in the status line
 	Copy    string `json:"copy,omitempty"`    // put on the clipboard
 	Open    string `json:"open,omitempty"`    // URL to open in the browser
+	Remove  bool   `json:"remove,omitempty"`  // remove the agent (claude rm) the way x does
+
+	// only read for "remove"
+	Refuse string `json:"refuse,omitempty"` // why the agent may not be removed yet
 }
 
 type Field struct {
@@ -349,9 +357,14 @@ func LoadOne(dir string) (*Manifest, error) {
 	}
 	for _, s := range m.States {
 		switch s {
-		case "blocked", "busy", "idle", "done", "failed", "ready":
+		case "blocked", "busy", "idle", "done", "failed", "ready", Removed:
 		default:
-			return nil, fmt.Errorf("plugin.json: unknown state %q (blocked busy idle done failed ready)", s)
+			return nil, fmt.Errorf("plugin.json: unknown state %q (blocked busy idle done failed ready removed)", s)
+		}
+	}
+	for _, g := range m.Gates {
+		if g != GateRemove {
+			return nil, fmt.Errorf("plugin.json: unknown gate %q (remove)", g)
 		}
 	}
 	m.Name = filepath.Base(dir)
@@ -360,9 +373,17 @@ func LoadOne(dir string) (*Manifest, error) {
 	return &m, nil
 }
 
+// Removed is the state of a session no longer listed, found in the whole
+// history (ctrl+g in search). Only plugins that name it in "states" run for
+// those, so a plugin can still say something about it (where its handoff is).
+const Removed = "removed"
+
 // Applies reports whether the plugin runs for an agent with these facts.
 func (m *Manifest) Applies(a AgentInfo) bool {
 	if a.Interactive && !m.Interactive {
+		return false
+	}
+	if a.State == Removed && !slices.Contains(m.States, Removed) {
 		return false
 	}
 	if len(m.States) > 0 {
@@ -377,14 +398,19 @@ func (m *Manifest) Applies(a AgentInfo) bool {
 			return false
 		}
 	}
+	return m.covers(a.Cwd)
+}
+
+// covers says whether the manifest's "dirs" take in an agent working in cwd.
+func (m *Manifest) covers(cwd string) bool {
 	if len(m.Dirs) == 0 {
 		return true
 	}
-	if a.Cwd == "" {
+	if cwd == "" {
 		return false
 	}
 	for _, d := range m.Dirs {
-		if underDir(a.Cwd, expandHome(d)) {
+		if underDir(cwd, expandHome(d)) {
 			return true
 		}
 	}

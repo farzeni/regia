@@ -126,6 +126,9 @@ func actionLine(a group.Action) string {
 	if !a.Undone.IsZero() {
 		s += "  (undone)"
 	}
+	if a.Final {
+		s += "  (can't be undone)"
+	}
 	return s
 }
 
@@ -206,7 +209,11 @@ func (m *model) noticeActions() {
 	m.actionsSeen = at
 	if as := group.Actions(); len(as) > 0 {
 		a := as[len(as)-1]
-		if a.Undone.IsZero() && time.Since(a.At) < time.Minute {
+		switch {
+		case !a.Undone.IsZero() || time.Since(a.At) >= time.Minute:
+		case a.Final: // a session stopped or removed: nothing to undo
+			m.flash("%s: %s", a.Name, a.Summary)
+		default:
 			m.flash("%s · U to undo", fmt.Sprintf("%s: %s", a.Name, a.Summary))
 		}
 	}

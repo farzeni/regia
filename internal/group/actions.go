@@ -24,6 +24,15 @@ type Action struct {
 	Summary string        `json:"summary"` // "moved 3 agents into backend"
 	Change  layout.Change `json:"change"`
 	Undone  time.Time     `json:"undone,omitzero"`
+	Final   bool          `json:"final,omitempty"` // reached into Claude Code (remove, stop): can't be undone here
+}
+
+// finalWhy says why a final action can't be undone, and what to do instead.
+func finalWhy(a Action) string {
+	if a.Tool == "stop" {
+		return "a stopped session can't be undone here: it starts again when you message it"
+	}
+	return "a removed session can't be put back: find it with ctrl+g in search and resume it"
 }
 
 // Same says whether a and b are the same action.
@@ -131,6 +140,9 @@ func Undo(a Action) error {
 			}
 			if !as[i].Undone.IsZero() {
 				return errors.New("already undone")
+			}
+			if as[i].Final {
+				return errors.New(finalWhy(as[i]))
 			}
 			if err := layout.Revert(as[i].Change); err != nil {
 				return err

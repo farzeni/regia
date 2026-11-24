@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/farzeni/regia/internal/layout"
+	"github.com/farzeni/regia/internal/plugins"
 )
 
 // archiveModel: project one has w1 (waiting), w2 (waiting), busy1 (working);
@@ -153,7 +154,8 @@ func TestSelectModeRemove(t *testing.T) {
 	var ran []string
 	orig := removeAgent
 	t.Cleanup(func() { removeAgent = orig })
-	removeAgent = func(id string) (string, error) {
+	removeAgent = func(in plugins.Input) (string, error) {
+		id := in.Agent.ID
 		ran = append(ran, id)
 		if id == "aaaa0002" {
 			return "has unpushed commits", errors.New("exit status 1")

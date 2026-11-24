@@ -20,7 +20,7 @@ task you start is selected as soon as it shows up in the list, so a second
 | `,` / `.` | previous / next tab of the agent box: `agent`, `changes`, then one per plugin |
 | `D` | the agent box's `changes` tab, with the keys: `j`/`k` move between the files the agent touched, `enter` opens one at the line it last changed, `d` opens the agent's whole diff against where it branched off main/master in your diff tool, `esc` back, `D` again: the agent tab |
 | `s` | stop the session (conversation kept) |
-| `x` | remove from the list (`claude rm`: worktree deleted if safe, conversation kept; refuses over unpushed commits) |
+| `x` | remove from the list (`claude rm`: worktree deleted if safe, conversation kept; refuses over unpushed commits, or when a plugin's remove gate refuses) |
 | `e` | archive the agent, or everything in a group except busy agents (asks first); on an archived agent, bring it back |
 | `A` | show / hide archived agents (dim) |
 | `a` | hide or show finished sessions you've already seen (shown by default) |
@@ -86,6 +86,7 @@ task you start is selected as soon as it shows up in the list, so a second
 | `ctrl+r` | regex cheat sheet for `/patterns/` (`esc` closes it) |
 | `ctrl+t` | also search tool calls and their output |
 | `ctrl+g` | search the listed sessions or the whole history (removed sessions too; `enter` resumes one) |
+| `ctrl+o` | the selected session's plugin links and actions (the `!` menu; letters type into the query here), e.g. a removed session's handoff |
 
 The rest is in [Search](../guide/search#keys).
 

@@ -36,6 +36,7 @@ type Layout struct {
 	Snoozed   map[string]time.Time `json:"snoozed,omitempty"`  // agent id -> its last change when you snoozed it: off the inbox until it changes again
 	Grants    map[string]string    `json:"grants,omitempty"`   // agent id -> what it may organize through regia mcp: a group id, or "*" for the whole tree
 	Claims    map[string]string    `json:"claims,omitempty"`   // agent id -> why it claimed its grant itself (regia mcp claim); none: you granted it (O)
+	Gone      map[string]time.Time `json:"gone,omitempty"`     // agent id -> when it was first missing from claude agents: forgotten after ForgetAfter (Prune)
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 

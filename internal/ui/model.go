@@ -278,6 +278,15 @@ func (m *model) setAgents(b []byte) {
 	m.refresh()
 }
 
+// prune lets the layout forget agents gone from `claude agents` for a week
+// (layout.Prune), after each fresh listing.
+func (m *model) prune() {
+	m.syncLayout()
+	if m.layout.Prune(m.agents, time.Now()) {
+		m.saveLayoutQuiet()
+	}
+}
+
 // refresh re-reads job state files and rebuilds rows, keeping the cursor on
 // the same node.
 func (m *model) refresh() {

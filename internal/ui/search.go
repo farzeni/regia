@@ -297,6 +297,8 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 		m.rebuild()
 	case "ctrl+g": // what to search: the listed sessions or the whole history
 		m.openScopePick()
+	case "ctrl+o": // the ! menu (plugin links and actions): letters type here
+		return m.pluginMenuKey(m.selected())
 	case "ctrl+r": // the regex cheat sheet
 		m.help = true
 	case "ctrl+t":
@@ -515,6 +517,9 @@ func (m *model) searchPanel(w, h int) panel {
 		meta = strings.Join(nonEmpty("removed · enter resumes it", tildify(a.Cwd), a.SessionID), " · ")
 	}
 	top = append(top, stDim.Render(trunc(meta, w)))
+	if a.State == pastState { // what your plugins say about it, e.g. where its handoff is
+		top = append(top, pastPluginLines(a.ID, w)...)
+	}
 	top = append(top, stDim.Render(trunc(fmt.Sprintf("match %d of %d, newest first · %s %s · pgup/pgdn", indexOf(s, hit)+1, s.Total,
 		dayLabel(hit.Msg.At), clock(hit.Msg.At)), w)), stDim.Render(strings.Repeat("─", w)))
 

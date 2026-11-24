@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/farzeni/regia/internal/claude"
+	"github.com/farzeni/regia/internal/plugins"
 )
 
 // a listing fetched while claude rm runs (or just after) still has the agent:
@@ -47,7 +48,8 @@ func TestRemoveAgent(t *testing.T) {
 	var calls []string
 	orig := removeAgent
 	t.Cleanup(func() { removeAgent = orig })
-	removeAgent = func(id string) (string, error) {
+	removeAgent = func(in plugins.Input) (string, error) {
+		id := in.Agent.ID
 		calls = append(calls, id)
 		if id == "bbbb2222" {
 			return "Not removed: worktree has 2 unpushed commits.\nRun: claude rm bbbb2222 --discard-unpushed abc@wt1\n", errors.New("exit status 1")

@@ -35,4 +35,6 @@ All in `~/.config/regia/` unless noted.
 | `~/.cache/regia/pastes` | images you pasted into the input |
 
 `layout.json` is written under a lock and merged with other writers' changes, so two regia instances and
-the agents' tools never overwrite each other.
+the agents' tools never overwrite each other. regia forgets an agent there (its place, name, pins, archive
+and seen marks) once it has been missing from `claude agents` for 7 days, so removed sessions don't pile up;
+the conversation stays in search's whole history (`ctrl+g`).
