@@ -92,6 +92,7 @@ type model struct {
 	markCount map[string][2]int // markCounts, built once a frame
 
 	removing map[string]*pendingRemoval // taken off the list while claude rm runs
+	retiring map[string]bool            // swapped itself out: its removal is running (retireSwapped)
 
 	scanning  bool // a transcript scan for missed spawns is running
 	scannedAt int  // the tick the last one started

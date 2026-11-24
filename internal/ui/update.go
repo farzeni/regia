@@ -59,7 +59,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setAgents(msg.b)
 			m.prune()
 		}
-		return m, m.startPulse()
+		return m, tea.Batch(m.startPulse(), m.retireSwapped())
 
 	case searchTypedMsg:
 		if msg.typed == m.srch.typed && m.view == viewSearch {
@@ -181,6 +181,9 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.flash("%s", s)
 		m.fetching = true
 		return m, fetchCmd
+
+	case retiredMsg:
+		return m, m.retired(msg)
 
 	case removedMsg:
 		if msg.err != nil {

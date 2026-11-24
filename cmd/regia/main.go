@@ -28,6 +28,7 @@ const usage = `regia — terminal control room for Claude Code background agents
   regia --dump     print the tree and inbox as plain text
   regia plugin     list | new | input | run: your own scripts on the agent panel (docs/plugins.md)
   regia openers    list | show | test: what opens files, images, URLs and diffs (docs/guide/openers.md)
+  regia swap       <old> <new> --reason … [--note …]: a fresh session takes an old one's place (regia swap -h)
 
   group awareness (agents in a hand-made group or under a coordinator):
   regia context    run by an agent: its group, coordinator and siblings with what they are doing
@@ -66,8 +67,17 @@ func dispatch(args []string) error {
 				spawns.HandleHook(os.Stdin, os.Getenv("CLAUDE_JOB_DIR"))
 			case "group":
 				group.HandleHook(os.Stdin, os.Stdout, os.Getenv("CLAUDE_JOB_DIR"), time.Now())
+			case "stop":
+				group.HandleStop(os.Stdin, os.Getenv("CLAUDE_JOB_DIR"))
 			}
 		}
+	case "swap":
+		return cmdSwap(args[1:], os.Stdout)
+	case "retire": // hidden: started by the Stop hook of a session that swapped itself out
+		if len(args) < 2 {
+			return fmt.Errorf("usage: regia retire <id>")
+		}
+		return group.Retire(args[1])
 	case "context":
 		return cmdContext(args[1:], os.Stdout)
 	case "mcp": // started by Claude Code from the plugin's manifest (mcpServers), one per session

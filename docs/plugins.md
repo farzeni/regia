@@ -19,8 +19,8 @@ what it prints in four places:
 - **actions**: entries in the `!` menu on the agent's panel, e.g. "move ticket
   to In Review". Picking one runs the script again with that action.
 
-A plugin can also be asked before a session is removed, and refuse (see
-[Gates](#gates)), and can run for sessions already removed, found in search's
+A plugin can also be asked before a session is removed or swapped for a
+fresh one, and refuse (see [Gates](#gates)), and can run for sessions already removed, found in search's
 whole history (`"removed"` in [`states`](#plugin-json)).
 
 Plugins are for checks that depend on your own setup: the tracker you use, CI
@@ -100,7 +100,7 @@ and directories whose names start with `.`, are ignored.
 | `interactive` | `false` | Also run for interactive sessions, i.e. `claude` running in a terminal rather than as a background job. They have no job state, so `branch`, `intent` and `links` are mostly empty for them. |
 | `every` | `"2m"` | How long a result is kept before the plugin runs again for that agent. Minimum `10s`. Output can override it (see `every` below). |
 | `timeout` | `"10s"` | How long one run may take. After that the process is killed and the run counts as a failure. |
-| `gates` | none | What regia asks the plugin before doing it, so it may refuse. Only `"remove"` for now: see [Gates](#gates). |
+| `gates` | none | What regia asks the plugin before doing it, so it may refuse: `"remove"`, `"swap"`. See [Gates](#gates). |
 | `disabled` | `false` | Turns the plugin off without deleting it. |
 
 Unknown keys make the manifest invalid, so a typo like `"comand"` is caught.
@@ -118,7 +118,7 @@ Unknown keys make the manifest invalid, so a typo like `"comand"` is caught.
 - **Actions:** when you pick one in the `!` menu.
 - **Removed sessions:** only plugins with `removed` in `states`, when you
   select one in search's whole history.
-- **Gates:** before a removal, for plugins that list it in `gates`.
+- **Gates:** before a removal or a swap, for plugins that list it in `gates`.
 
 Each run is one process for one agent, from start to exit. Nothing stays
 running between runs. Results are cached in memory per plugin and agent, so a
@@ -182,9 +182,10 @@ real one. Example:
 | field | meaning |
 |---|---|
 | `version` | Protocol version, currently `1`. It changes only on a breaking change. Check it if you want to fail loudly. |
-| `event` | `"refresh"` (show what you know), `"action"` (do something; see Actions) or `"remove"` (may it be removed? see Gates). |
+| `event` | `"refresh"` (show what you know), `"action"` (do something; see Actions), `"remove"` (may it be removed?) or `"swap"` (may a fresh session take its place?); see Gates. |
 | `action` | The action's `id`. Present only when `event` is `"action"`. |
-| `by` / `reason` | Only for `"remove"`: who asks (`"you"`, or the name of the agent calling regia's `remove` tool) and the reason that agent gave. |
+| `by` / `reason` | Only for `"remove"` and `"swap"`: who asks (`"you"`, `"you (regia swap)"`, or the name of the agent calling regia's tool) and the reason given. |
+| `to` / `note` | Only for `"swap"`: the session taking the agent's place (the same fields as `agent`) and the note the caller gave, e.g. the handoff file. |
 | `plugin.dir` | The plugin's own directory, for config files and caches. |
 | `agent.id` | Short id, the one `claude attach` and `regia --dump` use. Stable for the agent's life. Use it as a cache key. |
 | `agent.title` | What regia shows for the agent: the user's rename if there is one, else `name`. |
@@ -325,8 +326,10 @@ one twice.
 
 ## Gates
 
-A gate lets a plugin hold something back. Today there is one, `remove`:
-before a session is removed (`claude rm`), from `x`, from select mode, from a
+A gate lets a plugin hold something back. There are two, `remove` and
+`swap`.
+
+**`remove`:** before a session is removed (`claude rm`), from `x`, from select mode, from a
 plugin action answering `remove`, or from an agent calling regia's `remove`
 tool, regia runs every plugin with `"gates": ["remove"]` whose `dirs` take in
 the agent, one after the other, with `"event": "remove"`. The input is the
@@ -341,19 +344,26 @@ A gate that fails (non-zero exit, timeout, output that isn't JSON) refuses
 too, with its last stderr line: a rule you set up is never skipped silently.
 Keep gates fast; `x` waits for them.
 
+**`swap`:** before a [session swap](./guide/agents-organize#swapping-a-session-for-a-fresh-one)
+(`regia swap`, or an agent's `swap` tool), regia runs the plugins with
+`"gates": ["swap"]` with `"event": "swap"`: `agent` is the session being
+replaced, `to` the fresh one taking its place, plus `by`, `reason` and `note`.
+The `remove` gates are not asked as well: list both if one rule should decide
+both. Refusing and failing work as for `remove`.
+
 For example, a team that has each session write a handoff before it goes:
 
 ```bash
 input=$(cat)
 id=$(jq -r .agent.session_id <<<"$input")
-if [ "$(jq -r .event <<<"$input")" = remove ] && [ ! -s "$HOME/handoffs/$id.md" ]; then
+if [ "$(jq -r .event <<<"$input")" != refresh ] && [ ! -s "$HOME/handoffs/$id.md" ]; then
   echo '{"refuse": "no handoff yet (~/handoffs/'"$id"'.md)"}'
   exit 0
 fi
 echo '{}'
 ```
 
-The same plugin, with `"states": ["done", "removed"]`, can show the handoff
+With `"gates": ["remove", "swap"]` it holds back both. The same plugin, with `"states": ["done", "removed"]`, can show the handoff
 as a field with its path as `url` (`file:///…`): next to a finished agent, and next to the
 removed session in search's whole history, where `ctrl+o` opens it.
 

@@ -35,7 +35,10 @@ patterns for ids, URLs, `file.go:12`); `esc` closes it and keeps your query.
 A [plugin](./plugins) that lists `"removed"` in its `states` runs for the
 removed session you select there, and its lines show under the session's name:
 for example where its handoff file is, so you read that instead of resuming an
-old, expensive session. `ctrl+o` opens its links and actions.
+old, expensive session. `ctrl+o` opens its links and actions. A session that
+was [swapped](./agents-organize#swapping-a-session-for-a-fresh-one) for a
+fresh one says which one took its place: `swapped out for <name> (<id>)`, with
+the reason and note.
 
 ## Keys
 

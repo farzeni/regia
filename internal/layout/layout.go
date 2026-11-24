@@ -37,6 +37,8 @@ type Layout struct {
 	Grants    map[string]string    `json:"grants,omitempty"`   // agent id -> what it may organize through regia mcp: a group id, or "*" for the whole tree
 	Claims    map[string]string    `json:"claims,omitempty"`   // agent id -> why it claimed its grant itself (regia mcp claim); none: you granted it (O)
 	Gone      map[string]time.Time `json:"gone,omitempty"`     // agent id -> when it was first missing from claude agents: forgotten after ForgetAfter (Prune)
+	Swaps     map[string][]Swap    `json:"swaps,omitempty"`    // agent id -> the sessions it replaced, oldest first (see Swap)
+	Retire    map[string]string    `json:"retire,omitempty"`   // agent id -> why: swapped out of its own turn, removed once that turn ends
 
 	Spawns map[string]spawns.Link `json:"-"` // child -> spawner, from spawns.jsonl (not saved)
 

@@ -25,7 +25,7 @@ All in `~/.config/regia/` unless noted.
 
 | File | Holds |
 |---|---|
-| `layout.json` | your organization: the tree, groups, archive, pins, what you've seen, grants and claims |
+| `layout.json` | your organization: the tree, groups, archive, pins, what you've seen, grants and claims, session swaps |
 | `spawns.jsonl` | who started whom, written by the plugin's hook and backfilled from transcripts |
 | `actions.jsonl` | what agents changed in the tree through `regia mcp` (`U`) |
 | `history.jsonl` | everything you typed in the input |
