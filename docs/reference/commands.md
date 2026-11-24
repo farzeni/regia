@@ -52,7 +52,7 @@ the update cache.
 
 ```bash
 regia plugin new jira                # a working skeleton to start from
-regia plugin run jira <agent-id>     # run it once and check its output
+regia plugin run jira <agent-id>     # run it once and check its output (or a group id, g:…)
 regia plugin list
 ```
 

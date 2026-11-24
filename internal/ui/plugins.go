@@ -27,9 +27,10 @@ type pluginMsg struct{}
 
 type pluginActionMsg struct {
 	plugin, label string
-	agent         string // the agent's id
+	agent         string // the row's id: an agent's or a group's
 	out           plugins.Output
 	err           error
+	attach        bool // asked by the attach gate: attach when done
 }
 
 // pluginRunsPerTick caps how many plugin runs one tick may start.
@@ -38,17 +39,10 @@ const pluginRunsPerTick = 4
 // pluginInput builds what a plugin reads on stdin about a, and where it runs.
 func (m *model) pluginInput(a *claude.Agent, p *plugins.Manifest) func(last *plugins.Output) (plugins.Input, string) {
 	return func(last *plugins.Output) (plugins.Input, string) {
-		in := plugins.Input{
-			Version: plugins.ProtocolVersion,
-			Plugin:  plugins.PluginInfo{Name: p.Name, Dir: p.Dir},
-			Agent:   agentInfo(a),
-			Last:    last,
+		in := plugins.Input{Version: plugins.ProtocolVersion, Agent: m.pluginAgent(a), Last: last}
+		if p != nil { // nil: for the gates, which name each plugin they ask
+			in.Plugin = plugins.PluginInfo{Name: p.Name, Dir: p.Dir}
 		}
-		in.Agent.Title = m.titleOf(a.ID)
-		if m.agents[a.ID] == nil { // a removed session, from the whole history
-			in.Agent.Title = a.Name
-		}
-		in.Agent.Group = m.layout.Trail(a.ID, m.agents)
 		if gi, ok := gitinfo.Cached(a.Cwd); ok && gi.OK {
 			in.Git = &plugins.GitInfo{Branch: gi.Branch, Upstream: gi.Upstream, Ahead: gi.Ahead, Behind: gi.Behind,
 				Changed: gi.Changed + gi.Untracked, Head: gi.Head, Subject: gi.Subject, Worktree: gi.Worktree}
@@ -104,6 +98,13 @@ func (m *model) pluginCmds() tea.Cmd {
 		return nil
 	}
 	var fs []func()
+	for id := range m.layout.Groups {
+		for _, f := range m.groupRefreshers(id) {
+			if len(fs) < pluginRunsPerTick {
+				fs = append(fs, f)
+			}
+		}
+	}
 	now := time.Now()
 	for _, a := range m.agents {
 		if len(fs) >= pluginRunsPerTick {
@@ -165,9 +166,12 @@ type tabHit struct {
 }
 
 // pluginTabs: one per plugin with something to show for a, in plugin order.
-func pluginTabs(a *claude.Agent, w int) []panelTab {
+func pluginTabs(a *claude.Agent, w int) []panelTab { return rowPluginTabs(a.ID, w) }
+
+// rowPluginTabs: pluginTabs for any row, an agent's or a group's.
+func rowPluginTabs(id string, w int) []panelTab {
 	var tabs []panelTab
-	for _, r := range plugins.Results(a.ID) {
+	for _, r := range plugins.Results(id) {
 		if len(r.Out.Fields) == 0 && r.Err == "" {
 			continue // nothing to say for this agent: no tab
 		}
@@ -179,8 +183,13 @@ func pluginTabs(a *claude.Agent, w int) []panelTab {
 
 // tabNames: the tabs a's box has, "agent" first.
 func tabNames(a *claude.Agent) []string {
-	names := []string{agentTab, changesTab}
-	for _, r := range plugins.Results(a.ID) {
+	return append([]string{agentTab, changesTab}, pluginTabNames(a.ID)...)
+}
+
+// pluginTabNames: the plugins with something to show for row id.
+func pluginTabNames(id string) []string {
+	var names []string
+	for _, r := range plugins.Results(id) {
 		if len(r.Out.Fields) > 0 || r.Err != "" {
 			names = append(names, r.Plugin.Name)
 		}
@@ -191,10 +200,19 @@ func tabNames(a *claude.Agent) []string {
 // cycleTab moves to the next (d=1) or previous (d=-1) tab of the selected agent's box.
 func (m *model) cycleTab(d int) {
 	r := m.selected()
-	if r == nil || r.Agent == nil {
+	if r == nil {
 		return
 	}
-	names := tabNames(r.Agent)
+	var names []string
+	switch {
+	case r.Agent != nil:
+		names = tabNames(r.Agent)
+	case r.Group:
+		names = pluginTabNames(r.ID)
+	}
+	if len(names) == 0 {
+		return
+	}
 	m.chg.focus = false
 	i := 0
 	for k, n := range names {
@@ -400,11 +418,11 @@ type menuItem struct {
 const menuKeys = "123456789abcdefghijklmnopqrstuvwxyz"
 
 func (m *model) pluginMenuKey(r *layout.Row) tea.Cmd {
-	if r == nil || r.Agent == nil {
-		m.flash("! shows plugin actions for an agent")
+	if r == nil || (r.Agent == nil && !r.Group) {
+		m.flash("! shows plugin actions for an agent or a group")
 		return nil
 	}
-	a := r.Agent
+	id := r.ID
 	var items []menuItem
 	add := func(label string, do func(m *model, key string) tea.Cmd) {
 		if len(items) < len(menuKeys) {
@@ -412,14 +430,14 @@ func (m *model) pluginMenuKey(r *layout.Row) tea.Cmd {
 			items = append(items, menuItem{key, label, func(m *model) tea.Cmd { return do(m, key) }})
 		}
 	}
-	for _, res := range plugins.Results(a.ID) {
+	for _, res := range plugins.Results(id) {
 		p := res.Plugin
 		for _, act := range res.Out.Actions {
 			act := act
-			add(p.Name+" · "+act.Label, func(m *model, key string) tea.Cmd { return m.runPluginAction(a, p, act, key) })
+			add(p.Name+" · "+act.Label, func(m *model, key string) tea.Cmd { return m.runPluginAction(id, p, act, key) })
 		}
 	}
-	for _, res := range plugins.Results(a.ID) {
+	for _, res := range plugins.Results(id) {
 		for _, f := range res.Out.Fields {
 			if f.URL == "" {
 				continue
@@ -435,11 +453,11 @@ func (m *model) pluginMenuKey(r *layout.Row) tea.Cmd {
 		if len(plugins.Plugins()) == 0 {
 			m.flash("no plugins: see docs/plugins.md (they go in %s)", tildify(plugins.Dir()))
 		} else {
-			m.flash("no plugin actions or links for %s", m.titleOf(a.ID))
+			m.flash("no plugin actions or links for %s", m.titleOf(id))
 		}
 		return nil
 	}
-	m.menu, m.menuTitle, m.mode = items, "plugins · "+m.titleOf(a.ID), modeMenu
+	m.menu, m.menuTitle, m.mode = items, "plugins · "+m.titleOf(id), modeMenu
 	return nil
 }
 
@@ -461,16 +479,8 @@ func (m *model) updateMenu(k tea.KeyMsg) tea.Cmd {
 
 // runPluginAction runs act; one with confirm asks first (key, the menu key
 // that picked it, pressed again confirms).
-func (m *model) runPluginAction(a *claude.Agent, p *plugins.Manifest, act plugins.Action, key string) tea.Cmd {
-	in, dir := m.pluginInput(a, p)(nil)
-	id := a.ID
-	run := func(m *model) tea.Cmd {
-		m.flash("%s: %s…", p.Name, act.Label)
-		return func() tea.Msg {
-			out, err := plugins.RunAction(p, id, act.ID, in, dir)
-			return pluginActionMsg{plugin: p.Name, label: act.Label, agent: id, out: out, err: err}
-		}
-	}
+func (m *model) runPluginAction(id string, p *plugins.Manifest, act plugins.Action, key string) tea.Cmd {
+	run := func(m *model) tea.Cmd { return m.pluginActionCmd(id, p, act.ID, act.Label, false) }
 	if act.Confirm {
 		m.confirm(key, fmt.Sprintf("%s: %s for %q?", p.Name, act.Label, m.titleOf(id)), run)
 		return nil
@@ -478,9 +488,23 @@ func (m *model) runPluginAction(a *claude.Agent, p *plugins.Manifest, act plugin
 	return run(m)
 }
 
+// pluginActionCmd runs action of p for row id; attach: enter asked for it
+// (the attach gate's run), so attach afterwards, to the session it started.
+func (m *model) pluginActionCmd(id string, p *plugins.Manifest, action, label string, attach bool) tea.Cmd {
+	in, dir := m.inputFor(id, p)(nil)
+	m.flash("%s: %s…", p.Name, label)
+	return func() tea.Msg {
+		out, err := plugins.RunAction(p, id, action, in, dir)
+		return pluginActionMsg{plugin: p.Name, label: label, agent: id, out: out, err: err, attach: attach}
+	}
+}
+
 func (m *model) pluginActionDone(msg pluginActionMsg) tea.Cmd {
 	if msg.err != nil {
 		m.flash("%s: %s failed: %v", msg.plugin, msg.label, msg.err)
+		if msg.attach { // the gate's action failed: attach as asked
+			return m.attachNow(msg.agent)
+		}
 		return nil
 	}
 	note := msg.out.Message
@@ -507,6 +531,12 @@ func (m *model) pluginActionDone(msg pluginActionMsg) tea.Cmd {
 		} else {
 			cmds = append(cmds, m.removeNow(a.ID))
 		}
+	}
+	switch {
+	case msg.out.Start != nil:
+		cmds = append(cmds, m.pluginStart(msg.plugin, msg.agent, *msg.out.Start, msg.attach))
+	case msg.attach && m.agents[msg.agent] != nil && !msg.out.Remove:
+		cmds = append(cmds, m.attachNow(msg.agent))
 	}
 	return tea.Batch(cmds...)
 }
@@ -538,7 +568,8 @@ func (m *model) menuModal() string {
 
 // PluginInput is what plugin p would read on stdin for agent id (a short id,
 // a session id or a prefix of either), where it would run, and whether its
-// manifest applies to that agent. For `regia plugin input|run`.
+// manifest applies to that agent; or, for a group's id, about the group. For
+// `regia plugin input|run`.
 func PluginInput(id string, p *plugins.Manifest) (in plugins.Input, dir string, applies bool, err error) {
 	b, err := claude.FetchAgents()
 	if err != nil {
@@ -546,6 +577,11 @@ func PluginInput(id string, p *plugins.Manifest) (in plugins.Input, dir string, 
 	}
 	m := newModel()
 	m.setAgents(b)
+	if _, ok := m.layout.Groups[id]; ok {
+		in, dir = m.groupInput(id, p)(nil)
+		in.Event = "refresh"
+		return in, dir, p.AppliesGroup(dir), nil
+	}
 	a, err := findAgent(m.agents, id)
 	if err != nil {
 		return in, "", false, err

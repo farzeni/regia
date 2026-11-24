@@ -55,7 +55,8 @@ type Manifest struct {
 	Every       Duration `json:"every"`       // how long a result is kept; default 2m, at least 10s
 	Timeout     Duration `json:"timeout"`     // how long one run may take; default 10s
 	Disabled    bool     `json:"disabled"`
-	Gates       []string `json:"gates"` // what the plugin is asked before it happens, and may refuse: "remove" (see Gate)
+	Gates       []string `json:"gates"`   // what the plugin is asked before it happens, and may refuse: "remove", "swap", "attach" (see Gate)
+	Targets     []string `json:"targets"` // what it runs for: "agent" (rows of agents), "group" (rows of groups); empty: agents
 
 	raw []byte
 }
@@ -103,16 +104,17 @@ func (m *Manifest) LabelOr() string {
 // Input is what a plugin reads on stdin.
 type Input struct {
 	Version int        `json:"version"`
-	Event   string     `json:"event"`            // "refresh", "action", "remove" or "swap"
+	Event   string     `json:"event"`            // "refresh", "action", "remove", "swap" or "attach"
 	Action  string     `json:"action,omitempty"` // the action's id, for "action"
 	By      string     `json:"by,omitempty"`     // "remove", "swap": who asked, "you" or the agent's name
 	Reason  string     `json:"reason,omitempty"` // "remove", "swap": the reason given
 	To      *AgentInfo `json:"to,omitempty"`     // "swap": the session taking the agent's place
 	Note    string     `json:"note,omitempty"`   // "swap": the link the caller gave, e.g. the handoff file
 	Plugin  PluginInfo `json:"plugin"`
-	Agent   AgentInfo  `json:"agent"`
-	Git     *GitInfo   `json:"git"` // null when the directory isn't a git checkout (or not known yet)
-	PR      *PRInfo    `json:"pr"`  // null when regia knows no PR for the agent
+	Agent   AgentInfo  `json:"agent"`           // left out for a group (see Group)
+	Group   *GroupInfo `json:"group,omitempty"` // a group's row: in place of agent
+	Git     *GitInfo   `json:"git"`             // null when the directory isn't a git checkout (or not known yet)
+	PR      *PRInfo    `json:"pr"`              // null when regia knows no PR for the agent
 	Last    *Output    `json:"last"`
 }
 
@@ -122,23 +124,64 @@ type PluginInfo struct {
 }
 
 type AgentInfo struct {
-	ID          string    `json:"id"`
-	SessionID   string    `json:"session_id"`
-	Name        string    `json:"name"`
-	Title       string    `json:"title"` // what regia shows: your rename, else the name
-	Cwd         string    `json:"cwd"`
-	Kind        string    `json:"kind"`
-	State       string    `json:"state"`
-	Interactive bool      `json:"interactive"`
-	Branch      string    `json:"branch"`
-	Intent      string    `json:"intent"` // the task it was started with
-	Detail      string    `json:"detail"`
-	Needs       string    `json:"needs"`
-	Links       []Link    `json:"links"`
-	Transcript  string    `json:"transcript"`
-	StartedAt   time.Time `json:"started_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	Group       []string  `json:"group"` // the groups and coordinators it sits under, outermost first
+	ID          string     `json:"id"`
+	SessionID   string     `json:"session_id"`
+	Name        string     `json:"name"`
+	Title       string     `json:"title"` // what regia shows: your rename, else the name
+	Cwd         string     `json:"cwd"`
+	Kind        string     `json:"kind"`
+	State       string     `json:"state"`
+	Interactive bool       `json:"interactive"`
+	Branch      string     `json:"branch"`
+	Intent      string     `json:"intent"` // the task it was started with
+	Detail      string     `json:"detail"`
+	Needs       string     `json:"needs"`
+	Links       []Link     `json:"links"`
+	Transcript  string     `json:"transcript"`
+	StartedAt   time.Time  `json:"started_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	Group       []string   `json:"group"`                  // the groups and coordinators it sits under, outermost first
+	SwappedFrom []SwapInfo `json:"swapped_from,omitempty"` // the sessions it replaced (regia swap), oldest first
+}
+
+// SwapInfo is one session an agent replaced with a session swap.
+type SwapInfo struct {
+	ID        string    `json:"id"`
+	SessionID string    `json:"session_id,omitempty"`
+	Title     string    `json:"title"`
+	At        time.Time `json:"at"`
+	Reason    string    `json:"reason,omitempty"`
+	Note      string    `json:"note,omitempty"`
+}
+
+// GroupInfo is a group's row, for plugins with "group" in "targets".
+type GroupInfo struct {
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Path        []string    `json:"path"`        // the groups it sits in, outermost first, then its own name
+	Dir         string      `json:"dir"`         // where new agents in it start (w, or guessed from its agents)
+	Coordinator *AgentInfo  `json:"coordinator"` // its first agent with agents under it, or null
+	Agents      []AgentInfo `json:"agents"`      // every agent listed in it, at any depth, in tree order
+}
+
+// groupID is the group's id in a group's input, else "".
+func (in Input) groupID() string {
+	if in.Group == nil {
+		return ""
+	}
+	return in.Group.ID
+}
+
+// MarshalJSON leaves "agent" out of a group's input.
+func (in Input) MarshalJSON() ([]byte, error) {
+	type plain Input
+	if in.Group == nil {
+		return json.Marshal(plain(in))
+	}
+	return json.Marshal(struct {
+		plain
+		Agent *AgentInfo `json:"agent,omitempty"`
+	}{plain: plain(in)})
 }
 
 type Link struct {
@@ -183,9 +226,31 @@ type Output struct {
 	Open    string `json:"open,omitempty"`    // URL to open in the browser
 	Remove  bool   `json:"remove,omitempty"`  // remove the agent (claude rm) the way x does
 
-	// only read for "remove"
-	Refuse string `json:"refuse,omitempty"` // why the agent may not be removed yet
+	// read after an action, and after a refresh when it has a key
+	Start *Start `json:"start,omitempty"` // start an agent (see Start)
+
+	// only read for gates
+	Refuse string `json:"refuse,omitempty"` // why it may not happen (yet)
+	Run    string `json:"run,omitempty"`    // "attach": run this action of the plugin first
 }
+
+// Start is a plugin asking regia to start an agent, the way typing a task does.
+type Start struct {
+	Prompt string `json:"prompt"`
+	Dir    string `json:"dir,omitempty"`    // where; default the group's directory (as typing into it)
+	Model  string `json:"model,omitempty"`  // e.g. "opus"; default Claude Code's
+	As     string `json:"as,omitempty"`     // "agent" (default), "coordinator", "swap"
+	Key    string `json:"key,omitempty"`    // required from a refresh: started once per key
+	Reason string `json:"reason,omitempty"` // "swap": why (logged under U)
+	Note   string `json:"note,omitempty"`   // "swap": kept on the row, e.g. the handoff file
+}
+
+// How a started agent is placed.
+const (
+	AsAgent       = "agent"       // next to the agent, or inside the group
+	AsCoordinator = "coordinator" // the group's agents (or the agent) move under it
+	AsSwap        = "swap"        // it takes the agent's place (regia swap)
+)
 
 type Field struct {
 	Label  string `json:"label,omitempty"`
@@ -272,6 +337,19 @@ func Parse(b []byte) (Output, error) {
 			if !validStatus(o.Badge.Status) {
 				warn = append(warn, fmt.Sprintf("unknown badge status %q", o.Badge.Status))
 			}
+		}
+	}
+	if s := o.Start; s != nil {
+		if s.As == "" {
+			s.As = AsAgent
+		}
+		switch {
+		case strings.TrimSpace(s.Prompt) == "":
+			o.Start = nil
+			warn = append(warn, "start without a prompt was dropped")
+		case s.As != AsAgent && s.As != AsCoordinator && s.As != AsSwap:
+			o.Start = nil
+			warn = append(warn, fmt.Sprintf("start as %q dropped (agent, coordinator, swap)", s.As))
 		}
 	}
 	if o.Every != "" && o.Every != "never" {
@@ -365,8 +443,13 @@ func LoadOne(dir string) (*Manifest, error) {
 		}
 	}
 	for _, g := range m.Gates {
-		if g != GateRemove && g != GateSwap {
-			return nil, fmt.Errorf("plugin.json: unknown gate %q (remove swap)", g)
+		if g != GateRemove && g != GateSwap && g != GateAttach {
+			return nil, fmt.Errorf("plugin.json: unknown gate %q (remove swap attach)", g)
+		}
+	}
+	for _, t := range m.Targets {
+		if t != TargetAgent && t != TargetGroup {
+			return nil, fmt.Errorf("plugin.json: unknown target %q (agent group)", t)
 		}
 	}
 	m.Name = filepath.Base(dir)
@@ -380,8 +463,28 @@ func LoadOne(dir string) (*Manifest, error) {
 // those, so a plugin can still say something about it (where its handoff is).
 const Removed = "removed"
 
+// What a plugin runs for ("targets").
+const (
+	TargetAgent = "agent"
+	TargetGroup = "group"
+)
+
+// ForAgents: the plugin runs for agents' rows (the default).
+func (m *Manifest) ForAgents() bool {
+	return len(m.Targets) == 0 || slices.Contains(m.Targets, TargetAgent)
+}
+
+// AppliesGroup reports whether the plugin runs for a group whose new agents
+// start in dir: "group" in its targets, and dir under its "dirs".
+func (m *Manifest) AppliesGroup(dir string) bool {
+	return slices.Contains(m.Targets, TargetGroup) && m.covers(dir)
+}
+
 // Applies reports whether the plugin runs for an agent with these facts.
 func (m *Manifest) Applies(a AgentInfo) bool {
+	if !m.ForAgents() {
+		return false
+	}
 	if a.Interactive && !m.Interactive {
 		return false
 	}
@@ -471,6 +574,7 @@ func Run(ctx context.Context, m *Manifest, in Input, dir string) (out Output, st
 		"REGIA_ACTION="+in.Action,
 		"REGIA_AGENT_ID="+in.Agent.ID,
 		"REGIA_AGENT_CWD="+in.Agent.Cwd,
+		"REGIA_GROUP_ID="+in.groupID(),
 	)
 	var so, se limitedBuf
 	so.max, se.max = maxStdout, 16<<10

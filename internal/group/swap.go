@@ -46,7 +46,17 @@ func SwapAsYou(a, b, reason, note string) (string, error) {
 	return swap("", a, b, reason, note)
 }
 
+// SwapFor is SwapAsYou on your behalf, named in U by who: a plugin's action
+// you picked, or one your attach gate ran.
+func SwapFor(who, a, b, reason, note string) (string, error) {
+	return swapNamed("", who, a, b, reason, note)
+}
+
 func swap(self, a, b, reason, note string) (string, error) {
+	return swapNamed(self, "", a, b, reason, note)
+}
+
+func swapNamed(self, who, a, b, reason, note string) (string, error) {
 	reason, note = strings.TrimSpace(reason), strings.TrimSpace(note)
 	if reason == "" {
 		return "", errors.New("give the reason (the user sees it in regia, under U)")
@@ -54,6 +64,9 @@ func swap(self, a, b, reason, note string) (string, error) {
 	agents := Agents()
 	w := newWorld(layout.Load(), agents)
 	by, name := "you", "you (regia swap)"
+	if who != "" {
+		name = who
+	}
 	if self != "" {
 		c := w.who(self)
 		by, name = self, c.Name

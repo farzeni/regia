@@ -12,6 +12,7 @@ import (
 
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/layout"
+	"github.com/farzeni/regia/internal/plugins"
 )
 
 var (
@@ -447,6 +448,9 @@ func (m *model) rowLine(r layout.Row, w int) string {
 		k.unhealthy = a.Unhealthy != ""
 		k.badges = pluginBadges(a.ID)
 	}
+	if r.Group {
+		k.badges = pluginBadges(r.ID)
+	}
 	if l, ok := rowCache[k]; ok {
 		return l
 	}
@@ -479,6 +483,10 @@ func (m *model) drawRowLine(r layout.Row, w int) string {
 		title := stHead.Render(trunc(r.Title+muted, titleW))
 		if e := m.editingRow(r.ID); e != nil {
 			title = e.view(titleW)
+		}
+		if b := pluginBadges(r.ID); b != "" {
+			meta = b + " " + meta
+			title = stHead.Render(trunc(r.Title+muted, titleW-lipgloss.Width(b)-1))
 		}
 		line = indent + stDim.Render(fold) + mark + title
 		line = pad(line, w-lipgloss.Width(meta)-1) + meta
@@ -663,12 +671,20 @@ func (m *model) detailLines(w int) panel {
 	}
 	if r.Group {
 		// nothing in it pulses: drawn again only when something else happened
-		if c := &m.groupPanel; c.id == r.ID && c.w == w && c.gen == m.gen {
+		pv := plugins.Version()
+		if c := &m.groupPanel; c.id == r.ID && c.w == w && c.gen == m.gen && c.plugins == pv && c.tab == m.panelTab {
 			return panel{card: c.lines}
 		}
-		defer func() { m.groupPanel.id, m.groupPanel.w, m.groupPanel.gen, m.groupPanel.lines = r.ID, w, m.gen, out }()
+		defer func() {
+			c := &m.groupPanel
+			c.id, c.w, c.gen, c.plugins, c.tab, c.lines = r.ID, w, m.gen, pv, m.panelTab, out
+		}()
 		out = append(out, stBold.Render(r.Title), stDim.Render(trunc(groupCounts(*r), w)),
 			trunc(m.groupDirLine(r.ID), w))
+		if tabs := rowPluginTabs(r.ID, w); len(tabs) > 0 { // what the plugins for groups say (, . switch tabs)
+			out = append(out, m.tabbedBox(tabs, w)...)
+			m.tabHits = m.tabHits[:0] // the panel is cached: no clicks on these tabs
+		}
 		sec("your turn")
 		n := 0
 		for _, rr := range m.layout.Flatten(m.agents, layout.ViewOpts{ShowDone: false}) {

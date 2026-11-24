@@ -22,7 +22,7 @@ const pluginUsage = `regia plugin — your own scripts that add to the agent pan
                                           run it once for that agent and check what it prints
 
   <plugin> is a name in the plugins directory, or a path to a plugin directory.
-  <agent> is an id from regia --dump (a prefix is enough). Plugins live in
+  <agent> is an id from regia --dump (a prefix is enough), or a group's id (g:…). Plugins live in
   %s (REGIA_PLUGINS_DIR overrides).`
 
 func cmdPlugin(args []string, w io.Writer) error {
@@ -131,7 +131,7 @@ func pluginRun(args []string, w io.Writer) error {
 		return err
 	}
 	if !applies {
-		fmt.Fprintln(w, "note: dirs/states/interactive in plugin.json don't match this agent: regia wouldn't run it; running anyway")
+		fmt.Fprintln(w, "note: targets/dirs/states/interactive in plugin.json don't match this agent: regia wouldn't run it; running anyway")
 	}
 	what := "event refresh"
 	if action != "" {
