@@ -14,9 +14,9 @@ task you start is selected as soon as it shows up in the list, so a second
 
 | Key | Action |
 |---|---|
-| `enter` | attach to the session (`←` inside it comes back) |
+| `enter` | attach to the session (`←` inside it comes back); your plugins' [attach gates](../plugins#gates) are asked first |
 | `y` / `Y` | copy the suggested reply / the session id |
-| `!` | plugin actions and links for the agent (see [Plugins](../guide/plugins)) |
+| `!` | plugin actions and links for the agent, or for the group (see [Plugins](../guide/plugins)) |
 | `,` / `.` | previous / next tab of the agent box: `agent`, `changes`, then one per plugin |
 | `D` | the agent box's `changes` tab, with the keys: `j`/`k` move between the files the agent touched, `enter` opens one at the line it last changed, `d` opens the agent's whole diff against where it branched off main/master in your diff tool, `esc` back, `D` again: the agent tab |
 | `s` | stop the session (conversation kept) |

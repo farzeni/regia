@@ -14,7 +14,7 @@ own.
 | stuck (⚠) | mtimes of the job files, the transcript and its subagents' transcripts; the transcript's tail, read incrementally |
 | history | the session transcript (`~/.claude/projects/…/<session>.jsonl`), read-only |
 | attach / stop / start / output / remove | `claude attach`, `claude stop`, `claude --bg`, `claude logs`, `claude rm` |
-| plugins | your scripts in `~/.config/regia/plugins/`, in the background: per agent at most every `every` (2 min by default), up to 4 runs per second, backing off when one fails |
+| plugins | your scripts in `~/.config/regia/plugins/`, in the background: per agent (or group) at most every `every` (2 min by default), up to 4 runs per second, backing off when one fails |
 
 `~/.claude/jobs` and transcripts are internal Claude Code formats and may change between versions; regia
 treats every field as optional and leaves out what it can't read.

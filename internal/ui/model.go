@@ -93,6 +93,7 @@ type model struct {
 
 	removing map[string]*pendingRemoval // taken off the list while claude rm runs
 	retiring map[string]bool            // swapped itself out: its removal is running (retireSwapped)
+	pending  *pendingStart              // a session a plugin started, until claude agents lists it
 
 	scanning  bool // a transcript scan for missed spawns is running
 	scannedAt int  // the tick the last one started
@@ -159,9 +160,11 @@ type model struct {
 
 	gen        int // counts messages other than pulses: what's drawn from state is good while it stays
 	groupPanel struct {
-		id     string
-		w, gen int
-		lines  []string
+		id      string
+		w, gen  int
+		plugins int    // plugins.Version when drawn
+		tab     string // the plugin tab shown
+		lines   []string
 	}
 }
 

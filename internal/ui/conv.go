@@ -783,7 +783,7 @@ func (m *model) updateConv(k tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		m.convFocus, m.typing = false, false
-		return attachSession(a.ID)
+		return m.attachGated(a.ID)
 	}
 	return nil
 }

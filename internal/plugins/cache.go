@@ -27,6 +27,8 @@ var reg = struct {
 	loadedAt time.Time
 	cache    map[string]Result // plugin name \x00 agent id
 	inFlight map[string]bool
+	starts   []StartReq // refreshes' starts, for the UI (TakeStarts)
+	version  int        // bumped on every stored result (Version)
 }{cache: map[string]Result{}, inFlight: map[string]bool{}}
 
 const reloadEvery = 5 * time.Second
@@ -71,6 +73,14 @@ func LoadErrors() []LoadError {
 	reg.Lock()
 	defer reg.Unlock()
 	return reg.loadErrs
+}
+
+// Version changes whenever a result is stored: what draws results can be
+// cached until it changes.
+func Version() int {
+	reg.Lock()
+	defer reg.Unlock()
+	return reg.version
 }
 
 // Results returns the cached results for an agent, in plugin order. Never blocks on a plugin.
@@ -126,6 +136,9 @@ func Refresher(p *Manifest, agentID string, build func(last *Output) (Input, str
 	return func() {
 		defer func() { reg.Lock(); delete(reg.inFlight, k); reg.Unlock() }()
 		out, _, err := Run(context.Background(), p, in, dir)
+		if w := queueStart(p, agentID, &out); w != "" && err == nil {
+			err = &Warning{[]string{w}}
+		}
 		store(p, agentID, out, err, false)
 	}
 }
@@ -136,6 +149,7 @@ func store(p *Manifest, agentID string, out Output, err error, action bool) {
 	k := key(p.Name, agentID)
 	reg.Lock()
 	defer reg.Unlock()
+	reg.version++
 	prev := reg.cache[k]
 	if prev.Plugin != p {
 		prev = Result{}
@@ -175,6 +189,7 @@ func RunAction(p *Manifest, agentID, action string, in Input, dir string) (Outpu
 func Seed(p *Manifest, agentID string, out Output) {
 	reg.Lock()
 	defer reg.Unlock()
+	reg.version++
 	reg.cache[key(p.Name, agentID)] = Result{Plugin: p, Out: out, Fetched: time.Now()}
 }
 
@@ -186,4 +201,5 @@ func SetForTest(ps []*Manifest) {
 	reg.plugins, reg.loadErrs = ps, nil
 	reg.loadedAt = time.Now().Add(time.Hour)
 	reg.cache = map[string]Result{}
+	reg.starts = nil
 }

@@ -11,13 +11,13 @@ repos.
 
 ```bash
 regia plugin new jira                # a working skeleton to start from
-regia plugin run jira <agent-id>     # run it once and check its output
+regia plugin run jira <agent-id>     # run it once and check its output (or a group id, g:…)
 regia plugin list
 ```
 
-In regia, `!` opens the plugin actions and links for the selected agent, and
-`,` / `.` move between the agent box's tabs: `agent`, `changes`, then one per
-plugin.
+In regia, `!` opens the plugin actions and links for the selected agent (or
+group), and `,` / `.` move between the box's tabs: `agent`, `changes`, then
+one per plugin.
 
 Plugins can also take part in cleaning up sessions:
 
@@ -30,6 +30,22 @@ Plugins can also take part in cleaning up sessions:
 - **an action that removes**: an action answering `{"remove": true}` removes
   the agent the way `x` does (gates included), e.g. "check the handoff and
   remove".
+
+And in running them:
+
+- **on groups** (`"targets": ["group"]`): the plugin runs per group, with the
+  group's path, directory, coordinator and agents as input; its badge goes on
+  the group's row, its fields in a tab of the group's panel, its actions
+  under `!` with the group selected, e.g. an epic's ticket and journal;
+- **starting agents**: an action may answer `start` with a prompt, to start an
+  agent in the group, a coordinator the group's agents move under, or a fresh
+  session that takes an agent's place (a swap). A refresh may start one too,
+  once per `key`, e.g. a morning check per epic;
+- **an attach gate** (`"gates": ["attach"]`): asked when you press `enter` on
+  an agent, it may keep you out with a reason, or run one of its actions
+  first, e.g. one that starts a fresh session from the handoff of a session
+  that grew too large, which `enter` then lands you in. It lets you through
+  if it fails or takes more than 2 s.
 
 The full contract (input, output, actions, caching, rules and a checklist) is
 the [plugin protocol](../plugins), written so an agent can build a plugin from

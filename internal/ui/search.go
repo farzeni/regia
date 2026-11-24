@@ -317,8 +317,7 @@ func (m *model) updateSearch(k tea.KeyMsg) tea.Cmd {
 			m.flash("interactive session: open it in its own terminal (pid shown in `claude agents`)")
 			return nil
 		}
-		id := r.Agent.ID
-		return attachSession(id)
+		return m.attachGated(r.Agent.ID)
 	default: // everything else edits the query: ←/→, home/end, alt+←/→, ctrl+w…
 		return m.editQuery(k)
 	}

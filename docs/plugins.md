@@ -20,8 +20,11 @@ what it prints in four places:
   to In Review". Picking one runs the script again with that action.
 
 A plugin can also be asked before a session is removed or swapped for a
-fresh one, and refuse (see [Gates](#gates)), and can run for sessions already removed, found in search's
-whole history (`"removed"` in [`states`](#plugin-json)).
+fresh one, and refuse, or before you attach to one, and send you to a fresh
+session instead (see [Gates](#gates)). It can run for sessions already removed, found in search's
+whole history (`"removed"` in [`states`](#plugin-json)), and for
+[groups](#groups) instead of agents. An action (or a refresh, once) can
+[start an agent](#starting-an-agent).
 
 Plugins are for checks that depend on your own setup: the tracker you use, CI
 workflows, review channels, deploy dashboards. regia handles scheduling,
@@ -87,6 +90,7 @@ and directories whose names start with `.`, are ignored.
   "every": "2m",
   "timeout": "10s",
   "gates": [],
+  "targets": ["agent"],
   "disabled": false
 }
 ```
@@ -100,7 +104,8 @@ and directories whose names start with `.`, are ignored.
 | `interactive` | `false` | Also run for interactive sessions, i.e. `claude` running in a terminal rather than as a background job. They have no job state, so `branch`, `intent` and `links` are mostly empty for them. |
 | `every` | `"2m"` | How long a result is kept before the plugin runs again for that agent. Minimum `10s`. Output can override it (see `every` below). |
 | `timeout` | `"10s"` | How long one run may take. After that the process is killed and the run counts as a failure. |
-| `gates` | none | What regia asks the plugin before doing it, so it may refuse: `"remove"`, `"swap"`. See [Gates](#gates). |
+| `gates` | none | What regia asks the plugin before doing it, so it may refuse: `"remove"`, `"swap"`, `"attach"`. See [Gates](#gates). |
+| `targets` | `["agent"]` | What the plugin runs for: `"agent"` (each agent), `"group"` (each group, see [Groups](#groups)), or both. |
 | `disabled` | `false` | Turns the plugin off without deleting it. |
 
 Unknown keys make the manifest invalid, so a typo like `"comand"` is caught.
@@ -118,7 +123,9 @@ Unknown keys make the manifest invalid, so a typo like `"comand"` is caught.
 - **Actions:** when you pick one in the `!` menu.
 - **Removed sessions:** only plugins with `removed` in `states`, when you
   select one in search's whole history.
-- **Gates:** before a removal or a swap, for plugins that list it in `gates`.
+- **Groups:** for plugins with `"group"` in `targets`, the same way, per group
+  row: the selected group while you look at it, the others in the background.
+- **Gates:** before a removal, a swap or an attach, for plugins that list it in `gates`.
 
 Each run is one process for one agent, from start to exit. Nothing stays
 running between runs. Results are cached in memory per plugin and agent, so a
@@ -197,6 +204,7 @@ real one. Example:
 | `agent.links` | Links the agent recorded (`kind` is e.g. `"pr"`). Can be empty. |
 | `agent.transcript` | Path to the session transcript (JSONL), if you need to dig further. Read it; never write it. |
 | `agent.group` | The groups and coordinators the agent sits under in regia, outermost first. |
+| `agent.swapped_from` | The sessions this one took the place of through a [swap](./guide/agents-organize#swapping-a-session-for-a-fresh-one), oldest first: `id`, `session_id`, `title`, `at`, `reason`, `note` (e.g. the handoff file). Absent when there are none. |
 | `git` | `null` when `cwd` isn't a git checkout or regia hasn't read it yet. `changed` counts modified plus untracked files. |
 | `pr` | `null` when regia knows no PR for the agent. regia gets it from `gh` (the agent's recorded PR link, else the PR for its branch). `state`: `draft`, `open`, `merged`, `closed`. `checks`: `passing`, `failing`, `pending`, or `""`. `review`: `approved`, `changes`, `requested`, or `""`. Use `pr.url` to look the PR up elsewhere (Slack, Jira) instead of computing it yourself. |
 | `last` | Your previous successful output for this agent (`null` on the first run, or after a manifest edit). Use it to skip work, e.g. once a ticket is Done. |
@@ -212,6 +220,7 @@ error. The same values are also in the environment:
 | `REGIA_ACTION` | action id (empty on refresh) |
 | `REGIA_AGENT_ID` | `agent.id` |
 | `REGIA_AGENT_CWD` | `agent.cwd` |
+| `REGIA_GROUP_ID` | `group.id` (empty unless the run is for a [group](#groups)) |
 
 The rest of your environment is passed through unchanged, so tokens you
 export in your shell profile (e.g. `JIRA_API_TOKEN`, `SLACK_TOKEN`) are
@@ -314,6 +323,8 @@ An action's output may contain:
 | `remove` | `true` removes the agent the way `x` does (`claude rm`, after every [gate](#gates), put back with the reason if refused). Give the action `confirm: true`: that is the only question asked. |
 | `fields`, `badge`, `attention`, `actions` | If any are present, they replace the tab's result for this agent right away. |
 
+| `start` | Start an agent: see [Starting an agent](#starting-an-agent). |
+
 If the output has none of the display keys, the plugin is refreshed at the
 next tick, so the tab shows the new state. You don't need to return a
 refresh from the action.
@@ -324,10 +335,84 @@ one twice.
 
 ---
 
+## Groups
+
+With `"targets": ["group"]` the plugin runs for each group (a row you made
+with `g`, or an agent's own row with agents under it is still an agent), not
+for agents; `["agent", "group"]` runs it for both. Everything works as for an
+agent: its `badge` goes on the group's row, its `fields` in a tab of the
+group's box on the panel (`,` and `.` switch tabs), its `actions` under `!`
+with the group selected. `attention` doesn't apply to groups: the inbox
+lists agents.
+
+The input has `group` in place of `agent`:
+
+```json
+{
+  "version": 1,
+  "event": "refresh",
+  "plugin": { "name": "epic", "dir": "/home/me/.config/regia/plugins/epic" },
+  "group": {
+    "id": "g:3",
+    "name": "E1 auth",
+    "path": ["webapp", "E1 auth"],
+    "dir": "/home/me/work/webapp",
+    "coordinator": { "id": "9b1d0c22", "title": "E1 coordinator", "...": "the same fields as agent" },
+    "agents": [ { "id": "9b1d0c22", "...": "…" }, { "id": "3f2a9c1e", "...": "…" } ]
+  },
+  "last": null
+}
+```
+
+| field | meaning |
+|---|---|
+| `group.id` | The group's id (`g:…`), stable for its life. Use it as a cache key; `regia plugin input <plugin> g:3` shows a real input. |
+| `group.name` / `group.path` | Its name, and the names of the groups it sits in, outermost first, then its own. |
+| `group.dir` | Where a new agent in it starts: the directory you set with `w`, or the one guessed from its agents. The plugin runs there. |
+| `group.coordinator` | Its first agent with agents under it, or `null`. |
+| `group.agents` | Every listed agent in it, at any depth, in tree order, with the same fields as `agent`. |
+
+`git` and `pr` are `null`, and `dirs` is matched against `group.dir`;
+`states` and `interactive` don't apply to groups.
+
+---
+
+## Starting an agent
+
+An action's output (or a refresh's, see below) may ask regia to start an
+agent:
+
+```json
+{ "start": { "prompt": "Go on with E1 from journal.md", "as": "coordinator",
+             "dir": "~/work/webapp", "model": "opus" } }
+```
+
+| key | meaning |
+|---|---|
+| `prompt` | Required: the task, as you'd type it. |
+| `dir` | Where it starts. Default: for `swap` the agent's own directory, else where typing a task with the row selected would start it. |
+| `model` | A model, as `claude --model` takes it. Default: claude's. |
+| `as` | `agent` (default): a new agent next to the row's agent, or in the group. `coordinator`: the same, and once it runs, the group's agents (or the row's agent) move under it. `swap`: a fresh session that takes the agent's place, as [`regia swap`](./guide/agents-organize#swapping-a-session-for-a-fresh-one) does, with its [gates](#gates); only on an agent's row. |
+| `reason` / `note` | For `swap`: the reason and note recorded with it (and given to the swap gates). |
+| `key` | Required in a refresh's output, see below. |
+
+regia starts it as typing a task does, selects it, and waits (up to 20 s)
+for `claude agents` to list it before moving agents or swapping. When the
+start came from the [attach gate](#gates), regia then attaches to the new
+session.
+
+**From a refresh:** a refresh may start an agent too, e.g. each morning,
+but only once per `key`: regia records each plugin's keys (for 30 days, in
+`~/.config/regia/plugin-starts.json`) and never starts the same key twice.
+A refresh `start` without `key` is ignored, with a warning on the tab. Use a
+key that names the occasion, like `"standup-2026-11-24"`.
+
+---
+
 ## Gates
 
-A gate lets a plugin hold something back. There are two, `remove` and
-`swap`.
+A gate lets a plugin hold something back. There are three, `remove`,
+`swap` and `attach`.
 
 **`remove`:** before a session is removed (`claude rm`), from `x`, from select mode, from a
 plugin action answering `remove`, or from an agent calling regia's `remove`
@@ -362,6 +447,23 @@ if [ "$(jq -r .event <<<"$input")" != refresh ] && [ ! -s "$HOME/handoffs/$id.md
 fi
 echo '{}'
 ```
+
+**`attach`:** before you attach to an agent (`enter` in the tree, in search,
+`alt+enter` in the conversation), regia runs the plugins with
+`"gates": ["attach"]` whose `dirs` take in the agent, with `"event": "attach"`
+and the same input as for a refresh. Answer:
+
+- `{}` (or nothing): attach.
+- `{"refuse": "<why>"}`: don't attach; you see `<plugin>: <why>`.
+- `{"run": "<action id>"}`: run that action of yours first, as if picked
+  from `!`, then attach. If the action [starts an agent](#starting-an-agent),
+  regia attaches to the new session once it's listed instead. The typical
+  use: a session that has grown too large gets a fresh one from its handoff
+  (`"as": "swap"`), and `enter` lands you there.
+
+Unlike the other gates, `attach` fails open: a gate that fails, or takes
+more than 2 s in all, lets you through with a warning, since attaching
+destroys nothing. Keep it fast: `enter` waits for it.
 
 With `"gates": ["remove", "swap"]` it holds back both. The same plugin, with `"states": ["done", "removed"]`, can show the handoff
 as a field with its path as `url` (`file:///…`): next to a finished agent, and next to the

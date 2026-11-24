@@ -32,6 +32,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if p := m.pluginCmd(r.Agent); p != nil {
 			cmd = tea.Batch(cmd, p)
 		}
+	} else if r != nil && r.Group {
+		if p := m.rowPluginCmd(r.ID); p != nil {
+			cmd = tea.Batch(cmd, p)
+		}
 	}
 	if !pulse {
 		if c := m.timelineCmd(); c != nil { // the shown timeline's git logs
@@ -59,7 +63,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setAgents(msg.b)
 			m.prune()
 		}
-		return m, tea.Batch(m.startPulse(), m.retireSwapped())
+		return m, tea.Batch(m.startPulse(), m.retireSwapped(), m.pendingListed())
 
 	case searchTypedMsg:
 		if msg.typed == m.srch.typed && m.view == viewSearch {
@@ -122,6 +126,21 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case pluginActionMsg:
 		return m, m.pluginActionDone(msg)
+
+	case pluginMsg: // a refresh finished: run the starts it asked for
+		return m, m.refreshStarts()
+
+	case attachGateMsg:
+		return m, m.attachGateDone(msg)
+
+	case pluginStartedMsg:
+		return m, m.pluginStarted(msg)
+
+	case pendingTickMsg:
+		return m, m.pendingTicked()
+
+	case pluginSwapMsg:
+		return m, m.pluginSwapped(msg)
 
 	case mergeBaseMsg:
 		return m, m.openDiff(msg)
@@ -413,9 +432,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 			m.flash("interactive session: open it in its own terminal (pid shown in `claude agents`)")
 			return nil
 		}
-		id := r.ID // r points into m.rows, which changes while attached
-		m.typing = false
-		return attachSession(id)
+		return m.attachGated(r.ID) // r points into m.rows, which changes while attached
 	case " ":
 		if r != nil && (r.HasKids || r.Group) {
 			m.layout.Collapsed[r.ID] = !m.layout.Collapsed[r.ID]
