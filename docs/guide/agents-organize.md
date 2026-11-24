@@ -97,7 +97,10 @@ regia swap <A> <B> --reason "context stale" --note epics/E1/journal.md
   history (`ctrl+g`) shows `swapped out for B` on its conversation.
 - It is logged in `U` and can't be undone.
 
-A must be done, idle or failed, as for `remove`. Agents can swap too, with
+A must be done, idle or failed, as for `remove`. When A is waiting on you and
+B starts with your answer (so A's cold cache isn't woken just to read it),
+`regia swap … --answer` lets it go anyway, and `U` logs it as "answered by
+swap"; only you can do that, the agents' `swap` tool still refuses. Agents can swap too, with
 the `swap` tool, inside what they may organize; and an agent may swap **itself**
 out at the end of its turn, while its cache is warm, after writing its
 handoff: B takes its place at once, and the agent is removed when its turn

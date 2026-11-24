@@ -73,7 +73,7 @@ func TestSwapRefusals(t *testing.T) {
 	_, err = SwapIn("coord", "w2", "w1", "stale", "")
 	refused(t, err, "working")
 	_, err = SwapAsYou("pp", "lonely", "stale", "")
-	refused(t, err, "waiting on the user")
+	refused(t, err, "waiting on you: if the new session carries your answer, add --answer")
 	_, err = SwapAsYou("w1", "w1", "stale", "")
 	refused(t, err, "itself")
 	_, err = SwapAsYou("w1", "coord", "stale", "")
@@ -87,6 +87,28 @@ func TestSwapRefusals(t *testing.T) {
 	}
 	if _, err := SwapIn("coord", "w1", "w2", "stale", ""); err != nil {
 		t.Fatalf("w2 is busy, but it is the new one: allowed (%v)", err)
+	}
+}
+
+// TestSwapAnswer: regia swap --answer lets a session waiting on you go, the
+// fresh one carrying your answer; agents' swap tool still can't, and a
+// working session still can't be swapped.
+func TestSwapAnswer(t *testing.T) {
+	rm, _ := sessionsFixture(t, map[string]string{"w1": "blocked", "w2": "busy", "pp": "blocked"})
+	_, err := SwapIn("coord", "w1", "w2", "your answer", "")
+	refused(t, err, "waiting on the user")
+	_, err = SwapAnswer("w2", "lonely", "your answer", "")
+	refused(t, err, "working")
+	s, err := SwapAnswer("w1", "lonely", "your answer", "answer.md")
+	if err != nil || !strings.HasPrefix(s, "answered by swap: swapped KPI queries (w1) for lonely") || !slices.Equal(*rm, []string{"w1"}) {
+		t.Fatalf("%q %v %v", s, err, *rm)
+	}
+	as := Actions()
+	if len(as) != 1 || as[0].Name != "you (regia swap --answer)" || !strings.HasPrefix(as[0].Summary, "answered by swap") {
+		t.Fatalf("logged under U as answered by swap: %+v", as)
+	}
+	if s, err := SwapAnswer("lonely", "a1", "rotation", ""); err != nil || strings.Contains(s, "answered") {
+		t.Fatalf("--answer on a session not waiting is a plain swap: %q %v", s, err)
 	}
 }
 
