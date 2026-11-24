@@ -14,7 +14,7 @@ import (
 )
 
 // instructions is what the model is told about the server as a whole.
-const instructions = `regia is the control room the user runs Claude Code agents from: a tree of groups and agents, where a coordinator holds the agents it started. These tools read that tree and, if you may, organize it. Call whoami first; inbox says who needs the user, timeline what happened lately, changes which files an agent edited. A worker reads its group; a coordinator organizes the agents under it. To organize more (your group, or the whole tree) when the user asks, claim it first with a reason: the user sees the claim in regia. Release it when done. Muted parts are out of reach: don't work around a refusal. Every change is shown to the user and can be undone in regia, except stop and remove, which end sessions in Claude Code. The regia:organize skill explains how to use these tools well.`
+const instructions = `regia is the control room the user runs Claude Code agents from: a tree of groups and agents, where a coordinator holds the agents it started. These tools read that tree and, if you may, organize it. Call whoami first; inbox says who needs the user, timeline what happened lately, changes which files an agent edited. A worker reads its group; a coordinator organizes the agents under it. To organize more (your group, or the whole tree) when the user asks, claim it first with a reason: the user sees the claim in regia. Release it when done. Muted parts are out of reach: don't work around a refusal. Every change is shown to the user and can be undone in regia, except stop, remove and swap, which end sessions in Claude Code. The regia:organize skill explains how to use these tools well.`
 
 type noArgs struct{}
 
@@ -56,6 +56,13 @@ type agentsArgs struct {
 type sessionsArgs struct {
 	Agents []string `json:"agents" jsonschema:"ids of the agents, from tree"`
 	Reason string   `json:"reason" jsonschema:"why, in a few words: the user sees it in regia under U (e.g. done, handoff written)"`
+}
+
+type swapArgs struct {
+	Old    string `json:"old" jsonschema:"id of the session to replace, from tree; may be yourself"`
+	New    string `json:"new" jsonschema:"id of the fresh session taking its place, started beforehand"`
+	Reason string `json:"reason" jsonschema:"why, in a few words: the user sees it in regia under U (e.g. context stale, phase done)"`
+	Note   string `json:"note,omitempty" jsonschema:"a path or URL kept on the row, e.g. the handoff file the new session starts from"`
 }
 
 type timelineArgs struct {
@@ -228,6 +235,12 @@ func NewServer(self, version string) *mcp.Server {
 		Description: "Remove finished agents' sessions (claude rm): they leave regia and claude agents, their worktree is deleted when it is safe (claude rm refuses over unpushed work), the conversation stays resumable from regia's history. Only agents that are done, idle or failed, inside what you may organize, never yourself; an agent with agents still under it is refused until they are removed (list them in the same call and they go first). The user's plugins may refuse too (e.g. no handoff written yet): the reason says why. It can't be undone: give the reason, the user sees it. Only when the user or your task asks for it."},
 		func(_ context.Context, _ *mcp.CallToolRequest, a sessionsArgs) (*mcp.CallToolResult, any, error) {
 			return wrote(group.Remove(self, a.Agents, a.Reason))
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "swap", Annotations: rw("Swap a session for a fresh one", true),
+		Description: "Hand a task over to a fresh session: new takes old's name, place in the tree, pin and agents under it, and old is removed (claude rm), so the task keeps one row while the session behind it changes (e.g. a coordinator whose context went stale). Start new first (claude --bg, with the handoff in its prompt). old must be done, idle or failed, or yourself: then you are removed once this turn ends, so finish your handoff before. Both inside what you may organize. The row keeps \"swapped from\" with your note (e.g. the handoff file). The user's plugins may refuse (e.g. no handoff yet). If claude rm refuses old (unpushed work), the swap stands and old stays archived. It can't be undone: give the reason, the user sees it."},
+		func(_ context.Context, _ *mcp.CallToolRequest, a swapArgs) (*mcp.CallToolResult, any, error) {
+			return wrote(group.SwapIn(self, a.Old, a.New, a.Reason, a.Note))
 		})
 	return s
 }

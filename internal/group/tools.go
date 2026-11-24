@@ -222,7 +222,7 @@ func Whoami(self string) (WhoamiOut, error) {
 		out.Can = "read your group (tree, agent, inbox, timeline, changes); to change the tree, claim your group or the whole tree first"
 	default:
 		out.ScopeTitle = c.scopeWords(w)
-		out.Can = "read and organize " + out.ScopeTitle + ": create_group, rename_group, delete_group, move, archive, unarchive, rename_agent, pin, and end sessions there: stop, remove"
+		out.Can = "read and organize " + out.ScopeTitle + ": create_group, rename_group, delete_group, move, archive, unarchive, rename_agent, pin, and end sessions there: stop, remove, swap (also yourself, for a fresh session)"
 		if c.Role == RoleCoordinator {
 			out.Can += "; to reach beyond your agents, claim " + c.wider()
 		} else if c.Claim != "" {

@@ -70,7 +70,9 @@ What the scoping guarantees:
   for teams that clean up finished sessions so they aren't woken with a cold cache): they need a reason, are
   shown and logged like every write but can't be undone, `remove` refuses working or waiting agents and
   coordinators with agents still listed under them, and the user's plugins can refuse a removal (remove
-  gates). No messaging sessions; archive only hides an agent in regia, and an archived agent that starts
+  gates). `swap` (later still) puts a fresh session in an old one's place and removes the old one, so a
+  long task keeps one row while its session is replaced; an agent may swap itself, removed when its turn
+  ends (the `Stop` hook), and swap gates may refuse. No messaging sessions; archive only hides an agent in regia, and an archived agent that starts
   working comes back.
 
 ## Roles and scope

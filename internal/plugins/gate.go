@@ -11,6 +11,11 @@ import (
 // in "gates" may refuse, e.g. until the session has written its handoff.
 const GateRemove = "remove"
 
+// GateSwap is the gate asked before a session swap (regia swap, an agent's
+// swap tool): the agent is the session being replaced, "to" the one taking
+// its place. The remove gate is not asked for it as well.
+const GateSwap = "swap"
+
 // Gate asks every plugin that gates event about the agent in in, one after
 // the other, and returns why the first one refuses. A plugin that fails
 // (exits non-zero, times out, prints no JSON) refuses too: a rule you set up

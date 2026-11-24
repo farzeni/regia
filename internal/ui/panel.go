@@ -111,6 +111,13 @@ func (m *model) agentDetail(r *layout.Row, w int) (hist, card, foot []string) {
 	if a.Unhealthy != "" {
 		field("stuck?", stuckGlyph+" "+a.Unhealthy, lipgloss.NewStyle().Foreground(cDim), 1)
 	}
+	if from, refused := m.swapFields(a.ID); from != "" {
+		field("swapped", "from "+from, plain, 2)
+		field("", refused, stErr, 2)
+	}
+	if by := m.replacedLine(a.ID, a.SessionID); by != "" {
+		field("replaced", "by "+by, stDim, 2)
+	}
 	if g := m.grantFor(a.ID); g != "" {
 		if why := m.layout.Claims[a.ID]; why != "" {
 			field("claims", grantGlyph+" "+g+": "+why, stAccent, 2)

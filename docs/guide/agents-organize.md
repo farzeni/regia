@@ -15,7 +15,7 @@ session), and ships the `regia:organize` skill that tells agents how to use it.
   in the changes tab);
 - change: `create_group`, `rename_group`, `delete_group`, `move`, `archive`,
   `unarchive`, `rename_agent` (the name regia shows), `pin`, `unpin`;
-- end sessions: `stop` and `remove` (see below);
+- end sessions: `stop`, `remove` and `swap` (see below);
 - `claim` / `release`: take or give back a part of the tree to organize.
 
 ## Who may do what
@@ -71,6 +71,42 @@ file; the coordinator then calls `remove` on the finished ones with the reason
 "done, handoff written". Removed sessions don't get woken up later with a cold
 cache, and a plugin listing `"removed"` in its states shows the handoff next to
 the old session in the whole history.
+
+## Swapping a session for a fresh one
+
+A task or an epic can outlive its session: a coordinator that runs for days
+re-reads its whole context (often 150k tokens) each time it's woken after the
+cache went cold. A **swap** keeps the task's row and replaces the session
+behind it: a fresh session B, started from a handoff (a brief, a journal),
+takes session A's place, and A is removed.
+
+```bash
+claude --bg "…continue epic E1 from epics/E1/journal.md…"   # start B, note its id
+regia swap <A> <B> --reason "context stale" --note epics/E1/journal.md
+```
+
+- B takes A's name (your rename, or A's name), its place among its siblings,
+  the agents under it, its pin, mute, fold and your grant (`O`); A's own claim
+  ends. B's own agents stay with it, after A's.
+- A is removed with `claude rm`. If `claude rm` refuses (unpushed commits), the
+  swap stands: A stays archived under B, and B's card says why; `x` removes it
+  once that's fixed.
+- B's card shows `swapped from <A> · <when> · <reason> · <note>`, and how many
+  swaps came before: the whole chain is kept, so one row is an epic's history.
+  A still listed (archived) shows `replaced by B`; once removed, search's whole
+  history (`ctrl+g`) shows `swapped out for B` on its conversation.
+- It is logged in `U` and can't be undone.
+
+A must be done, idle or failed, as for `remove`. Agents can swap too, with
+the `swap` tool, inside what they may organize; and an agent may swap **itself**
+out at the end of its turn, while its cache is warm, after writing its
+handoff: B takes its place at once, and the agent is removed when its turn
+ends (by the plugin's `Stop` hook, or by regia when it sees the session
+idle). `regia swap` from a script (agentd, `swarm.sh`) runs as you, with no
+scope.
+
+Your plugins can hold a swap back with `"gates": ["swap"]`, e.g. until A wrote
+its handoff: see [Gates](../plugins#gates).
 
 ## Seeing and undoing changes
 

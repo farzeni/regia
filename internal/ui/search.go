@@ -518,6 +518,9 @@ func (m *model) searchPanel(w, h int) panel {
 	}
 	top = append(top, stDim.Render(trunc(meta, w)))
 	if a.State == pastState { // what your plugins say about it, e.g. where its handoff is
+		if by := m.replacedLine(a.ID, a.SessionID); by != "" {
+			top = append(top, stAccent.Render(trunc("swapped out for "+by, w)))
+		}
 		top = append(top, pastPluginLines(a.ID, w)...)
 	}
 	top = append(top, stDim.Render(trunc(fmt.Sprintf("match %d of %d, newest first · %s %s · pgup/pgdn", indexOf(s, hit)+1, s.Total,

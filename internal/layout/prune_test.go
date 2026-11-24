@@ -12,6 +12,8 @@ func TestPruneForgetsAfterAWeek(t *testing.T) {
 	l, agents := fixture(t)
 	l.Alias["w1"] = "kpi"
 	l.Pins["w1"] = true
+	l.Swaps = map[string][]Swap{"w1": {{From: "w0"}}}
+	l.Retire = map[string]string{"w1": "stale"}
 	l.Seen = map[string]time.Time{"w1": time.Now(), "b1": time.Now()}
 	l.Reparent("w2", "w1", "", agents) // w2 sits under w1
 	before := render(l, agents, ViewOpts{ShowDone: true})
@@ -33,7 +35,7 @@ func TestPruneForgetsAfterAWeek(t *testing.T) {
 	if !l.Prune(left, now.Add(ForgetAfter)) {
 		t.Fatal("forgotten after a week")
 	}
-	for name, m := range map[string]bool{"alias": l.Alias["w1"] != "", "pins": l.Pins["w1"], "parent": l.Parent["w1"] != "", "seen": !l.Seen["w1"].IsZero(), "gone": !l.Gone["w1"].IsZero()} {
+	for name, m := range map[string]bool{"alias": l.Alias["w1"] != "", "pins": l.Pins["w1"], "parent": l.Parent["w1"] != "", "seen": !l.Seen["w1"].IsZero(), "gone": !l.Gone["w1"].IsZero(), "swaps": l.Swaps["w1"] != nil, "retire": l.Retire["w1"] != ""} {
 		if m {
 			t.Errorf("w1 still in %s", name)
 		}

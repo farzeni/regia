@@ -103,11 +103,13 @@ func TestRemovePartlyRefused(t *testing.T) {
 }
 
 // gatePlugin installs a plugin that gates remove by running script.
-func gatePlugin(t *testing.T, script string) {
+func gatePlugin(t *testing.T, script string) { gatePluginFor(t, "remove", script) }
+
+func gatePluginFor(t *testing.T, gate, script string) {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "handoff")
 	os.MkdirAll(dir, 0o755)
-	os.WriteFile(filepath.Join(dir, "plugin.json"), []byte(`{"command": ["./gate.sh"], "gates": ["remove"]}`), 0o644)
+	os.WriteFile(filepath.Join(dir, "plugin.json"), []byte(`{"command": ["./gate.sh"], "gates": ["`+gate+`"]}`), 0o644)
 	os.WriteFile(filepath.Join(dir, "gate.sh"), []byte("#!/bin/sh\n"+script), 0o755)
 	p, err := plugins.LoadOne(dir)
 	if err != nil {

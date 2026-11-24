@@ -9,6 +9,7 @@ regia version    # print this build's version
 regia uninstall  # remove the plugin and the binary (--purge: also your layout)
 regia plugin     # list | new | input | run: your own scripts on the agent panel
 regia openers    # list | show | test: what opens files, images, URLs and diffs
+regia swap       # <old> <new> --reason … [--note …]: a fresh session takes an old one's place
 ```
 
 Group awareness, for agents in a hand-made group or under a coordinator:
@@ -67,6 +68,19 @@ regia openers test file main.go:12 # open it now (also: image <p>, url <u>, page
 
 See [Openers](../guide/openers).
 
+## swap
+
+```bash
+regia swap <old-id> <new-id> --reason "context stale" [--note epics/E1/journal.md]
+```
+
+The new session, started beforehand (`claude --bg`), takes the old one's name, place in the tree, pin and
+the agents under it; the old one is removed with `claude rm` (if that refuses, it stays archived under the
+new one with the reason). The note is kept on the row with the whole chain of swaps. Plugins with
+`"gates": ["swap"]` may refuse. It runs as you (no scope), is logged in `U` and can't be undone. Meant for
+scripts that rotate sessions; agents use the `swap` tool. See
+[Swapping a session](../guide/agents-organize#swapping-a-session-for-a-fresh-one).
+
 ## context, mcp, group
 
 `regia context` prints what an agent sees of its group; `regia context <id>` prints it for another agent.
@@ -76,5 +90,7 @@ group awareness and the MCP tools off for every session, `regia group on` brings
 
 ## Used by the plugin
 
-`regia hook spawn` and `regia hook group` are called by the plugin's hooks in every session. They print
-nothing unless needed, take a few milliseconds and never fail the hook.
+`regia hook spawn`, `regia hook group` and `regia hook stop` are called by the plugin's hooks in every
+session. They print nothing unless needed, take a few milliseconds and never fail the hook. `regia hook stop`
+(the `Stop` hook) starts `regia retire <id>` in the background when the session swapped itself out: it
+removes the session once its turn has ended.

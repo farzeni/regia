@@ -68,7 +68,10 @@ func (l *Layout) agentIDs() map[string]bool {
 			add(id)
 		}
 	}
-	for _, m := range []map[string]string{l.Alias, l.Grants, l.Claims} {
+	for id := range l.Swaps {
+		add(id)
+	}
+	for _, m := range []map[string]string{l.Alias, l.Grants, l.Claims, l.Retire} {
 		for id := range m {
 			add(id)
 		}
@@ -127,4 +130,6 @@ func (l *Layout) forget(id string) {
 	delete(l.Seen, id)
 	delete(l.Snoozed, id)
 	delete(l.Gone, id)
+	delete(l.Swaps, id)
+	delete(l.Retire, id)
 }

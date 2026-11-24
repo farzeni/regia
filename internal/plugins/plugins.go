@@ -103,10 +103,12 @@ func (m *Manifest) LabelOr() string {
 // Input is what a plugin reads on stdin.
 type Input struct {
 	Version int        `json:"version"`
-	Event   string     `json:"event"`            // "refresh", "action" or "remove"
+	Event   string     `json:"event"`            // "refresh", "action", "remove" or "swap"
 	Action  string     `json:"action,omitempty"` // the action's id, for "action"
-	By      string     `json:"by,omitempty"`     // "remove": who asked, "you" or the agent's name
-	Reason  string     `json:"reason,omitempty"` // "remove": the reason the agent gave
+	By      string     `json:"by,omitempty"`     // "remove", "swap": who asked, "you" or the agent's name
+	Reason  string     `json:"reason,omitempty"` // "remove", "swap": the reason given
+	To      *AgentInfo `json:"to,omitempty"`     // "swap": the session taking the agent's place
+	Note    string     `json:"note,omitempty"`   // "swap": the link the caller gave, e.g. the handoff file
 	Plugin  PluginInfo `json:"plugin"`
 	Agent   AgentInfo  `json:"agent"`
 	Git     *GitInfo   `json:"git"` // null when the directory isn't a git checkout (or not known yet)
@@ -363,8 +365,8 @@ func LoadOne(dir string) (*Manifest, error) {
 		}
 	}
 	for _, g := range m.Gates {
-		if g != GateRemove {
-			return nil, fmt.Errorf("plugin.json: unknown gate %q (remove)", g)
+		if g != GateRemove && g != GateSwap {
+			return nil, fmt.Errorf("plugin.json: unknown gate %q (remove swap)", g)
 		}
 	}
 	m.Name = filepath.Base(dir)
