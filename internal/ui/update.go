@@ -57,6 +57,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fetchErr = msg.err
 		if msg.err == nil {
 			m.setAgents(msg.b)
+			m.prune()
 		}
 		return m, m.startPulse()
 
@@ -461,12 +462,7 @@ func (m *model) updateNormal(k tea.KeyMsg) tea.Cmd {
 		if r != nil && r.Agent != nil && !r.Agent.Interactive {
 			id, name := r.ID, r.Title
 			m.confirm("x", fmt.Sprintf("remove %q (%s) from the list? its worktree is deleted if safe; conversation kept", name, id), func(m *model) tea.Cmd {
-				m.hideRemoved(id)
-				m.flash("removing %s…", name)
-				return func() tea.Msg {
-					out, err := removeAgent(id)
-					return removedMsg{id, out, err}
-				}
+				return m.removeNow(id)
 			})
 		}
 	case "s":

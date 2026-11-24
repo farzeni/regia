@@ -32,6 +32,11 @@ patterns for ids, URLs, `file.go:12`); `esc` closes it and keeps your query.
   first history search reads every transcript (about a second for a few
   hundred MB); after that it's instant too.
 
+A [plugin](./plugins) that lists `"removed"` in its `states` runs for the
+removed session you select there, and its lines show under the session's name:
+for example where its handoff file is, so you read that instead of resuming an
+old, expensive session. `ctrl+o` opens its links and actions.
+
 ## Keys
 
 There is no new-task box here: keys type into the search, a one-line input
@@ -45,6 +50,7 @@ with the usual editing keys (`←/→`, `home/end`, `alt+←/→`, `ctrl+w`,
 | `ctrl+home/end` | first or last match |
 | `shift+←/→` | fold a session's matches |
 | `enter` | attach (a history session: resume it) |
+| `ctrl+o` | the session's plugin links and actions (the `!` menu) |
 | `pgup/pgdn` | scroll the panel |
 | `esc` | clear the search; again, back to the tree on that session |
 

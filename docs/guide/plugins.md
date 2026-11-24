@@ -19,6 +19,18 @@ In regia, `!` opens the plugin actions and links for the selected agent, and
 `,` / `.` move between the agent box's tabs: `agent`, `changes`, then one per
 plugin.
 
+Plugins can also take part in cleaning up sessions:
+
+- **a remove gate** (`"gates": ["remove"]`): asked before any removal, from
+  `x`, an agent's `remove` tool or a plugin action, and may refuse with a
+  reason ("no handoff written yet"). A gate that fails refuses too, so your
+  rule is never skipped silently;
+- **removed sessions** (`"removed"` in `states`): the plugin runs for a removed
+  session selected in search's whole history, to show e.g. its handoff;
+- **an action that removes**: an action answering `{"remove": true}` removes
+  the agent the way `x` does (gates included), e.g. "check the handoff and
+  remove".
+
 The full contract (input, output, actions, caching, rules and a checklist) is
 the [plugin protocol](../plugins), written so an agent can build a plugin from
 it.

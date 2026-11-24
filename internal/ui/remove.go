@@ -1,10 +1,13 @@
 package ui
 
 import (
-	"os/exec"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/farzeni/regia/internal/claude"
+	"github.com/farzeni/regia/internal/group"
+	"github.com/farzeni/regia/internal/plugins"
 )
 
 type removedMsg struct {
@@ -12,13 +15,31 @@ type removedMsg struct {
 	err     error
 }
 
-// removeAgent runs `claude rm <id>`: the session leaves the list and its
-// worktree is deleted when that's safe; the conversation stays resumable.
-// It refuses (non-zero exit, with a reason) e.g. over unpushed commits, and
-// regia never passes the --discard/--force flags. A variable for tests.
-var removeAgent = func(id string) (string, error) {
-	out, err := exec.Command("claude", "rm", id).CombinedOutput()
-	return string(out), err
+// removeAgent removes the session in.Agent the way every removal does
+// (group.RemoveSession): your plugins' remove gates may refuse, then
+// `claude rm` takes it off the list and deletes its worktree when that's
+// safe; the conversation stays resumable. claude rm refuses too (non-zero
+// exit, with a reason), e.g. over unpushed commits. A variable for tests.
+var removeAgent = func(in plugins.Input) (string, error) {
+	return group.RemoveSession(in, "you", "")
+}
+
+// removeInput is what the remove gates read about id: built while it is
+// still listed, before it is hidden.
+func (m *model) removeInput(id string) plugins.Input {
+	in, _ := m.pluginInput(m.agents[id], &plugins.Manifest{})(nil)
+	return in
+}
+
+// removeNow hides id and removes it in the background.
+func (m *model) removeNow(id string) tea.Cmd {
+	in, name := m.removeInput(id), m.titleOf(id)
+	m.hideRemoved(id)
+	m.flash("removing %s…", name)
+	return func() tea.Msg {
+		out, err := removeAgent(in)
+		return removedMsg{id, out, err}
+	}
 }
 
 // oneLine condenses command output for the status line.

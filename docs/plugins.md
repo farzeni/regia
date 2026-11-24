@@ -19,6 +19,10 @@ what it prints in four places:
 - **actions**: entries in the `!` menu on the agent's panel, e.g. "move ticket
   to In Review". Picking one runs the script again with that action.
 
+A plugin can also be asked before a session is removed, and refuse (see
+[Gates](#gates)), and can run for sessions already removed, found in search's
+whole history (`"removed"` in [`states`](#plugin-json)).
+
 Plugins are for checks that depend on your own setup: the tracker you use, CI
 workflows, review channels, deploy dashboards. regia handles scheduling,
 caching, timeouts and display. The plugin finds the facts and decides what
@@ -82,6 +86,7 @@ and directories whose names start with `.`, are ignored.
   "interactive": false,
   "every": "2m",
   "timeout": "10s",
+  "gates": [],
   "disabled": false
 }
 ```
@@ -91,10 +96,11 @@ and directories whose names start with `.`, are ignored.
 | `command` | required | The program and its arguments, as an argv array (not run through a shell). The command runs in the agent's directory, so paths are resolved for you: the program, if it contains a `/`, is relative to the plugin directory, and a bare name is looked up in the plugin directory first, then on `PATH`. An argument that names a file in the plugin directory (`check.py`, `lib/run.py`) becomes its absolute path; other arguments pass unchanged. So `["./check.sh"]`, `["python3", "check.py"]` and `["/usr/local/bin/x"]` all work. |
 | `label` | the directory name | The label for fields that don't set their own. The tab, the `!` menu and the inbox always use the directory name. |
 | `dirs` | every agent | Run only for agents whose working directory is one of these or inside one. `~` is expanded. Glob characters are allowed and are matched against the directory and each of its parents, so `"/srv/*/repo"` works. A trailing `/**` means the same as the directory itself. Use this to keep work plugins off personal projects. |
-| `states` | every state | Run only for agents in these states: `blocked` (waiting on you), `busy`, `idle`, `done`, `failed`, `ready`. `ready` and `done` match each other: `ready` is regia's name for a finished agent you haven't looked at yet. |
+| `states` | every state | Run only for agents in these states: `blocked` (waiting on you), `busy`, `idle`, `done`, `failed`, `ready`, `removed`. `ready` and `done` match each other: `ready` is regia's name for a finished agent you haven't looked at yet. `removed` is a session no longer listed, selected in search's whole history (`ctrl+g`); only plugins that name it run for those, even when `states` is otherwise empty. |
 | `interactive` | `false` | Also run for interactive sessions, i.e. `claude` running in a terminal rather than as a background job. They have no job state, so `branch`, `intent` and `links` are mostly empty for them. |
 | `every` | `"2m"` | How long a result is kept before the plugin runs again for that agent. Minimum `10s`. Output can override it (see `every` below). |
 | `timeout` | `"10s"` | How long one run may take. After that the process is killed and the run counts as a failure. |
+| `gates` | none | What regia asks the plugin before doing it, so it may refuse. Only `"remove"` for now: see [Gates](#gates). |
 | `disabled` | `false` | Turns the plugin off without deleting it. |
 
 Unknown keys make the manifest invalid, so a typo like `"comand"` is caught.
@@ -110,6 +116,9 @@ Unknown keys make the manifest invalid, so a typo like `"comand"` is caught.
   you aren't looking at. Archived agents, and agents that finished before
   today (unless pinned), run only when you select them.
 - **Actions:** when you pick one in the `!` menu.
+- **Removed sessions:** only plugins with `removed` in `states`, when you
+  select one in search's whole history.
+- **Gates:** before a removal, for plugins that list it in `gates`.
 
 Each run is one process for one agent, from start to exit. Nothing stays
 running between runs. Results are cached in memory per plugin and agent, so a
@@ -173,8 +182,9 @@ real one. Example:
 | field | meaning |
 |---|---|
 | `version` | Protocol version, currently `1`. It changes only on a breaking change. Check it if you want to fail loudly. |
-| `event` | `"refresh"` (show what you know) or `"action"` (do something; see Actions). |
+| `event` | `"refresh"` (show what you know), `"action"` (do something; see Actions) or `"remove"` (may it be removed? see Gates). |
 | `action` | The action's `id`. Present only when `event` is `"action"`. |
+| `by` / `reason` | Only for `"remove"`: who asks (`"you"`, or the name of the agent calling regia's `remove` tool) and the reason that agent gave. |
 | `plugin.dir` | The plugin's own directory, for config files and caches. |
 | `agent.id` | Short id, the one `claude attach` and `regia --dump` use. Stable for the agent's life. Use it as a cache key. |
 | `agent.title` | What regia shows for the agent: the user's rename if there is one, else `name`. |
@@ -300,6 +310,7 @@ An action's output may contain:
 | `message` | Shown in the status line, e.g. `"PROJ-482 → In Review"`. Without it, regia shows `<action label> done`. |
 | `copy` | Put on the clipboard (with `copied` added to the message). Use it for anything the user will paste into the agent: a failing job's log excerpt, review comments, a ticket's acceptance criteria. |
 | `open` | A URL to open in the browser. |
+| `remove` | `true` removes the agent the way `x` does (`claude rm`, after every [gate](#gates), put back with the reason if refused). Give the action `confirm: true`: that is the only question asked. |
 | `fields`, `badge`, `attention`, `actions` | If any are present, they replace the tab's result for this agent right away. |
 
 If the output has none of the display keys, the plugin is refreshed at the
@@ -309,6 +320,42 @@ refresh from the action.
 A non-zero exit shows `<plugin>: <action> failed: <last stderr line>` in the
 status line. Actions should be idempotent where possible: the user might run
 one twice.
+
+---
+
+## Gates
+
+A gate lets a plugin hold something back. Today there is one, `remove`:
+before a session is removed (`claude rm`), from `x`, from select mode, from a
+plugin action answering `remove`, or from an agent calling regia's `remove`
+tool, regia runs every plugin with `"gates": ["remove"]` whose `dirs` take in
+the agent, one after the other, with `"event": "remove"`. The input is the
+same as for a refresh (`last` is `null`; when an agent asks, `pr` is `null`),
+plus `by` and `reason`.
+
+Print `{"refuse": "<why>"}` to hold the removal back; the user (or the agent
+that asked) sees `<plugin>: <why>`, and the session stays. Anything else
+(`{}`, empty output) lets it go. `states` doesn't apply to gates.
+
+A gate that fails (non-zero exit, timeout, output that isn't JSON) refuses
+too, with its last stderr line: a rule you set up is never skipped silently.
+Keep gates fast; `x` waits for them.
+
+For example, a team that has each session write a handoff before it goes:
+
+```bash
+input=$(cat)
+id=$(jq -r .agent.session_id <<<"$input")
+if [ "$(jq -r .event <<<"$input")" = remove ] && [ ! -s "$HOME/handoffs/$id.md" ]; then
+  echo '{"refuse": "no handoff yet (~/handoffs/'"$id"'.md)"}'
+  exit 0
+fi
+echo '{}'
+```
+
+The same plugin, with `"states": ["done", "removed"]`, can show the handoff
+as a field with its path as `url` (`file:///…`): next to a finished agent, and next to the
+removed session in search's whole history, where `ctrl+o` opens it.
 
 ---
 

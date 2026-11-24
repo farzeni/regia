@@ -82,6 +82,12 @@ func TestApplies(t *testing.T) {
 	if !(&Manifest{Dirs: []string{"~/work/**"}}).Applies(AgentInfo{Cwd: home + "/work/x"}) {
 		t.Error("trailing /** means the same as the directory")
 	}
+	if (&Manifest{}).Applies(AgentInfo{State: Removed}) {
+		t.Error("removed sessions only for plugins that name them")
+	}
+	if !(&Manifest{States: []string{"done", Removed}}).Applies(AgentInfo{State: Removed}) {
+		t.Error("a plugin naming removed runs for removed sessions")
+	}
 }
 
 func TestLoad(t *testing.T) {
@@ -91,12 +97,14 @@ func TestLoad(t *testing.T) {
 	writePlugin(t, root, "typo", `{"comand":["x"]}`, "")
 	writePlugin(t, root, "nocmd", `{"every":"1m"}`, "")
 	writePlugin(t, root, "badstate", `{"command":["x"],"states":["waiting"]}`, "")
+	writePlugin(t, root, "gate", `{"command":["x"],"gates":["remove"],"states":["removed"]}`, "")
+	writePlugin(t, root, "badgate", `{"command":["x"],"gates":["stop"]}`, "")
 	_ = os.MkdirAll(filepath.Join(root, "notaplugin"), 0o755) // no plugin.json: ignored
 	ps, errs := Load(root)
-	if len(ps) != 1 || ps[0].Name != "good" || ps[0].every() != time.Minute {
+	if len(ps) != 2 || ps[0].Name != "gate" || ps[1].Name != "good" || ps[1].every() != time.Minute {
 		t.Fatalf("plugins %+v", ps)
 	}
-	if len(errs) != 3 {
+	if len(errs) != 4 {
 		t.Fatalf("errors %+v", errs)
 	}
 	for _, e := range errs {

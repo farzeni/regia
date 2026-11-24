@@ -22,7 +22,8 @@ import (
 //     it (O). A claim never reaches muted parts and ends when the agent is
 //     done; your grant of the whole tree reaches everything.
 // The tree is the one you see in regia. Every change is recorded (Action) so
-// you can undo it, and nothing here touches Claude Code itself.
+// you can undo it, and nothing here touches Claude Code itself; the two tools
+// that do (remove, stop) are in sessions.go.
 
 const (
 	RoleWorker       = "worker"
@@ -154,7 +155,7 @@ func (c Caller) canChange(w *world, id string) string {
 	case !w.exists(id):
 		return fmt.Sprintf("%s is not in regia's tree", id)
 	case id == c.ID:
-		return "you can't move or archive yourself"
+		return "you can't move, archive, stop or remove yourself"
 	case !w.under(id, c.Scope):
 		return fmt.Sprintf("%s (%s) is outside what you may organize (%s): claim %s first", w.title(id), id, c.scopeWords(w), c.wider())
 	case (c.Scope != Everything || c.Claim != "") && w.mutedBetween(id, c.Scope):
@@ -221,7 +222,7 @@ func Whoami(self string) (WhoamiOut, error) {
 		out.Can = "read your group (tree, agent, inbox, timeline, changes); to change the tree, claim your group or the whole tree first"
 	default:
 		out.ScopeTitle = c.scopeWords(w)
-		out.Can = "read and organize " + out.ScopeTitle + ": create_group, rename_group, delete_group, move, archive, unarchive, rename_agent, pin"
+		out.Can = "read and organize " + out.ScopeTitle + ": create_group, rename_group, delete_group, move, archive, unarchive, rename_agent, pin, and end sessions there: stop, remove"
 		if c.Role == RoleCoordinator {
 			out.Can += "; to reach beyond your agents, claim " + c.wider()
 		} else if c.Claim != "" {

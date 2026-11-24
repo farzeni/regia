@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/farzeni/regia/internal/claude"
+	"github.com/farzeni/regia/internal/plugins"
 )
 
 // What search looks in (ctrl+g in the search view, like the model picker in
@@ -26,8 +27,9 @@ var searchScopes = []struct{ name, desc string }{
 	{"history", "every conversation on disk, removed and old sessions too"},
 }
 
-// pastState is a session only the history knows: not listed any more.
-const pastState = "removed"
+// pastState is a session only the history knows: not listed any more. The
+// plugins that name it in "states" run for it (to say where its handoff is).
+const pastState = plugins.Removed
 
 func (m *model) openScopePick() {
 	m.scopeSel, m.mode = int(m.srch.scope), modeScope
@@ -125,6 +127,30 @@ var resumeSession = func(sid, dir string) tea.Cmd {
 	cmd := exec.Command("claude", "--resume", sid)
 	cmd.Dir = dir
 	return tea.ExecProcess(cmd, func(err error) tea.Msg { return resumeDoneMsg{err} })
+}
+
+// pastPluginLines are the fields of the plugins that ran for a removed
+// session (those naming "removed" in their states), one block per plugin
+// under its name, and how to open their links.
+func pastPluginLines(id string, w int) []string {
+	var out []string
+	links := false
+	for _, r := range plugins.Results(id) {
+		body, _ := pluginBody(r, w+4) // no box here: the box's border room is ours
+		if len(body) == 0 {
+			continue
+		}
+		out = append(out, stAccent.Render(r.Plugin.Name))
+		out = append(out, body...)
+		for _, f := range r.Out.Fields {
+			links = links || f.URL != ""
+		}
+		links = links || len(r.Out.Actions) > 0
+	}
+	if links {
+		out = append(out, stDim.Render("ctrl+o: its plugin links and actions"))
+	}
+	return out
 }
 
 // resumePast is enter on a session only the history has.

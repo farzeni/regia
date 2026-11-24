@@ -14,7 +14,7 @@ import (
 )
 
 // instructions is what the model is told about the server as a whole.
-const instructions = `regia is the control room the user runs Claude Code agents from: a tree of groups and agents, where a coordinator holds the agents it started. These tools read that tree and, if you may, organize it. Call whoami first; inbox says who needs the user, timeline what happened lately, changes which files an agent edited. A worker reads its group; a coordinator organizes the agents under it. To organize more (your group, or the whole tree) when the user asks, claim it first with a reason: the user sees the claim in regia. Release it when done. Muted parts are out of reach: don't work around a refusal. Every change is shown to the user and can be undone in regia. The regia:organize skill explains how to use these tools well.`
+const instructions = `regia is the control room the user runs Claude Code agents from: a tree of groups and agents, where a coordinator holds the agents it started. These tools read that tree and, if you may, organize it. Call whoami first; inbox says who needs the user, timeline what happened lately, changes which files an agent edited. A worker reads its group; a coordinator organizes the agents under it. To organize more (your group, or the whole tree) when the user asks, claim it first with a reason: the user sees the claim in regia. Release it when done. Muted parts are out of reach: don't work around a refusal. Every change is shown to the user and can be undone in regia, except stop and remove, which end sessions in Claude Code. The regia:organize skill explains how to use these tools well.`
 
 type noArgs struct{}
 
@@ -51,6 +51,11 @@ type moveArgs struct {
 
 type agentsArgs struct {
 	Agents []string `json:"agents" jsonschema:"ids of the agents"`
+}
+
+type sessionsArgs struct {
+	Agents []string `json:"agents" jsonschema:"ids of the agents, from tree"`
+	Reason string   `json:"reason" jsonschema:"why, in a few words: the user sees it in regia under U (e.g. done, handoff written)"`
 }
 
 type timelineArgs struct {
@@ -211,6 +216,18 @@ func NewServer(self, version string) *mcp.Server {
 		Description: "Bring archived agents back into regia's tree (find them with tree and archived set)."},
 		func(_ context.Context, _ *mcp.CallToolRequest, a agentsArgs) (*mcp.CallToolResult, any, error) {
 			return wrote(group.Archive(self, a.Agents, false))
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "stop", Annotations: rw("Stop agents", true),
+		Description: "Stop agents' sessions (claude stop), working ones included: the session stays listed and resumable, and starts again when someone messages it. Inside what you may organize, never yourself; give the reason, the user sees it. Only when the user or your task asks for it."},
+		func(_ context.Context, _ *mcp.CallToolRequest, a sessionsArgs) (*mcp.CallToolResult, any, error) {
+			return wrote(group.Stop(self, a.Agents, a.Reason))
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "remove", Annotations: rw("Remove agents", true),
+		Description: "Remove finished agents' sessions (claude rm): they leave regia and claude agents, their worktree is deleted when it is safe (claude rm refuses over unpushed work), the conversation stays resumable from regia's history. Only agents that are done, idle or failed, inside what you may organize, never yourself; an agent with agents still under it is refused until they are removed (list them in the same call and they go first). The user's plugins may refuse too (e.g. no handoff written yet): the reason says why. It can't be undone: give the reason, the user sees it. Only when the user or your task asks for it."},
+		func(_ context.Context, _ *mcp.CallToolRequest, a sessionsArgs) (*mcp.CallToolResult, any, error) {
+			return wrote(group.Remove(self, a.Agents, a.Reason))
 		})
 	return s
 }

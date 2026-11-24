@@ -6,6 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/farzeni/regia/internal/plugins"
 )
 
 // Archive hides agents from regia (layout.json), leaving Claude Code alone:
@@ -205,12 +207,16 @@ func (m *model) removeMarked() tea.Cmd {
 	list := strings.Join(names, ", ")
 	m.confirm("x", fmt.Sprintf("remove %s with claude rm (%s)? worktrees deleted if safe; conversations kept", count(len(ids), "session"), trunc(list, 60)), func(m *model) tea.Cmd {
 		m.selecting, m.marked = false, nil
+		ins := make([]plugins.Input, len(ids))
+		for i, id := range ids {
+			ins[i] = m.removeInput(id)
+		}
 		m.hideRemoved(ids...)
 		m.flash("removing %s…", count(len(ids), "session"))
 		return func() tea.Msg {
 			var res removedBatchMsg
 			for i, id := range ids {
-				if out, err := removeAgent(id); err != nil {
+				if out, err := removeAgent(ins[i]); err != nil {
 					res.refused = append(res.refused, names[i]+": "+oneLine(out, err))
 					res.refusedIDs = append(res.refusedIDs, id)
 				} else {

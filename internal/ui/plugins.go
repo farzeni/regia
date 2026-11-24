@@ -13,6 +13,7 @@ import (
 
 	"github.com/farzeni/regia/internal/claude"
 	"github.com/farzeni/regia/internal/gitinfo"
+	"github.com/farzeni/regia/internal/group"
 	"github.com/farzeni/regia/internal/layout"
 	"github.com/farzeni/regia/internal/plugins"
 )
@@ -26,6 +27,7 @@ type pluginMsg struct{}
 
 type pluginActionMsg struct {
 	plugin, label string
+	agent         string // the agent's id
 	out           plugins.Output
 	err           error
 }
@@ -43,6 +45,9 @@ func (m *model) pluginInput(a *claude.Agent, p *plugins.Manifest) func(last *plu
 			Last:    last,
 		}
 		in.Agent.Title = m.titleOf(a.ID)
+		if m.agents[a.ID] == nil { // a removed session, from the whole history
+			in.Agent.Title = a.Name
+		}
 		in.Agent.Group = m.layout.Trail(a.ID, m.agents)
 		if gi, ok := gitinfo.Cached(a.Cwd); ok && gi.OK {
 			in.Git = &plugins.GitInfo{Branch: gi.Branch, Upstream: gi.Upstream, Ahead: gi.Ahead, Behind: gi.Behind,
@@ -58,17 +63,7 @@ func (m *model) pluginInput(a *claude.Agent, p *plugins.Manifest) func(last *plu
 	}
 }
 
-func agentInfo(a *claude.Agent) plugins.AgentInfo {
-	ai := plugins.AgentInfo{
-		ID: a.ID, SessionID: a.SessionID, Name: a.Name, Cwd: a.Cwd, Kind: a.Kind, State: a.State,
-		Interactive: a.Interactive, Branch: a.Branch, Intent: a.Intent, Detail: a.Detail, Needs: a.Needs,
-		Transcript: a.Transcript, StartedAt: a.StartedAt, UpdatedAt: a.UpdatedAt, Links: []plugins.Link{},
-	}
-	for _, l := range a.PRs {
-		ai.Links = append(ai.Links, plugins.Link{Kind: l.Kind, ID: l.ID, URL: l.Href})
-	}
-	return ai
-}
+func agentInfo(a *claude.Agent) plugins.AgentInfo { return group.PluginAgent(a) }
 
 // pluginRefreshers: the runs due for a, one per plugin that applies to it.
 func (m *model) pluginRefreshers(a *claude.Agent) []func() {
@@ -473,7 +468,7 @@ func (m *model) runPluginAction(a *claude.Agent, p *plugins.Manifest, act plugin
 		m.flash("%s: %s…", p.Name, act.Label)
 		return func() tea.Msg {
 			out, err := plugins.RunAction(p, id, act.ID, in, dir)
-			return pluginActionMsg{plugin: p.Name, label: act.Label, out: out, err: err}
+			return pluginActionMsg{plugin: p.Name, label: act.Label, agent: id, out: out, err: err}
 		}
 	}
 	if act.Confirm {
@@ -500,10 +495,20 @@ func (m *model) pluginActionDone(msg pluginActionMsg) tea.Cmd {
 		}
 	}
 	m.flash("%s: %s", msg.plugin, note)
+	var cmds []tea.Cmd
 	if msg.out.Open != "" {
-		return openURLCmd(msg.out.Open)
+		cmds = append(cmds, openURLCmd(msg.out.Open))
 	}
-	return nil
+	// the plugin asks to remove the agent: the same way as x (gates, claude
+	// rm, put back if refused); its action's confirm was the question
+	if a := m.agents[msg.agent]; msg.out.Remove && a != nil {
+		if a.Interactive {
+			m.flash("%s: can't remove %s: interactive sessions end in their terminal", msg.plugin, m.titleOf(a.ID))
+		} else {
+			cmds = append(cmds, m.removeNow(a.ID))
+		}
+	}
+	return tea.Batch(cmds...)
 }
 
 func openURLCmd(u string) tea.Cmd {

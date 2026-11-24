@@ -1,6 +1,6 @@
 ---
 name: organize
-description: Read and organize regia's tree of Claude Code agents with the regia MCP tools (whoami, tree, agent, inbox, timeline, changes, create_group, rename_group, delete_group, move, archive, unarchive, rename_agent, pin, unpin). Use when the user asks you to reorganize, group, split, sort or tidy agents or groups in regia; to check on your siblings, your coordinator or the agents you started; to find out what other agents are doing; or to triage agents that look stale, stuck, lost or finished; or to report what happened in a group or who needs the user.
+description: Read and organize regia's tree of Claude Code agents with the regia MCP tools (whoami, tree, agent, inbox, timeline, changes, create_group, rename_group, delete_group, move, archive, unarchive, rename_agent, pin, unpin, stop, remove). Use when the user asks you to reorganize, group, split, sort or tidy agents or groups in regia; to check on your siblings, your coordinator or the agents you started; to find out what other agents are doing; or to triage agents that look stale, stuck, lost or finished; or to report what happened in a group or who needs the user.
 ---
 
 # Organizing regia
@@ -49,8 +49,18 @@ would have done instead.
   stops an agent. You can't archive or move yourself.
 - `rename_agent` sets the name regia shows (Claude Code isn't touched); `pin`
   keeps a finished agent listed. You may rename and pin yourself too.
+- `stop` (claude stop: listed, resumable, starts again when messaged) and
+  `remove` (claude rm: off the list, worktree deleted if safe, conversation
+  resumable from regia's history) end sessions in Claude Code. Use them only
+  when the user or your task says so, always with a reason. `remove` takes
+  agents that are done, idle or failed, never one working or waiting on the
+  user, and refuses an agent with agents still under it: name them in the same
+  call and they go first. The user's plugins may refuse a removal (e.g. no
+  handoff written yet): do what the reason asks, or report it; never work
+  around it.
 - Every change shows up in regia's status line, and the user can undo it there
-  (`U`). Make changes the user can follow: a few clear ones, not many small ones.
+  (`U`), except `stop` and `remove`. Make changes the user can follow: a few
+  clear ones, not many small ones.
 
 ## Playbooks
 
