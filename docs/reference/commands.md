@@ -9,7 +9,7 @@ regia version    # print this build's version
 regia uninstall  # remove the plugin and the binary (--purge: also your layout)
 regia plugin     # list | new | input | run: your own scripts on the agent panel
 regia openers    # list | show | test: what opens files, images, URLs and diffs
-regia swap       # <old> <new> --reason … [--note …]: a fresh session takes an old one's place
+regia swap       # <old> <new> --reason … [--note …] [--answer]: a fresh session takes an old one's place
 ```
 
 Group awareness, for agents in a hand-made group or under a coordinator:
@@ -71,13 +71,15 @@ See [Openers](../guide/openers).
 ## swap
 
 ```bash
-regia swap <old-id> <new-id> --reason "context stale" [--note epics/E1/journal.md]
+regia swap <old-id> <new-id> --reason "context stale" [--note epics/E1/journal.md] [--answer]
 ```
 
 The new session, started beforehand (`claude --bg`), takes the old one's name, place in the tree, pin and
 the agents under it; the old one is removed with `claude rm` (if that refuses, it stays archived under the
 new one with the reason). The note is kept on the row with the whole chain of swaps. Plugins with
-`"gates": ["swap"]` may refuse. It runs as you (no scope), is logged in `U` and can't be undone. Meant for
+`"gates": ["swap"]` may refuse. The old session must be done, idle or failed; with `--answer` it may also be
+waiting on you, because the new session carries your answer (logged in `U` as "answered by swap"). It runs as
+you (no scope), is logged in `U` and can't be undone. Meant for
 scripts that rotate sessions; agents use the `swap` tool. See
 [Swapping a session](../guide/agents-organize#swapping-a-session-for-a-fresh-one).
 

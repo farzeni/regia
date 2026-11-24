@@ -22,7 +22,8 @@ import (
 // stale coordinator replaced instead of woken with a cold cache). The row
 // keeps the chain of swaps with a note, e.g. the handoff file.
 //
-// B is started by the caller beforehand. A must be done, idle or failed,
+// B is started by the caller beforehand. A must be done, idle or failed
+// (or, from regia swap --answer, waiting on you: B carries your answer),
 // unless A swaps itself out: then it is removed once its turn ends (Retire,
 // run by the plugin's Stop hook, or by regia when it sees A idle). Plugins
 // with "gates": ["swap"] may refuse. When claude rm refuses A (unpushed
@@ -46,17 +47,26 @@ func SwapAsYou(a, b, reason, note string) (string, error) {
 	return swap("", a, b, reason, note)
 }
 
+// SwapAnswer is SwapAsYou when the fresh session carries your answer to the
+// old one's question (regia swap --answer): the old one may be waiting on you,
+// and U logs it as answered by swap. Only you can do this: agents' swap tool
+// still refuses a session waiting on you.
+func SwapAnswer(a, b, reason, note string) (string, error) {
+	return swapNamed("", "", a, b, reason, note, true)
+}
+
 // SwapFor is SwapAsYou on your behalf, named in U by who: a plugin's action
 // you picked, or one your attach gate ran.
 func SwapFor(who, a, b, reason, note string) (string, error) {
-	return swapNamed("", who, a, b, reason, note)
+	return swapNamed("", who, a, b, reason, note, false)
 }
 
 func swap(self, a, b, reason, note string) (string, error) {
-	return swapNamed(self, "", a, b, reason, note)
+	return swapNamed(self, "", a, b, reason, note, false)
 }
 
-func swapNamed(self, who, a, b, reason, note string) (string, error) {
+// swapNamed: answer is regia swap --answer (self and who are then empty).
+func swapNamed(self, who, a, b, reason, note string, answer bool) (string, error) {
 	reason, note = strings.TrimSpace(reason), strings.TrimSpace(note)
 	if reason == "" {
 		return "", errors.New("give the reason (the user sees it in regia, under U)")
@@ -64,6 +74,9 @@ func swapNamed(self, who, a, b, reason, note string) (string, error) {
 	agents := Agents()
 	w := newWorld(layout.Load(), agents)
 	by, name := "you", "you (regia swap)"
+	if answer {
+		name = "you (regia swap --answer)"
+	}
 	if who != "" {
 		name = who
 	}
@@ -100,6 +113,12 @@ func swapNamed(self, who, a, b, reason, note string) (string, error) {
 		case "busy":
 			return "", fmt.Errorf("%s is working: wait until it is done, or stop it first", w.title(a))
 		case "blocked":
+			if answer {
+				break // the fresh session carries the answer
+			}
+			if self == "" && who == "" {
+				return "", fmt.Errorf("%s is waiting on you: if the new session carries your answer, add --answer", w.title(a))
+			}
 			return "", fmt.Errorf("%s is waiting on the user", w.title(a))
 		}
 	}
@@ -133,6 +152,9 @@ func swapNamed(self, who, a, b, reason, note string) (string, error) {
 	summary := fmt.Sprintf("swapped %s (%s) for %s (%s): %s", titleA, a, titleB, b, reason)
 	if note != "" {
 		summary += " · " + note
+	}
+	if answer && w.agents[a].State == "blocked" {
+		summary = "answered by swap: " + summary
 	}
 	_ = Record(Action{At: time.Now(), By: by, Name: name, Tool: "swap", Summary: summary, Change: ch, Final: true})
 

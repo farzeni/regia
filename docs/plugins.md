@@ -191,7 +191,7 @@ real one. Example:
 | `version` | Protocol version, currently `1`. It changes only on a breaking change. Check it if you want to fail loudly. |
 | `event` | `"refresh"` (show what you know), `"action"` (do something; see Actions), `"remove"` (may it be removed?) or `"swap"` (may a fresh session take its place?); see Gates. |
 | `action` | The action's `id`. Present only when `event` is `"action"`. |
-| `by` / `reason` | Only for `"remove"` and `"swap"`: who asks (`"you"`, `"you (regia swap)"`, or the name of the agent calling regia's tool) and the reason given. |
+| `by` / `reason` | Only for `"remove"` and `"swap"`: who asks (`"you"`, `"you (regia swap)"`, `"you (regia swap --answer)"`, or the name of the agent calling regia's tool) and the reason given. |
 | `to` / `note` | Only for `"swap"`: the session taking the agent's place (the same fields as `agent`) and the note the caller gave, e.g. the handoff file. |
 | `plugin.dir` | The plugin's own directory, for config files and caches. |
 | `agent.id` | Short id, the one `claude attach` and `regia --dump` use. Stable for the agent's life. Use it as a cache key. |
